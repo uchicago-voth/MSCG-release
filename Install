@@ -1,0 +1,8 @@
+To compile the MSCGFM 1.1 package, go to the src/ directory, copy an appropriate Makefile 
+template from the Make/ subdirectory, change the library and include paths as necessary 
+for your machine, and then run 'make all' to get the executables rangefinder.x
+and newfm.x.
+
+This package requires 3 nonstandard libraries: LAPACK, the GNU scientific library 
+(v 1.15+), and the Gromacs XTC library. All are available for download free of charge and 
+are easy to find with an internet search by name.

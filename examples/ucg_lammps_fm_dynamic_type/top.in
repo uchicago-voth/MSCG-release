@@ -1,0 +1,15 @@
+cgsites 1000
+cgtypes 2
+GAUCHE
+ANTI
+moltypes 2 
+mol 1 1
+sitetypes 
+1
+bonds 0
+mol 1 1
+sitetypes 
+2
+bonds 0
+system 1
+1 1000

@@ -1,0 +1,605 @@
+Multi-scale coarse-graining force-matching (MSCGFM)
+MSCGFM version 1.5
+Manual author: Jacob Wagner
+Prior versions by James Dama, Lanyuan Lu, and Ron Hills
+Last updated 08/29/16 by Jacob Wagner
+
+
+I) Introduction
+---------------
+
+The MSCGFM package provides an implementation of the algorithms described in this 
+reference. Please read this paper before using the code to understand the terminology of 
+this manual and the comments in the source code.
+
+L. Lu, S. Izvekov, A. Das, H. C. Andersen, and G. A. Voth, "Efficient, Regularized, and 
+  Scalable Algorithms for Multiscale Coarse-Graining", Journal of Chemical Theory and 
+  Computation, 6(3), 954-965 (2010). doi:10.1021/ct900643r
+
+This package also provides support for the methods described in these references:
+1. S. Izvekov, and G. A. Voth, "Multiscale coarse graining of liquid-state systems", 
+     The Journal of Chemical Physics, 123(13), 134105 (2005). doi:10.1063/1.2038787
+2. L. Lu, J. F. Dama, and G. A. Voth, "Fitting coarse-grained distribution functions 
+     through an iterative force-matching method" Journal of Chemical Physics, 139, 
+     121906 (2013). doi:10.1063/1.4811667
+3. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
+     Ultra-Coarse-Graining. 2. Numerical Implementation" Journal of Chemical Theory and
+     Computation, 10 (12), 5265–5275 (2014). 
+4. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
+     Accurate interactions based on the centers of charge of coarse-grained sites", 
+     Journal of Chemical Physics, 143, 243116 (2015). doi:10.1063/1.4933249
+5. J. W. Wagner, J. F. Dama, and G. A. Voth, "Predicting the Sensitivity of Multiscale 
+     Coarse-Grained Models to their Underlying Fine-Grained Model Parameters" Journal of 
+     Chemical Theory and Computation, 11(8), 3547–3560 (2015). 
+     doi:10.1021/acs.jctc.5b00180
+6. T. Dannenhoffer-Lafage, A. D. White, and G. A. Voth, "A Direct Method for Incorporating 
+    Experimental Data into Multiscale Coarse-Grained Models", Journal of Chemical Theory 
+    and Computation, 12(5), 2144–2153 (2016). doi:10.1021/acs.jctc.6b00043 
+
+Note: This code uses C++11, which may not be supported by older compilers.
+
+For information about compilation of the static MSCG library please see the README file.
+
+II) Preparation
+---------------
+
+This package provides force-matching algorithms only. It does not provide tools for 
+creating fine-grained (CG) trajectories, choosing coarse-grained models, or converting the 
+fine-grained (FG) models into coarse-grained models. Each of those steps must be completed 
+prior to using this code. Once they are done, the results should be prepared in the 
+following manner so that the MSCGFM package's executables can parse the results.
+
+III) General Workflow
+---------------------
+
+The general workflow for running the the force-matching algorithm is as follows:
+
+* Generate a mapped trajectory in gromacs (.xtc, .trr) or lammps (.trj) format
+
+* Create the MSCGFM input files
+
+* Run Rangefinder
+
+* Run MSCGFM code
+
+* Check results
+
+III.A) Mapping the trajectory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Provide a Gromacs .trr or .xtc trajectory with (-f) or a Lammps trajectory with (-l) 
+for the CG system including both positions and forces. Timestep, box size, etc. are 
+also required for this format. The filenames of this trajectory will be provided to the 
+rangefinder.x and newfm.x executables as command line arguments. The method is 
+internally consistent in terms of units meaning that positions and forces 
+(e.g. nm, kJ/mol) will produce tabulated interactions in terms of the corresponding 
+units (e.g. kJ/mol/nm). The Lammps trajectory requires that the position (x, y, z), 
+force (fx, fy, fz), type (type) (if using dynamic_types) in the frame header agree 
+with the frame body.
+
+For a worked example using a mapped Lammps trajectory, please see the "lammps_fm" 
+sub-directory of the examples.
+For a worked example using a mapped Gromacs .trr trajectory, please see the "serial_fm"
+sub-directory of the examples.
+
+III.B) Creating MSCGFM input files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The input files include:
+
+* Topology (top.in)
+
+* Interaction Ranges (rmin.in, rmin_b.in)
+
+* Tabulated Interactions (table.in -- optional)
+
+* System Control (control.in)
+
+III.B.1) Creating the topology file
+===================================
+
+Provide a Gromacs-style topology file for the CG system with filename 'top.in'. The 
+bonding described in this file is the bonding that will be used to set up all bonded 
+interaction potential basis sets. Bond types are automatically inferred from site types 
+and cannot be specified any other way.
+
+Example inputs can be found in the subdirectory of the example directory. The general 
+format of the topology is outlined below:
+
+cgsites Ncg (* Ncg =Total number of coarse-grained sites)
+cgtypes Nt  (* Nt = Total number of coarse-grained site types)
+( Site type names, row number corresponding to type number)
+...
+moltypes Nm (* Nm = Total number of molecule types)
+mol Ns b    (Header for the block defining the first molecule type)
+            (* Ns = number of coarse-grained sites in this molecule)
+            (* b = bonded interaction specification style)
+            (** b determines if angles and dihedrals are to be input manually or inferred 
+                from the pair bond topology)
+            (** b = 3 means bonds/angles/dihedrals are inferred from the pair bond list
+                i.e., 1-2,1-3,1-4 interactions are not included in the force matching of 
+                nonbonded interactions)
+            (** b = 2 means only angles are inferred)
+            (** b = 1 means no interactions beyond pair bonds are present in the molecule)
+            (** b = -1 means angles and dihedrals are manually specified in this file: 
+                the sections "angles" and "dihedrals" need to be provided)
+sitetypes   (Define a site type for each site in the molecule)
+t           (* t = type of this site)
+            (Note: only 1 type per line; type numbers are 1-based)
+...         (Should have a type for all Ns sites in this molecule)
+bonds Nb    (Header for the block defining all pair bonds between sites in the molecule)
+            (* Nb  = number of pair bonds)
+i j         (For each bond i-j, site indices i and j use the ordering in sitetypes)
+. .         (Should have entries for all Nb bonds in this molecule)
+angles  Na  (Header for the block defining manually-specified angles between sites in
+             the molecule)
+            (* Na = number of angles)
+            ( Note: angles and dihedrals are optional)
+j i k       (For each angle i-j-k, site indices i, j, and k use the ordering in sitetypes)
+            ( Note: the order of sites here specifies the central site j first)
+. . .       (Should have entries for all Na angles in this molecule)
+dihedrals Nd (Header for the block defining the manually-specified dihedrals between sites 
+              in the molecule)
+j k i l     (For each dihedral i-j-k-l, site indices i, j, k, and l use the ordering in
+             in the molecule)
+            ( Note: the order of sites here specifies the central sites j and k first)
+. . . .     (Should have entries for all Nd dihedrals in this molecule)
+. . . . . . (Define additional molecule types until Nm molecule types have been defined)
+            (Note: this goes from the mol tag through the bonds, angles, or dihedral tags)
+system s    (Header for the system definition block)
+            (* s = states number of groups of molecules comprising the system)
+Mt Mn       (* Mt = The molecule type using the ordering of the mol labels above)
+            (* Mn = The number molecules of this type that continuous in frame ordering) 
+... ...     (Should have s rows of data)
+
+Note: lines (including comments) longer than 100 characters in top.in may 
+confuse the parser, which can lead to a crash or nonsense output.
+
+For examples of systems with non-trivial topologies, please examine the "lipid_fm" and
+"table_fm" sub-directories of the examples.
+
+III.B.2) Creating tabulated interactions
+========================================
+
+Provide all interactions in the CG model that are known and should not be force-matched in
+a file named 'table.in'. The forces for these interactions will be used as a reference 
+state automatically subtracted from the forces that the force-matching procedure should 
+match. If there are none of these, the file 'table.in' does not need to be provided. 
+Common applications for this functionality are using Boltzmann inversion to determine 
+bonded potentials, then force-matching the non-bonded interactions, or using a 
+predetermined solvent model and force-matching only solute interactions.
+
+An example input can be found in the tablefm subdirectory of the example directory. The 
+general format of the table.in file is outlined below:
+
+short_range Ns Bs (Header for short_range, i.e., pair nonbonded interactions)
+                  (* Ns = Number of tabulated short_range interactions)
+                  (* Bs = Binwidth -- spacing of values -- for short_range interactions)
+i j               (Define tabulated interaction using the types of the 2 coarse-grained 
+                   sites involved in this interaction)
+Rl Rh             (The lower/min Rl and upper/max Rh values for this interaction)
+Fc                (* Fc = force coefficient; one per line)
+...                  (Entries should correspond to distances from Rl to Rh in steps of Bs)
+......            (Additional short_range interactions; there should be Ns in total)
+bond Nb Bb           (Header for bond, i.e., pair bonded interactions)
+                  (* Nb = Number of tabulated bond interactions)
+                  (* Bb = Binwidth -- spacing of values -- for bond interactions)
+i j               (Define tabulated interaction using the types of the 2 coarse-grained
+                   sites involved in this interaction in the same format used in top.in)
+Rl Rh             (The lower/min Rl and upper/max Rh values for this interaction)
+Fc                (* Fc = force coefficient;  one per line)
+...                  (Entries should correspond to distances from Rl to Rh in steps of Bb)
+......            (Additional short_range interactions; there should be Nb in total)
+angle Na Ba       (Header for angle, i.e., bonded angular interactions)
+                  (* Na = Number of tabulated angle interactions)
+                  (* Ba = Binwidth -- spacing of values -- for angle interactions)
+j i k              (Define tabulated interaction using the types of the 3 coarse-grained
+                   sites involved in this interaction in the same format used in top.in)
+Rl Rh             (The lower/min Rl and upper/max Rh values for this interaction)
+Fc                (* Fc = force coefficient;  one per line)
+...                  (Entries should correspond to distances from Rl to Rh in steps of Bb)
+......            (Additional short_range interactions; there should be Nb in total)
+dihedral Na Ba       (Header for angle i.e., bonded dihedral interactions)
+                  (* Nd = Number of tabulated angle interactions)
+                  (* Bd = Binwidth -- spacing of values -- for dihedral interactions)
+j k i l           (Define tabulated interaction using the types of the 4 coarse-grained
+                   sites involved in this interaction in the same format used in top.in)
+Rl Rh             (The lower/min Rl and upper/max Rh values for this interaction)
+Fc                (* Fc = force coefficient;  one per line)
+...                  (Entries should correspond to distances from Rl to Rh in steps of Bb)
+......            (Additional short_range interactions; there should be Na in total)
+
+Note: Each of these labels (short_range, bond, angle, and dihedral) must be included
+with the number and binwidth even if the number of tabulated interactions for that type is
+0.
+
+For a worked example using a tabulated interaction, please see the "table_fm" 
+sub-directory of the examples.
+
+III.B.3) Creating files for interaction ranges
+==============================================
+
+Prepare the 'rmin.in' and 'rmin_b.in' files, which describe the parameter ranges over 
+which basis sets are defined for force matching. To begin, run rangefinder.x on the 
+appropriate trajectory or prepare these files by hand. 
+* 'rmin.in' contains the information for non-bonded pair interactions
+* 'rmin_b.in' contains the information for all bonded interactions in order of 
+ 1-2 (pair bonded) interactions, then 1-3 (angle) interactions, then 1-4 (dihedral) 
+ interactions.
+
+Examples of these files can be found in the subdirectories of the examples directory.
+The format of entries in for interactions is the following:
+T1 ... Tn Rl Rh mode
+    T1 ... Tn = The site types involved in this interaction, specified using the same
+                format as top.in
+    Rl = the lower end of the range for this interaction
+    Rh = the higher end of the range for this interaction
+    mode = 
+    * none: Exclude this interaction; it is not part of the model
+    * fm: Force match this interaction
+    * tab: Subtract forces based on the provided table interaction from the target forces
+    * fm+tab: Do both 'tab' and 'fm' actions. This will generate an interaction that
+              matches the residual from the tabulated interaction.
+... (List all interactions of this type sorted by T1, then T2, etc.)
+
+The rangefinder.x executable will find the entire sampled range (up to the cutoff
+specified in control.in for the non-bonded interactions), but if one wishes to use a more 
+conservative estimate, then these can easily be modified by hand.
+
+However, and very importantly, this file is also used to describe which interactions are 
+actually in the model. After the upper cutoff, there is a parameter that specifies the 
+interaction mode. Interactions can be excluded (none), force matched (fm), subtracted from 
+a tabulated interaction (tab), or subtracted from a table and then force matched (tab+fm) 
+based on the "mode" as defined in the format above. If the "mode" for any interaction is 
+NOT equal to 'fm' or 'tab+fm', then the interaction WILL NOT be force matched. If it is 
+'none', it will not be present at all. If it is tab or tab+fm, then the interaction will 
+be read from an external table. This is the only way to specify which interactions should 
+be read from a table, and it must be done by hand.
+
+III.B.4) Creating the system control file
+==========================================
+
+Define the force-matching program parameters in a file 'control.in'. This file contains a 
+list of keywords and their numerical values. In the table below, a keyword is followed
+by its default value in parenthesis and a description of it meaning of options on the 
+following lines.
+
+------------------------------------------------------------------------------------------
+start_frame (1) 
+    Which frame in the trajectory to start from
+    This must be an integer index greater than 0
+n_frames (10) 
+    The total number of frames to read in the trajectory
+    This may be fewer than actually provided in the mapped trajectory
+block_size (10) 
+    The number of frames to read before accumulating the data in a FM normal matrix
+    Note: There are several conditions (e.g. matrix_type 0, bootstrapping_flag 1,
+    use_statistical_reweighting 1) that will force the block_size to be 1
+    This must be an integer greater than 0
+constrain_pressure_flag (0) 
+    Whether or not to use the virial constraint
+    * 0: no
+    * 1: yes
+use_statistical_reweighting (0) 
+    Whether or not to use frame weights to reweight the frames
+    * 0: no
+    * 1: yes.
+dynamic_types(0) 
+    (LAMMPS only) Whether or not types should be read from the trajectory 
+    * 0: use top.in info for the ordering of types in the trajectory
+    * 1 set types of sites based on trajectory
+    Note: This only updates site types (not bonds, angles, and dihedrals)
+dynamic_state_sampling(0) 
+    (LAMMPS only) Whether or not types should be assigned by comparison of "state" field 
+    to random number (assignments are between types 1 and 2)
+    * 0: no
+    * 1: yes
+dynamic_state_samples_per_frame(1) 
+    The number of times each frame will be sampled using dynamic_state_sampling
+    Only used when dynamic_state_sampling is 1
+bootstrapping_flag (0) 
+    Whether or not to use bootstrapping
+    * 0: no
+    * 1: yes
+bootrstrapping_num_estimates (1) 
+    The number of independent estimates to construct using bootstrapping
+    This is only used if bootstrapping_flag = 1
+    This must be an integer greater than 0
+bootstrapping_num_subsamples (1) 
+    The number of discrete frames sampled for each bootstrapping estimate
+    This is only used if bootstrapping_flag = 1
+    This must be an integer greater than 0
+bootstrapping_full_output_flag (0) 
+    * 0: Output the interactions from the full trajectory and all bootstrapping estimates 
+    * 1: Output the interactions from the full trajectory and the standard error of 
+         the estimates (including the full trajectory)
+    This is only used if bootstrapping_flag = 1
+random_num_seed(1) 
+    Random number seed for Mersenne Twister. 
+    This is a positive integer (max 32 bits)
+    Only used when dynamic_state_sampling = 1 or boostrapping_flag = 1
+excluded_style(2) 
+    Whether or not to exclude certain bonded site from non-bonded interactions 
+    * 0: no exclusions
+    * 2: exclude 1-2 interactions (for sites in a bond)
+    * 3: exclude 1-2 and 1-3 interactions (for sites in a bond or angle)
+    * 4: exclude 1-2, 1-3, and 1-4 interactions (for sites in a bond, angle, or dihedral)
+nonbonded_cutoff (1.0) 
+    The cutoff for all non-bonded pair interactions in the model
+    This is also used for sizing neighbor cell lists.
+max_pair_bonds_per_site (4) 
+    Limits on the necessary storage for pair bond topology lists
+max_angles_per_site (12) 
+    Limits on the necessary storage for 1-3 bond (angle) topology lists
+max_dihedrals_per_site (36) 
+    Limits on the necessary storage for 1-4 bond (dihedral) topology lists
+angle_type (0) 
+    Specifies the geometric quantity that the 1-3 bonded (angle) interactions depend on
+    * 0: use angle-based interactions
+    * 1: use distance-based interactions
+dihedral_type (0) 
+    Specifies the geometric quantity that the 1-4 bonded (dihedral) interactions depend on
+    * 0: dihedral-angle-based interactions
+    * 1: use distance-based interactions
+three_body_nonbonded_style (0) 
+    Specifies the style of three body non-bonded interactions
+    * 0: none (do not use three body non-bonded interactions)
+    * 1: angle-based
+    * 2 & 3: Stillinger-Weber-like interactions
+three_body_nonbonded_exclusion_type (0) 
+    Whether or not to calculate three body non-bonded interactions between bonded sites
+    * 0: calculate them and include them in the calculation
+    * 1: exclude them from calculation
+basis_type (0) 
+    Determines which type of basis set to use
+    * 0: B-splines
+    * 1: Linear splines
+pair_nonbonded_bspline_basis_order (4) 
+    B-spline order used in pair non-bonded interaction basis sets
+pair_bond_bspline_basis_order (4) 
+    B-spline order used in pair bonded interaction basis sets
+angle_bspline_basis_order (4) 
+    B-spline order used in 1-3 bonded (angular) interaction basis sets
+dihedral_bspline_basis_order (4) 
+    B-spline order used in 1-4 bonded (dihedral) interaction basis sets
+three_body_nonbonded_bspline_basis_order (4)    
+    B-spline order used in three body non-bonded interactions basis sets
+pair_nonbonded_basis_set_resolution (0.05)    
+    The spacing between spline control points in pair non-bonded interaction basis sets
+pair_bond_basis_set_resolution (0.05) 
+    The spacing between spline control points in pair bonded interactions basis sets
+angle_basis_set_resolution (0.05) 
+    The spacing between spline control points in 1-3 bonded (angle) interaction basis sets
+    This is either in distance units or degrees based on angle_type
+dihedral_basis_set_resolution (0.05) 
+    The spacing between spline control points in 1-4 bonded (dihedral) interaction basis 
+    sets. This is either in distance units or degrees based on dihedral_type
+three_body_nonbonded_basis_set_resolution (1.0)    
+    The spacing between spline control points in three body non-bonded interaction basis 
+    sets. This is either in distance units or degrees based on angle_type
+    Only used when three_body_nonbonded_style is positive
+pair_nonbonded_output_binwidth (.002) 
+    The spacing between tabulated force output for pair non-bonded interactions
+pair_bond_output_binwidth (.002) 
+    The spacing between tabulated force output for pair bonded interactions
+angle_output_binwidth (.002) 
+    The spacing between tabulated force output for 1-3 bonded (angle) interactions
+    This is either in distance units or degrees based on angle_type
+dihedral_output_binwidth (.002) 
+    The spacing between tabulated force output for 1-4 bonded (dihedral) interactions
+    This is either in distance units or degrees based on dihedral_type
+three_body_nonbonded_output_binwidth (.2) 
+    The spacing between tabulated force output for three body non-bonded interactions
+    This is either in distance units or degrees based on angle_type
+    Only used when three_body_nonbonded_style is positive
+output_pair_nonbonded_parameter_distribution (0) 
+    Whether or not to output the distribution of pair non-bonded distances sampled and 
+    a histogram using the pair_nonbonded_basis_set_resolution as the binwidth 
+    (rangefinder only)
+    * 0: no
+    * 1: yes
+output_pair_bond_parameter_distribution (0) 
+    Whether or not to output the distribution of pair bonded distances sampled and 
+    a histogram using the pair_bond_basis_set_resolution as the binwidth 
+    (rangefinder only)
+    * 0: no
+    * 1: yes
+output_angle_parameter_distribution (0) 
+    Whether or not to output the distribution of angles sampled and a histogram using 
+    the angle_basis_set_resolution as the binwidth 
+    (rangefinder only)
+    * 0: no
+    * 1: yes
+output_dihedral_parameter_distribution (0) 
+    Whether or not to output the distribution of dihedrals sampled and a histogram using 
+    the dihedral_basis_set_resolution as the binwidth 
+    (rangefinder only)
+    * 0: no
+    * 1: yes
+stillinger_weber_gamma (.12) 
+    A fixed parameter for Stillinger-Weber type three body non-bonded interactions
+    This determines the radial dependence of the interaction
+    Only used when three_body_nonbonded_style is positive
+matrix_type (0) 
+    Determines which type of matrix equation the FM equations should be cast in
+    * 0: dense block-accumulation and normal form equations
+    * 1: sparse block-averaged equations (not recommended)
+    * 2: block-accumulation equations (depricated -- no longer supported)
+    * 3: sparse block-accumulation and dense normal form equations
+    * 4: sparse block-accumulation and sparse normal form equations
+itnlim (0) 
+    Maximum number of iterations for refinement of sparse-matrix solver 
+    Negative numbers cause iterations to be performed using quad-precision while positive 
+    numbers cause iterations to be performed using double-precision
+    Only for matrix_type 1 or 4
+rcond (-1.0) 
+    LSQR algorithm parameters for the sparse block-averaged force-matching
+    This also controls the truncation of singular values if a positive number is specified 
+    Only for dense-matrix solver matrix_type 0 and 3
+sparse_safety_factor (0.2) 
+    Fraction that sparse normal matrix should be oversized relative to actual size of 
+    accumulated normal matrix after the previous frame-block
+    Only for matrix_type 4
+    If you encounter errors from mkl_dcsradd or mkl_dcsrmultcsr, it is likely that this 
+    parameter needs to be increased
+num_sparse_threads (1) 
+    Number of threads that MKL routines can use 
+    Only for matrix_type 1 and 4
+    This number should be less than the number of physical cores for best performance
+    However, using 1 thread may be faster than more threads in some cases
+regularization_style (0) 
+    Specifies the style of regularization
+    * 0: no regularization
+    * 1: scalar Tikhonov regularization specified using regularization_scalar
+    * 2: vector Tikhonov regularization with vector from 'lambda.in'
+         This file has one value per line with the number of lines equaling the
+         number of basis functions
+regularization_scalar (0) 
+    A scalar value corresponding to lambda in the primary reference, used to prevent over-
+    fitting, larger values imply more aggressive smoothing
+    Only used when regularization_style is 1
+lanyuan_iterative_method_flag (0) 
+    Whether or not to use Lanyuan's iterative FM method instead of the usual FM
+    * 0: no 
+    * 1: yes
+iterative_update_rate_coeff (1.0) 
+    A parameter used to control rate of convergence in iterative force-matching
+    Lower values imply a less aggressive fixed-point iteration
+    Only used when lanyuan_iterative_method_flag = 1
+primary_output_style (0) 
+    Used to specify how this force-matching run's results should be used
+    * 0: output tabulated interactions
+    * 2: output tables and binary representations of the blockwise matrix equations
+    * 3: output only binary representations of the blockwise matrix equations
+output_solution_flag (0) 
+    Whether or not to print out the singular values of a dense or accumulation matrices
+    * 0: no
+    * 1: yes
+output_residual_flag (0) 
+    Whether or not to output the final MS-CG residual value
+    * 0: no
+    * 1: yes
+output_spline_coeffs_flag (0) 
+    Whether or not to output the final spline coefficients found from force-matching
+    * 0: no
+    * 1: yes 
+output_normal_equations_rhs_flag (0) 
+    Whether or not to output the right hand side of the final FM matrix equations
+    * 0: no
+    * 1: yes
+------------------------------------------------------------------------------------------
+
+III.C) Force-matching
+~~~~~~~~~~~~~~~~~~~~~
+
+After all of those files have been prepared, use newfm.x to finish the force matching.
+The code will output a tabulated force file for every interaction in the system, 
+labeled by the CG site types involved and the interaction class (bon, dih, ang, etc). 
+These tabulated force files can be converted to the appropriate format for whatever 
+simulation is desired.
+
+III.D) Check results
+~~~~~~~~~~~~~~~~~~~~
+
+III.D.1) Diagnostics and additional output
+==========================================
+
+In many cases, it is necessary to look at more than just the tabulated force output to 
+determine if the results of force matching are reasonable. There are a number of output 
+options designed to allow one to look deeper into the performance of the algorithm. 
+In particular, the file 'sol_info.out' provides all of the singular values of the 
+force-matching matrix, which can help determine if the problem is well-posed, 
+the residual, which can indicate the relative quality of force fields with different 
+choices of basis set, and the norm of the solution vector, which can indicate the spread 
+of the spline coefficients and reveal outliers. The spline coefficients can also be output 
+if desired by setting 'output_spline_coeffs_flag' = 1. 
+
+III.D.2) Suggestions for optimal performance
+============================================
+
+Many of the strategies for improving the performance of MSCGFM are outlined in the 
+reference at the top of this manual. Typically, we recommend starting with a dense-matrix-
+based force-matching using the default parameters in control.in for the basis sets. If the 
+condition number is too high after this, try using regularization. If that is not 
+sufficient, explore whether the basis set resolution may be too high or too low; too high 
+of a resolution will result in over-fitting, while too low will lead to significant 
+correlation between nearby elements of the force-matching matrix, making the problem 
+ill-posed when using the simple preconditioning currently implemented. Increasing or 
+decreasing the order of splines used can have similar effects. If none of these improve 
+performance, check that the basis set that you have chosen captures the essential 
+physics of the model and consider adding a few more interactions, adding many-body 
+interactions, or checking that the initial trajectory sampled enough phase space to come 
+up with a reasonable model.
+
+The choice of binwidth can be aided with the use of the "output_*_parameter_distribution" 
+options. When this option is on, the rangefinder executable will output a list of each 
+interaction value it encounters to a file specific to that interaction type. Additionally, 
+a histogram will be generated from this data that uses the particular fm_binwidth for that 
+interaction to determine the bin size. If there are not at least a few counts in each bin, 
+you should either increase the binwidth or increase the number of frames.
+
+The speed of the code may be improved by changing from matrix_type 0 to 3 or 4 if any of
+the following conditions apply to your situation:
+* There are many basis sets (at least 100)
+* There are many different interactions (at least 10)
+* Each frame has few particles (less than 100)
+* Matrix solving takes more than 25% of overall run-time
+Note: matrix_type 3 and 4 allow block_size > 1, which can further increase performance.
+
+IV) Support for published papers
+--------------------------------
+
+The ordering and labeling of features and methods discussed follow the order that the 
+papers were listed at the beginning of this manual.
+
+1. If Izvekov's virial constraint is used, then a file 'p_con.in' must be provided 
+   containing each frame's instantaneous value of the right-hand side of eq.(12) in 
+   J. Chem. Phys. 123, 134105 (2005), i.e. 3*W(atom)+2*delta(E(kin)). Each value should 
+   occupy its own line, so that the number of lines is equal to the number of frames in 
+   the trajectory.
+ 
+2. To use iterative force matching, one must first run the code using 
+   "primary_output_style 2" and "output_solution_flag 1". Then,rename result.out to 
+   result.in and x.out to x.in.  Finally, use the "lanyuan_iterative_method_flag" and 
+   "iterative_update_rate_coeff" options in control.in when running the code again with
+   the CG simulation as described in the reference. For additional iterations, copy the 
+   new "result.out" to "result.in" and the new "x.out" to "x.in" before running the
+   force matching code again with additional data.
+   For a worked example, please look at the "iterative_fm" sub-directory of the examples.
+    
+3. To force match interactions between sites where the site's type changes during the 
+   course of the simulation, use "dynamic_types 1". Make sure that mapped trajectory has
+   the correct type assigned to it under the "type" field.
+   Note: Dynamic types is only supported for LAMMPS trajectories.
+   There is a worked example in the "ucg_lammps_fm_dynamic_type" sub-directory of the
+   examples.
+
+4. To create center-of-charge MS-CG models, apply the mapping described in J. Chem. Phys.,
+   143, 243116 (2015) to the FG trajectory. Then, prepare all other inputs as usual.
+ 
+5. There are two new methods described in J. Chem. Theory and Comput., 11(8), 3547–3560 
+   (2015).
+    a) MS-CG models can be constructed by reweighting frames at a different state-point or 
+       from an enhanced sampling method using "use_statistical_reweighting". Any bias 
+       forces must be subtracted from the trajectory before using this package. Also, a 
+       file 'frame_weights.in' must be provided containing the weight that should be given 
+       to each frame according to Eq. (4) in the paper. Each value should occupy its own 
+       line. The number of lines is equal to the number of frames in the trajectory.
+       For a worked example, please look at the "reweight_fm" sub-directory of the
+       examples.
+    Note: The UCG-I paper (J. Chem. Theory Comput. 9(5), 2466–2480 (2013). 
+       doi:10.1021/ct4000444) describes conditions under which reweighting unnecessary. 
+       In particular, frames from enhanced sampling (e.g. umbrella sampling, metadynamics) 
+       where the bias is applied only to CG degrees-of-freedom (the mapped FG coordinates) 
+       does not need reweighting. However, the bias forces still need to be subtracted 
+       before using this package.
+    b) This package provides support for the fitting of SCI and SCB sensitivity estimates. 
+       The combined right-hand side of Eq. (5) or (7) should be combined into a single 
+       trajectory where the result of that right-hand side is in place of the forces. 
+       Then, run the package as usual.
+ 
+6. This package provides support for the fitting of CG interactions as described in 
+   J. Chem. Theory Comput., 12(5), 2144–2153 (2016). The frames generated using resulting 
+   EDS potential can be used as input to this package. Then, run the package as usual.
+
+   

@@ -1,0 +1,90 @@
+# This Makefile is meant for use after
+# module load mkl
+# module load gsl
+# on any of RCC's clusters at UChicago.
+
+MKLPATH = $(MKLROOT)/lib/intel64
+MKLINCLUDE = $(MKLROOT)/include
+GSLPATH = $(GSL_DIR)/lib
+GSLINC = $(GSL_DIR)/include
+GMXPATH = $(HOME)/local/lib
+GMXINC = $(HOME)/local/include
+OPT = -O2 -std=c++11
+
+LIBS         = $(GSLPATH)/libgsl.a -mkl -lm -lxdrfile
+LDFLAGS      = $(OPT) -L$(GMXPATH) -L$(GSLPATH)
+CFLAGS       = $(OPT) -I$(GSLINC) -I$(GMXINC)
+CC           = icc
+
+COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input.o misc.o
+COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h
+
+# Target executables
+# The library for LAMMPS is lib_mscg.a
+lib_mscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS) range_finding.o
+	ar rvs lib_mscg.a *.o
+
+newfm.x: newfm.o $(COMMON_OBJECTS)
+    $(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
+
+rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
+    $(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+
+# Target objects
+
+mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
+	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o
+
+newfm.o: newfm.cpp $(COMMON_SOURCE)
+    $(CC) $(CFLAGS) -c newfm.cpp
+
+rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
+    $(CC) $(CFLAGS) -c rangefinder.cpp
+
+batch_fm_combination.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
+    $(CC) $(CFLAGS) -c batch_fm_combination.cpp
+
+control_input.o: control_input.cpp control_input.h misc.h
+    $(CC) $(CFLAGS) -c control_input.cpp
+
+fm_output.o: fm_output.cpp fm_output.h force_computation.h misc.h
+    $(CC) $(CFLAGS) -c fm_output.cpp
+
+force_computation.o: force_computation.cpp force_computation.h interaction_model.h matrix.h trajectory_input.h misc.h
+    $(CC) $(CFLAGS) -c force_computation.cpp
+
+geometry.o: geometry.h
+    $(CC) $(CFLAGS) -c geometry.cpp
+
+interaction_hashing.o: interaction_hashing.cpp interaction_hashing.h
+    $(CC) $(CFLAGS) -c interaction_hashing.cpp
+
+interaction_model.o: interaction_model.cpp interaction_model.h control_input.h interaction_hashing.h topology.h misc.h
+    $(CC) $(CFLAGS) -c interaction_model.cpp
+
+matrix.o: matrix.cpp matrix.h control_input.h external_matrix_routines.h interaction_model.h misc.h
+    $(CC) $(CFLAGS) -c matrix.cpp
+
+misc.o: misc.cpp misc.h
+    $(CC) $(CFLAGS) -c misc.cpp
+
+range_finding.o: range_finding.cpp range_finding.h force_computation.h interaction_model.h matrix.h misc.h
+    $(CC) $(CFLAGS) -c range_finding.cpp
+
+splines.o: splines.h interaction_model.h
+    $(CC) $(CFLAGS) -c splines.cpp
+
+topology.o: topology.cpp topology.h interaction_model.h misc.h
+    $(CC) $(CFLAGS) -c topology.cpp
+
+trajectory_input.o: trajectory_input.cpp trajectory_input.h control_input.h misc.h
+    $(CC) $(CFLAGS) -c trajectory_input.cpp
+
+# Other convenient commands
+
+clean:
+    rm *.[o]
+
+all:
+    make newfm.x; \
+    make rangefinder.x;
