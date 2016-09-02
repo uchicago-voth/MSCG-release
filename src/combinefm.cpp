@@ -30,9 +30,7 @@ int main(int argc, char* argv[])
 
     MATRIX_DATA* mat = make_matrix(&control_input, &cg);
 
-    if (cg.pair_nonbonded_interactions.get_basis_type() == kBSpline) {
-        set_up_force_computers(&cg);
-    }
+    set_up_force_computers(&cg);
 
     read_binary_matrix(mat);
 

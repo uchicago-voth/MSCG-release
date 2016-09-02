@@ -1,0 +1,9 @@
+Release Notes
+=============
+Version 1.5.1 (September 2, 2016)
+	* Added combinefm.x
+		** Updated Makefiles
+		** Added "batch_fm" example
+	* Changed reading behavior when processing last frame
+	* Lammps reading recognizing position labels "xu" in addition to "x"
+	* Updated Manual

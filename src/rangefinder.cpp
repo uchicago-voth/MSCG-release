@@ -158,15 +158,25 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             // checked at the start of the next iteration of the loop.
             if (frame_source->dynamic_state_sampling == 0) {
 				// Read next frame.
-				read_stat = (*frame_source->get_next_frame)(frame_source);  
+				// Only do this if we are not currently process the last frame.
+				if ( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) ||
+			         ((mat->trajectory_block_index + 1) < n_blocks) ) {
+					read_stat = (*frame_source->get_next_frame)(frame_source);  
+				}
 				traj_frame_num++;
+				
 			} else if (times_sampled < frame_source->dynamic_state_samples_per_frame) {
 				// Resample this frame.
 				frame_source->sampleTypesFromProbs();
 				times_sampled++;
+			
 			} else {
 				// Read next frame, sample frame, and reset sampling counter.
-				read_stat = (*frame_source->get_next_frame)(frame_source);  
+				// Only do this if we are not currently process the last frame.
+				if ( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) ||
+			         ((mat->trajectory_block_index + 1) < n_blocks) ) {
+					read_stat = (*frame_source->get_next_frame)(frame_source);  
+				}
 				frame_source->sampleTypesFromProbs();
 				times_sampled = 1;
 				traj_frame_num++;

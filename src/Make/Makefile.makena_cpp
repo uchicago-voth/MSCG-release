@@ -53,6 +53,12 @@ rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
 rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
 	$(CC) $(NO_GRO_LDFLAGS) -o $@ rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
+combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
+
+combinefm_mkl.x: combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@ combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+
 # Target objects
 
 mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
@@ -67,8 +73,8 @@ newfm_mkl.o: newfm.cpp $(COMMON_SOURCE)
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
 
-scalarfm.o: scalarfm.cpp $(COMMON_SOURCE)
-	$(CC) $(CFLAGS) -c scalarfm.cpp
+combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c combinefm.cpp
 
 batch_fm_combination.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
 	$(CC) $(CFLAGS) -c batch_fm_combination.cpp
@@ -122,6 +128,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all:
-	make newfm.x; \
-	make rangefinder.x;
+all: newfm.x rangefinder.x combinefm.x

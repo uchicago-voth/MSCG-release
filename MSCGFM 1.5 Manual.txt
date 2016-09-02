@@ -256,6 +256,12 @@ NOT equal to 'fm' or 'tab+fm', then the interaction WILL NOT be force matched. I
 be read from an external table. This is the only way to specify which interactions should 
 be read from a table, and it must be done by hand.
 
+Note: These range files must contain ALL defined interactions in a specific order. 
+Within a given class of interactions, the order of interactions should be sorted
+by the leftmost type (in order that they were defined under "cgtypes" in "top.in")
+and then the other listed types going from right to left. For an example of this,
+please see the "lipid_fm" sub-directory of the examples.
+
 III.B.4) Creating the system control file
 ==========================================
 
@@ -492,11 +498,29 @@ output_normal_equations_rhs_flag (0)
 III.C) Force-matching
 ~~~~~~~~~~~~~~~~~~~~~
 
-After all of those files have been prepared, use newfm.x to finish the force matching.
-The code will output a tabulated force file for every interaction in the system, 
-labeled by the CG site types involved and the interaction class (bon, dih, ang, etc). 
-These tabulated force files can be converted to the appropriate format for whatever 
-simulation is desired.
+After all of those files have been prepared, use newfm.x or a combination of newfm.x and 
+combinefm.x to finish the force matching.
+
+To use newfm.x, set "primary_output_style" in "control.in" to either 0 or 2. Then,
+run the executable, and the code will output a tabulated force file for every interaction 
+in the system, labeled by the CG site types involved and the interaction class 
+(bon, dih, ang, etc).  These tabulated force files can be converted to the appropriate 
+format for whatever simulation is desired.
+
+To use a combination of newfm.x and combinefm.x, set "primary_output_style" in 
+"control.in" to either 2 or 3. Run newfm.x on several different trajectories. After each
+run of newfm.x, the code will output the final matrix equations for the trajectory that 
+was provided to the executable. Then, create a file "res_av.in" that lists the number of 
+matrix equation files on the first line, followed by each of their filenames on 
+subsequent lines. For an example, please see the "batch_fm" sub-directory of the examples.
+
+When one then runs combinefm.x, all of the matrix equations in those files will be 
+combined, and tabulated forces based on all of these inputs will be the final result. 
+The way that these inputs is process is the same way that the information from each 
+"frame block" is combined with the information from other "frame blocks" (see the first 
+reference for an explanation of this). This allows rudimentary batch-parallel force 
+matching.
+
 
 III.D) Check results
 ~~~~~~~~~~~~~~~~~~~~

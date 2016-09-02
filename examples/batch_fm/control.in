@@ -1,0 +1,12 @@
+block_size 10 
+start_frame 1        
+n_frames 100000   
+nonbonded_cutoff 1.6          
+basis_type 1         
+pair_nonbonded_basis_set_resolution 0.002 
+pair_nonbonded_output_binwidth 0.002
+matrix_type 0         
+primary_output_style 2         
+output_solution_flag 1
+output_spline_coeffs_flag 1
+
