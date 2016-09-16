@@ -456,7 +456,7 @@ int read_next_lammps_frame(FrameSource* const frame_source)
 {
 	int return_value = 1;  
 	int reference_atoms  = frame_source->frame_config->current_n_sites;
-
+	
 	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->dynamic_state_sampling);    
 
  	if (reference_atoms != frame_source->frame_config->current_n_sites) {
@@ -497,8 +497,12 @@ void read_lammps_header(LammpsData *const lammps_data, int* const current_n_site
 	
 	while(flag == 1) {
 		//read next line of header (and wrap-up if end-of-file)
-		std::getline(lammps_data->trajectory_stream, line);
-		
+		if(!std::getline(lammps_data->trajectory_stream, line)) {
+			printf("\nIt appears that the file is no longer open.\n");
+			printf("Please check that you are not attempting to read past the end of the file and try again.\n");
+			exit(EXIT_FAILURE);
+		}	
+	
 		//test if it is a labeled line (all LAMMPS labels start with "ITEM:")
 		if( line.compare(0, 5, "ITEM:") == 0 ) {
 			//find out which label matched (skip space after ITEM:)

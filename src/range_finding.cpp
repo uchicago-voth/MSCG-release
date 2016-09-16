@@ -281,7 +281,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		filename = ispec->get_interaction_name(name, i) + ".hist";
 		hist_fh = fopen(filename.c_str(), "w");
 		
-		fprintf(hist_fh, "center\tcounts\n");
+		fprintf(hist_fh, "#center\tcounts\n");
 		for (int j = 0; j < num_bins; j++) {
 			fprintf(hist_fh, "%lf\t%lu\n", bin_centers[j], bin_counts[j]);
 		}

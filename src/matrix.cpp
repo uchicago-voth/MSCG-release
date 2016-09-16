@@ -2704,10 +2704,10 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
 void read_binary_matrix(MATRIX_DATA* const mat)
 {
     switch (mat->matrix_type) {
-    case kDense:
+    case kDense: kSparseNormal:
         read_binary_dense_fm_matrix(mat);
         break;
-    case kSparse: case kSparseNormal: case kSparseSparse:
+    case kSparse: case kSparseSparse:
         read_binary_sparse_fm_matrix(mat);
         break;
     case kAccumulation:
@@ -2773,13 +2773,8 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
     }
     delete [] file_names;
     
-    // Fill in the lower triangular portions of the symmetric
-    // normal form matrix.
-    for (i = 0; i < mat->fm_matrix_columns; i++) {
-        for (j = 0; j < i; j++) {
-            mat->dense_fm_normal_matrix->assign_scalar(i, j, mat->dense_fm_normal_matrix->values[i * mat->fm_matrix_columns + j]);
-        }
-    }
+    // The lower triangular portions of the symmetric normal form matrix
+    // filled in during during the solve routine.
 }
 
 // Read the results of a batch of accumulation-matrix-based FM
@@ -2792,6 +2787,7 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
 
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 {
+	printf("The use of combinefm with the accumulation matrixtype is not supported!\n"); 
     delete mat->dense_fm_matrix;
     mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_columns, mat->accumulation_matrix_columns);
 
@@ -2841,6 +2837,7 @@ void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat)
 {
+	printf("The use of combinefm with the sparse normal matrix type is not supported!\n");
     int i, j;
     int n_batch;
     FILE* file_of_input_file_names, *single_block_solution_file;

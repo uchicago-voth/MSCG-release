@@ -7,3 +7,14 @@ Version 1.5.1 (September 2, 2016)
 	* Changed reading behavior when processing last frame
 	* Lammps reading recognizing position labels "xu" in addition to "x"
 	* Updated Manual
+
+Version 1.5.2 (September 15, 2016)
+	* Corrected matrix error for combinefm.x
+		** Updated "batchfm" example outputs
+		** Added warnings for unsupported operations
+	* Changed reading of LAMMPS header to detect premature end-of-file
+	* Added "#" and the beginning of *.hist files to make plotting easier
+		(This feature is activated through the output_*_parameter_distribution options
+		 and is only generated from rangefinder runs)
+	
+		
