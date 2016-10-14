@@ -68,6 +68,8 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("three_body_nonbonded_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->three_body_nonbonded_output_binwidth);
     else if (strcmp("three_body_nonbonded_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->three_body_bspline_k);
     else if (strcmp("output_residual_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_residual);
+    else if (strcmp("bayesian_mscg_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->bayesian_flag);
+    else if (strcmp("bayesian_max_iterations", parameter_name) == 0) sscanf(val, "%d", &control_input->bayesian_max_iter);
     else if (strcmp("stillinger_weber_gamma", parameter_name) == 0) sscanf(val, "%lf", &control_input->gamma);
     else if (strcmp("three_body_nonbonded_exclusion_type", parameter_name) == 0) sscanf(val, "%d", &control_input->three_body_nonbonded_exclusion_flag);
 	else if (strcmp("excluded_style", parameter_name) == 0) sscanf(val, "%d", &control_input->excluded_style);
@@ -141,6 +143,8 @@ void reset_control_defaults_and_read_control_input(ControlInputs* const control_
     control_input->three_body_nonbonded_output_binwidth = 0.2;
     control_input->three_body_bspline_k = 4;
     control_input->output_residual = 0;
+    control_input->bayesian_flag = 0;
+    control_input->bayesian_max_iter = 1;
     control_input->gamma = 0.12;
     control_input->three_body_nonbonded_exclusion_flag = 0;
     control_input->excluded_style = 2;

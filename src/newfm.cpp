@@ -26,7 +26,6 @@ int main(int argc, char* argv[])
 
     FrameSource frame_source;      // Trajectory frame data; see types.h
     ControlInputs control_input;
-    MATRIX_DATA *mat; 
     
     //----------------------------------------------------------------
     // Set up the force matching procedure
@@ -110,9 +109,9 @@ int main(int argc, char* argv[])
 
     // Initialize the force-matching matrix.
     printf("Initializing FM matrix.\n");
-    mat = make_matrix(&control_input, &cg);
+    MATRIX_DATA mat(&control_input, &cg);
     if (frame_source.use_statistical_reweighting == 1) {
-        set_normalization(mat, 1.0 / frame_source.total_frame_weights);
+        set_normalization(&mat, 1.0 / frame_source.total_frame_weights);
     }
     if (frame_source.bootstrapping_flag == 1) {
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
@@ -120,14 +119,14 @@ int main(int argc, char* argv[])
     	if(frame_source.use_statistical_reweighting == 1) {
     		combine_reweighting_and_boostrapping_weights(&frame_source);
     	}
-    	set_bootstrapping_normalization(mat, frame_source.bootstrapping_weights, frame_source.n_frames);
+    	set_bootstrapping_normalization(&mat, frame_source.bootstrapping_weights, frame_source.n_frames);
     }
     
     // Record the dimensions of the matrix after initialization in a
     // solution file.
     FILE* solution_file = fopen("sol_info.out", "w");
     fprintf(solution_file, "fm_matrix_rows:%d; fm_matrix_columns:%d;\n",
-            mat->fm_matrix_rows, mat->fm_matrix_columns);
+            mat.fm_matrix_rows, mat.fm_matrix_columns);
     fclose(solution_file);
 
     //----------------------------------------------------------------
@@ -137,13 +136,13 @@ int main(int argc, char* argv[])
     // Process the whole trajectory to build the force-matching matrix
     // of the appropriate type.
     printf("Constructing FM equations.\n");
-    construct_full_fm_matrix(&cg, mat, &frame_source);
+    construct_full_fm_matrix(&cg, &mat, &frame_source);
 
     // Free the space used to build the force-matching matrix that is
     // not necessary for finding a solution to the final matrix
     // equations.
     printf("Finished constructing FM equations.\n");
-    free_fm_matrix_building_temps(&cg, mat, &frame_source);
+    free_fm_matrix_building_temps(&cg, &mat, &frame_source);
 	if (frame_source.bootstrapping_flag == 1) {
 		free_bootstrapping_weights(&frame_source);
 	}
@@ -153,21 +152,19 @@ int main(int argc, char* argv[])
     // singular values, residuals, raw matrix equations, etc. as
     // necessary.
     printf("Finishing FM.\n");
-    mat->finish_fm(mat);
+    mat.finish_fm(&mat);
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n"); fflush(stdout);
-    write_fm_interaction_output_files(&cg, mat);
+    write_fm_interaction_output_files(&cg, &mat);
 	free_interaction_data(&cg);
 	
 	if (frame_source.bootstrapping_flag == 1) {
-		delete [] mat->bootstrap_solutions;
-    	delete [] mat->bootstrapping_normalization;
+		delete [] mat.bootstrap_solutions;
+    	delete [] mat.bootstrapping_normalization;
     }
 
-    delete mat;
-    
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;

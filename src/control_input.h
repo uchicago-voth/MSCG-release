@@ -24,7 +24,7 @@ typedef struct ControlInputs {
     int bootstrapping_full_output_flag;
 	int bootstrapping_num_estimates;
 	int bootstrapping_num_subsamples;
-    uint_fast32_t random_num_seed;					// Only used when dynamic_state_sampling is 1
+    uint_fast32_t random_num_seed;					// Only used when dynamic_state_sampling or bootstrapping_flag is 1
     int starting_frame;
     int n_frames;
 
@@ -78,6 +78,8 @@ typedef struct ControlInputs {
     double iterative_update_rate_coeff;
     double tikhonov_regularization_param;
     int regularization_style;
+    int bayesian_flag;
+	int bayesian_max_iter;
     double rcond;
 	double sparse_safety_factor; 
 	int num_sparse_threads;

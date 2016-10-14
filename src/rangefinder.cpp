@@ -56,16 +56,15 @@ int main(int argc, char* argv[])
 
     printf("Allocating dummy force matching matrix temps.\n");
     control_input.matrix_type = kDummy;
-    MATRIX_DATA* mat = make_matrix(&control_input, &cg);
+    MATRIX_DATA mat(&control_input, &cg);
 
     printf("Beginning range finding.\n");
-    construct_full_fm_matrix(&cg, mat, &fs);
+    construct_full_fm_matrix(&cg, &mat, &fs);
     printf("Ending range finding.\n");
-    free_fm_sampling_range_calculation_temps(&cg, mat);
+    free_fm_sampling_range_calculation_temps(&cg, &mat);
     printf("Writing final output.\n");
-    write_range_files(&cg, mat);
+    write_range_files(&cg, &mat);
 
-    delete mat;
     //print cpu time used
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;

@@ -11,9 +11,10 @@
 typedef float real;
 typedef real rvec[3];
 
-#include <vector>
+#include <cstring>
 #include <string>
 #include "stdio.h"
+#include <vector>
 
 //-------------------------------------------------------------
 // Global variable definitions

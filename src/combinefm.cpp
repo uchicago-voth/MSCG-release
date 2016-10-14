@@ -28,19 +28,18 @@ int main(int argc, char* argv[])
     read_topology_file(&cg.topo_data, &cg);
     read_all_interaction_ranges(&cg);
 
-    MATRIX_DATA* mat = make_matrix(&control_input, &cg);
+    MATRIX_DATA mat(&control_input, &cg);
 
     set_up_force_computers(&cg);
 
-    read_binary_matrix(mat);
+    read_binary_matrix(&mat);
 
-    free_AV_fm_setup_temp_variables(&cg, mat);
+    free_AV_fm_setup_temp_variables(&cg, &mat);
 
-    mat->finish_fm(mat);
+    mat.finish_fm(&mat);
 
-    write_fm_interaction_output_files(&cg, mat);
+    write_fm_interaction_output_files(&cg, &mat);
 
-    delete mat;
     //print cpu time used
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;

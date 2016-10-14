@@ -11,7 +11,7 @@
 #include <vector>
 #include "gsl/gsl_bspline.h"
 
-enum BasisType {kBSpline = 0, kLinearSpline = 1};
+enum BasisType {kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2};
 
 struct InteractionClassSpec;
 struct InteractionClassComputer;

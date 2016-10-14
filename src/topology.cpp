@@ -15,13 +15,14 @@
 #include "topology.h"
 
 // Helper functions for reading a topology file for the CG model
-unsigned get_max_exclusion_number(TopologyData const* const topo_data);
 
+// Determine the maximum number of items possible for a given exclusion.
+inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const int excluded_style);
 // Read the specification for three-body interactions.
 int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, FILE* top_in, int line);
 // Read a single molecule's topology specification.
 void read_molecule_definition(TopologyData* const mol, TopologyData* const cg, FILE* const top_in, int* line);
-// Determine appropriate non-bonded exclusions based on bonded topology and exclusion_style setting
+// Determine appropriate non-bonded exclusions based on bonded topology and excluded_style setting
 bool new_excluded_partner(unsigned** const excluded_partners, const int location, const unsigned current_size, const unsigned new_site);
 // Report an error in the topology input file.
 void report_topology_input_format_error(const int line, char *parameter_name);
@@ -32,19 +33,19 @@ void report_topology_input_format_error(const int line, char *parameter_name);
 
 TopoList::TopoList(unsigned n_sites, unsigned partners_per, unsigned max_partners) : 
     n_sites_(n_sites), partners_per_(partners_per), max_partners_(max_partners) {
+    modified = 0;
     partner_numbers_ = new unsigned[n_sites_]();
     partners_ = new unsigned*[n_sites_];
-    modified = 0;
     for (unsigned i = 0; i < n_sites_; i++) {
-        partners_[i] = new unsigned[partners_per_ * max_partners_];
+        partners_[i] = new unsigned[partners_per_ * max_partners_]();
     }
 }
 
 TopoList::~TopoList() {
 	if (modified == 0) {
-	    for (unsigned i = 0; i < n_sites_; i++) {
-    	    delete [] partners_[i];
-	    }
+    	for (unsigned i = 0; i < n_sites_; i++) {
+        	delete [] partners_[i];
+    	}
     	delete [] partners_;
     	delete [] partner_numbers_;
 	}
@@ -54,9 +55,10 @@ TopoList::~TopoList() {
 // Functions for managing TopologyData structs
 //---------------------------------------------------------------
 
-unsigned get_max_exclusion_number(TopologyData const* const topo_data) {
-	assert( (topo_data->excluded_style == 0) || (topo_data->excluded_style == 2) || (topo_data->excluded_style == 3) || (topo_data->excluded_style == 4) );
-	switch (topo_data->excluded_style) {
+inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const int excluded_style) 
+{
+	assert( (excluded_style == 0) || (excluded_style == 2) || (excluded_style == 3) || (excluded_style == 4) );
+	switch (excluded_style) {
 		case 2:
 			return topo_data->max_pair_bonds_per_site;
 			break;
@@ -70,7 +72,7 @@ unsigned get_max_exclusion_number(TopologyData const* const topo_data) {
 			break;
 			
 		default:
-			return 0;
+			return 1;
 			break;
 	}
 }
@@ -96,7 +98,7 @@ void initialize_topology_data(TopologyData* const topo_data)
     topo_data->dihedral_type_activation_flags = new int[calc_n_distinct_quadruples(topo_data->n_cg_types)]();
     topo_data->dihedral_list = new TopoList(nsites, 3, topo_data->max_dihedrals_per_site);
     // Ready exclusion list data structures.
-    if( topo_data->excluded_style != 0) topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data));
+	topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->excluded_style));
 }
 
 // Free an initialized TopologyData struct.
@@ -114,8 +116,8 @@ void free_topology_data(TopologyData *topo_data)
     if (topo_data->bond_list != NULL) delete topo_data->bond_list;
     if (topo_data->angle_list != NULL) delete topo_data->angle_list;
     if (topo_data->dihedral_list != NULL) delete topo_data->dihedral_list;
-    if (topo_data->excluded_style != 0) delete topo_data->exclusion_list;
-
+    delete topo_data->exclusion_list;
+	
     // Delete the topology interaction type activation flags.
     if (topo_data->bond_type_activation_flags != NULL) delete [] topo_data->bond_type_activation_flags;
     if (topo_data->angle_type_activation_flags != NULL) delete [] topo_data->angle_type_activation_flags;
@@ -126,12 +128,11 @@ void free_topology_data(TopologyData *topo_data)
 // Functions for reading a topology file for the CG model
 //---------------------------------------------------------------
 
-void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
+void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg) 
 {
     unsigned i;
     char buff[100], parameter_name[50];
-    FILE* top_in;
-    top_in = open_file("top.in", "r");
+    FILE* top_in = open_file("top.in", "r");
     int line = 0;
     
     // Read the number of sites and number of types of sites.
@@ -164,9 +165,9 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     
     // Read the section of top.in defining three body nonbonded interactions.
     if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
-        line = read_three_body_topology(topo_data, cg, top_in, line);
-    }
-    
+		line = read_three_body_topology(topo_data, cg, top_in, line);
+	}
+	
     // Read the molecules section of top.in to define all topology lists.
     
     // Read the number of distinct types of molecule
@@ -254,13 +255,12 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
         sscanf(topo_data->name[i], "%s", cg->name[i]);
     }
 
-	// Set-up appropriate bonded exclusions list from non-bonded interactions based on exclusion_style
-	setup_excluded_list(topo_data);
-
+	// Set-up appropriate bonded exclusions list from non-bonded interactions based on excluded_style
+	setup_excluded_list(topo_data, topo_data->exclusion_list, topo_data->excluded_style);
     // Close the file and free the memory used to store the temporary
     // single-molecule topologies.
     fclose(top_in);
-    for (i = 0; i < n_molecule_types; i++) {
+	for (i = 0; i < n_molecule_types; i++) {
         free_topology_data(&mol[i]);
     }
     delete [] mol;
@@ -295,22 +295,22 @@ int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, F
 		tb_k[i]--;
 	}
 	
-	cg->tb_n = new int[topo_data->n_cg_types]();
-	cg->tb_list = new int*[topo_data->n_cg_types];
+	cg->three_body_nonbonded_interactions.tb_n = new int[topo_data->n_cg_types]();
+	cg->three_body_nonbonded_interactions.tb_list = new int*[topo_data->n_cg_types];
 	
 	for (i = 0; i < tbtype; i++) {
-		cg->tb_n[tb_i[i]]++;
+		cg->three_body_nonbonded_interactions.tb_n[tb_i[i]]++;
 	}
 	
 	for (i = 0; i < topo_data->n_cg_types; i++) {
-		cg->tb_list[i] = new int[cg->tb_n[i] * 2];
-		cg->tb_n[i] = 0;
+		cg->three_body_nonbonded_interactions.tb_list[i] = new int[cg->three_body_nonbonded_interactions.tb_n[i] * 2];
+		cg->three_body_nonbonded_interactions.tb_n[i] = 0;
 	}
 	
 	for (i = 0; i < tbtype; i++) {
-		cg->tb_list[tb_i[i]][cg->tb_n[tb_i[i]] * 2] = tb_j[i] + 1;
-		cg->tb_list[tb_i[i]][cg->tb_n[tb_i[i]] * 2 + 1] = tb_k[i] + 1;
-		cg->tb_n[tb_i[i]]++;
+		cg->three_body_nonbonded_interactions.tb_list[tb_i[i]][cg->three_body_nonbonded_interactions.tb_n[tb_i[i]] * 2] = tb_j[i] + 1;
+		cg->three_body_nonbonded_interactions.tb_list[tb_i[i]][cg->three_body_nonbonded_interactions.tb_n[tb_i[i]] * 2 + 1] = tb_k[i] + 1;
+		cg->three_body_nonbonded_interactions.tb_n[tb_i[i]]++;
 	}
 
 	cg->three_body_nonbonded_interactions.set_n_defined(tbtype);
@@ -345,7 +345,7 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     
     mol->n_cg_types = 0;
     mol->excluded_style = 0;
-    // Allocate space for bond, angle, and dihedral lists.
+	// Allocate space for bond, angle, and dihedral lists.
     initialize_topology_data(mol);
     
     // Read the the CG site type of each site in the CG molecule
@@ -567,30 +567,30 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     }
 }
 
-void setup_excluded_list( TopologyData const* topo_data ) 
+void setup_excluded_list( TopologyData const* topo_data, TopoList* exclusion_list, const int excluded_style) 
 {
 	// Automatically determine topology to set appropriate
     // bond, angle, and/or dihedral exclusion as appropriate.
-    if (topo_data->excluded_style == 0) return;
-	printf("Setting up exclusion list for excluded_style %d.\n", topo_data->excluded_style);
-    unsigned max_excluded_number = get_max_exclusion_number(topo_data);
+	printf("Setting up exclusion list for excluded_style %d.\n", excluded_style);
+    if (excluded_style == 0) return;
+	unsigned max_excluded_number = get_max_exclusion_number(topo_data, excluded_style);
             
     // Loop over each CG site and its bonds to copy into exclusion list
     for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
         for (unsigned j = 0; j < topo_data->bond_list->partner_numbers_[i]; j++) {            
-            topo_data->exclusion_list->partners_[i][ topo_data->exclusion_list->partner_numbers_[i] ] = topo_data->bond_list->partners_[i][j];
-            topo_data->exclusion_list->partner_numbers_[i]++;
+            exclusion_list->partners_[i][ exclusion_list->partner_numbers_[i] ] = topo_data->bond_list->partners_[i][j];
+            exclusion_list->partner_numbers_[i]++;
         }
     
-    	if ( topo_data->exclusion_list->partner_numbers_[i] > max_excluded_number ) {
-    		printf("Warning: Too many excluded interactions (%d) to handle based on max_pair_bonds_per_site (%d)!\n", topo_data->exclusion_list->partner_numbers_[i], max_excluded_number);
+    	if ( exclusion_list->partner_numbers_[i] > max_excluded_number ) {
+    		printf("Warning: Too many excluded interactions (%d) to handle based on max_pair_bonds_per_site (%d)!\n", exclusion_list->partner_numbers_[i], max_excluded_number);
     		exit(EXIT_FAILURE);
     	}
     }
     
     // If we also need angles, check the sites bonded to known bonds and
     // if we need dihedrals, check the sites bonded to know angles to add to exclusion list.
-    if (topo_data->excluded_style == 2) return;
+    if (excluded_style == 2) return;
     
     // Loop over CG sites in the molecule
     for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
@@ -607,21 +607,21 @@ void setup_excluded_list( TopologyData const* topo_data )
                 
                 //add this as an angle interaction as long as it does not loop back to the starting CG site
                 if (cg_site2 == i) continue; 
-                if ( new_excluded_partner(topo_data->exclusion_list->partners_, i, topo_data->exclusion_list->partner_numbers_[i], cg_site2) == true ) {
-	                topo_data->exclusion_list->partners_[i][ topo_data->exclusion_list->partner_numbers_[i] ] = cg_site2;
-    	            topo_data->exclusion_list->partner_numbers_[i]++;
+                if ( new_excluded_partner(exclusion_list->partners_, i, exclusion_list->partner_numbers_[i], cg_site2) == true ) {
+	                exclusion_list->partners_[i][ exclusion_list->partner_numbers_[i] ] = cg_site2;
+    	            exclusion_list->partner_numbers_[i]++;
         		}
         		        
                 //if we need dihedrals, loop over all potential dihedrals (cg_site3: bonded to angle)
-                if (topo_data->excluded_style == 4) {
+                if (excluded_style == 4) {
                 	for(unsigned l = 0; l < topo_data->bond_list->partner_numbers_[cg_site2]; l++) {
                 		unsigned cg_site3 = topo_data->bond_list->partners_[cg_site2][l];
                 		
                 		//add this as a dihedral interaction as long as it does not loop back to a CG site in the existing angle
                 		if( (cg_site3 == i) || (cg_site3 == cg_site1) || (cg_site3 == cg_site2) ) continue;
-                		if ( new_excluded_partner(topo_data->exclusion_list->partners_, i, topo_data->exclusion_list->partner_numbers_[i], cg_site3) == true ) {
-                			topo_data->exclusion_list->partners_[i][ topo_data->exclusion_list->partner_numbers_[i] ] = cg_site3;
-               		 		topo_data->exclusion_list->partner_numbers_[i]++;
+                		if ( new_excluded_partner(exclusion_list->partners_, i, exclusion_list->partner_numbers_[i], cg_site3) == true ) {
+                			exclusion_list->partners_[i][ exclusion_list->partner_numbers_[i] ] = cg_site3;
+               		 		exclusion_list->partner_numbers_[i]++;
                		 	}
                		}
             	}
@@ -629,8 +629,8 @@ void setup_excluded_list( TopologyData const* topo_data )
         	}
         }
         
-    	if ( topo_data->exclusion_list->partner_numbers_[i] > max_excluded_number ) {
-    		printf("Warning: Too many excluded interactions (%d) to handle based on max_pair_bonds_per_site, max_angles_per_site, and max_dihedrals_per_site (total %d)!\n", topo_data->exclusion_list->partner_numbers_[i], max_excluded_number);
+    	if ( exclusion_list->partner_numbers_[i] > max_excluded_number ) {
+    		printf("Warning: Too many excluded interactions (%d) to handle based on max_pair_bonds_per_site, max_angles_per_site, and max_dihedrals_per_site (total %d)!\n", exclusion_list->partner_numbers_[i], max_excluded_number);
     		exit(EXIT_FAILURE);
     	}
     }

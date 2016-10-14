@@ -46,6 +46,27 @@
 // Solely for rangefinding capability.
 #include "range_finding.h"
 
+void* mscg_startup_part1(void* void_in);
+void* rangefinder_startup_part1(void* void_in);
+void* mscg_startup_part2(void* void_in);
+void* rangefinder_startup_part2(void* void_in);
+void* rangefinder_process_frame(void* void_in, double* const x, double* const f);
+void* mscg_process_frame(void* void_in, double* const x, double* const f);
+void* mscg_solve_and_output(void* void_in);
+void* rangefinder_solve_and_output(void* void_in);
+
+void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths);
+void* update_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths);
+
+void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_cg_types, char ** type_names, int* cg_site_types, double* box_half_lengths);
+void* set_bond_topology(void* void_in, unsigned** bond_partners, unsigned* bond_partner_numbers); 
+void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* angle_partner_numbers);
+void* set_dihedral_topology(void* void_in, unsigned** dihedral_partners, unsigned* dihedral_partner_numbers);
+
+void* set_exclusion_topology(void* void_in, unsigned** exclusion_partners, unsigned* exclusion_partner_numbers);
+void* generate_exclusion_topology(void* void_in);
+void* generate_angle_dihedral_and_exclusion_topology(void* void_in);
+
 // Prototype function definition for functions called internal to this file
 void finish_fix_reading(FrameSource *const frame_source);
 
@@ -187,7 +208,7 @@ void* mscg_startup_part2(void* void_in)
 
     // Initialize the force-matching matrix.
     printf("Initializing FM matrix.\n");
-    mscg_struct->mat = make_matrix(p_control_input, p_cg);
+    mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
     if (p_frame_source->use_statistical_reweighting == 1) {
         set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
     }
@@ -261,7 +282,7 @@ void* rangefinder_startup_part2(void* void_in)
 
     printf("Allocating dummy force matching matrix temps.\n");
     mscg_struct->control_input->matrix_type = kDummy;
-    mscg_struct->mat = make_matrix(mscg_struct->control_input, mscg_struct->cg);
+    mscg_struct->mat = new MATRIX_DATA(mscg_struct->control_input, mscg_struct->cg);
 
     // Read statistical weights for each frame if the 
     // 'use_statistical_reweighting' flag is set in control.in.
@@ -273,7 +294,7 @@ void* rangefinder_startup_part2(void* void_in)
     
     // Initialize the force-matching matrix.
     printf("Initializing FM matrix.\n");
-    mscg_struct->mat = make_matrix(mscg_struct->control_input, mscg_struct->cg);
+    mscg_struct->mat = new MATRIX_DATA(mscg_struct->control_input, mscg_struct->cg);
 	
 	//Initialize other data types
 	mscg_struct->frame_source->cleanup = finish_fix_reading;
@@ -314,7 +335,6 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
 {       		
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
-    ControlInputs *p_control_input = mscg_struct->control_input;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
     
 	// Convert 1D x and f arrays into rvec array
@@ -344,12 +364,9 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
     // The end-of-frame-block routines are called.
     // Then, the trajectory_block_index is incremented.
     mscg_struct->curr_frame++;
-    int n_blocks = mscg_struct->nblocks;
-	int total_frame_samples = p_frame_source->n_frames;
-	int traj_frame_num = mscg_struct->traj_frame_num;
+ 	int traj_frame_num = mscg_struct->traj_frame_num;
 	int trajectory_block_frame_index = mscg_struct->trajectory_block_frame_index;
 	int times_sampled = 1;
-    int read_stat = 1;
     
     // If reweighting is being used, scale the block of the FM matrix for this frame
     // by the appropriate weighting factor
@@ -413,7 +430,6 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
-    ControlInputs *p_control_input = mscg_struct->control_input;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
     
 	// Convert 1D x and f arrays into rvec array
@@ -442,13 +458,9 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
     // When this index reaches the block size (frames_per_traj_block),
     // The end-of-frame-block routines are called.
     // Then, the trajectory_block_index is incremented.
-    int n_blocks = mscg_struct->nblocks;
-	int total_frame_samples = p_frame_source->n_frames;
 	int traj_frame_num = mscg_struct->traj_frame_num;
 	int trajectory_block_frame_index = mscg_struct->trajectory_block_frame_index;
 	int times_sampled = 1;
-    int read_stat = 1;
-
       
   	// If reweighting is being used, scale the block of the FM matrix for this frame
     // by the appropriate weighting factor
@@ -541,7 +553,7 @@ void* mscg_solve_and_output(void* void_in)
 		if (p_frame_source->dynamic_state_sampling == 1) {
 			total_frame_samples *= p_frame_source->dynamic_state_samples_per_frame;
 		}
-		if ( (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+		if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
 			printf("Warning: Total number of actual frame samples %d is not divisible by block size %d.\n", total_frame_samples, mscg_struct->mat->frames_per_traj_block);
 			printf("This can cause some frames to be excluded from the calculation of interactions.\n"); 
 			fflush(stdout);
@@ -760,22 +772,22 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 			tb_k[i]--;
 		}
 	
-		p_cg->tb_n = new int[p_topo_data->n_cg_types]();
-		p_cg->tb_list = new int*[p_topo_data->n_cg_types];
+		p_cg->three_body_nonbonded_interactions.tb_n = new int[p_topo_data->n_cg_types]();
+		p_cg->three_body_nonbonded_interactions.tb_list = new int*[p_topo_data->n_cg_types];
 	
 		for (i = 0; i < tbtype; i++) {
-			p_cg->tb_n[tb_i[i]]++;
+			p_cg->three_body_nonbonded_interactions.tb_n[tb_i[i]]++;
 		}	
 	
 		for (i = 0; i < p_topo_data->n_cg_types; i++) {
-			p_cg->tb_list[i] = new int[p_cg->tb_n[i] * 2];
-			p_cg->tb_n[i] = 0;
+			p_cg->three_body_nonbonded_interactions.tb_list[i] = new int[p_cg->three_body_nonbonded_interactions.tb_n[i] * 2];
+			p_cg->three_body_nonbonded_interactions.tb_n[i] = 0;
 		}
 	
 		for (i = 0; i < tbtype; i++) {
-			p_cg->tb_list[tb_i[i]][p_cg->tb_n[tb_i[i]] * 2] = tb_j[i] + 1;
-			p_cg->tb_list[tb_i[i]][p_cg->tb_n[tb_i[i]] * 2 + 1] = tb_k[i] + 1;
-			p_cg->tb_n[tb_i[i]]++;
+			p_cg->three_body_nonbonded_interactions.tb_list[tb_i[i]][p_cg->three_body_nonbonded_interactions.tb_n[tb_i[i]] * 2] = tb_j[i] + 1;
+			p_cg->three_body_nonbonded_interactions.tb_list[tb_i[i]][p_cg->three_body_nonbonded_interactions.tb_n[tb_i[i]] * 2 + 1] = tb_k[i] + 1;
+			p_cg->three_body_nonbonded_interactions.tb_n[tb_i[i]]++;
 		}
 
 		p_cg->three_body_nonbonded_interactions.set_n_defined(tbtype);
@@ -822,7 +834,7 @@ void* set_bond_topology(void* void_in, unsigned** bond_partners, unsigned* bond_
 	for (int i = 0; i < p_cg->n_cg_sites; i++) {
         // Only process this particle if it is part of a bond.
         // Look at each set of angle IDs stored for this particle.
- 		for(int j = 0; j < p_topo_data->bond_list->partner_numbers_[i]; j++) {
+ 		for(unsigned j = 0; j < p_topo_data->bond_list->partner_numbers_[i]; j++) {
 			// Set the site indices for the sites in this bond.
         	cg_site1 = i;
 	        cg_site2 = p_topo_data->bond_list->partners_[i][j];
@@ -841,7 +853,8 @@ void* set_bond_topology(void* void_in, unsigned** bond_partners, unsigned* bond_
 // This function sets topology information for angles.
 // This function is intended to be called between 
 // the setup_topology and the mscg_startup_part2 functions.
-void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* angle_partner_numbers) {
+void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* angle_partner_numbers) 
+{
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
     CG_MODEL_DATA *p_cg = mscg_struct->cg;
     TopologyData* p_topo_data = &(p_cg->topo_data);
@@ -869,7 +882,7 @@ void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* ang
         // Only process this particle if it is stores information about an angle
         // Note: Angles only appear for a given angle if the particle i is at the end of the angle. 
  		// Look at each set of angle IDs stored for this particle.
- 		for(int j = 0; j < p_topo_data->angle_list->partner_numbers_[i]; j++) {
+ 		for(unsigned j = 0; j < p_topo_data->angle_list->partner_numbers_[i]; j++) {
  			// Grab the particle IDs.
  			// Note: The particle i and the 2nd index in parter are the ends of the angle while the first index is the middle.
  			// However, this code takes the angle as Midle - End - End.
@@ -923,7 +936,7 @@ void* set_dihedral_topology(void* void_in, unsigned** dihedral_partners, unsigne
         // Only process this particle if it is stores information about an angle
         // Note: Dihedrals only appear for a given angle if the particle i is at the end of the dihedral. 
  		// Look at each set of dihedral IDs stored for this particle.
- 		for(int j = 0; j < p_topo_data->dihedral_list->partner_numbers_[i]; j++) {
+ 		for(unsigned j = 0; j < p_topo_data->dihedral_list->partner_numbers_[i]; j++) {
  			// Grab the particle IDs.
  			// Note: The particle i and the 3nd index in parter are the ends of the angle while the first and second indices are in the middle.
  			// However, this code takes the angle as Midle - Middle - End - End.
@@ -990,7 +1003,7 @@ void* generate_exclusion_topology(void* void_in)
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
     CG_MODEL_DATA *p_cg = mscg_struct->cg;
     TopologyData* p_topo_data = &(p_cg->topo_data);
-	setup_excluded_list(p_topo_data);
+	setup_excluded_list(p_topo_data, p_topo_data->exclusion_list, p_topo_data->excluded_style);
 	
 	return (void*)(mscg_struct);
 }
@@ -1006,7 +1019,7 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
     TopologyData* p_topo_data = &(p_cg->topo_data);
 
 	unsigned i, j, k, l;
-	int cg_site1, cg_site2, cg_site3;
+	int cg_site1, cg_site2;
 	int cg_type1, cg_type2, cg_type3;
 	int hash_val, n_angles, n_dihedrals;
 	int total_angles = 0;
@@ -1074,7 +1087,7 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
     printf("Automatically generated dihedral topology; %d dihedrals of %d dihedral types.\n", total_dihedrals/2, calc_n_active_interactions(p_topo_data->dihedral_type_activation_flags, calc_n_distinct_quadruples(p_topo_data->n_cg_types)));
 
 	// Generate exclusion topology.
-	setup_excluded_list(p_topo_data);
+	setup_excluded_list(p_topo_data, p_topo_data->exclusion_list, p_topo_data->excluded_style);
 	
 	return (void*)(mscg_struct);
 }

@@ -19,20 +19,23 @@ L. Lu, S. Izvekov, A. Das, H. C. Andersen, and G. A. Voth, "Efficient, Regulariz
 This package also provides support for the methods described in these references:
 1. S. Izvekov, and G. A. Voth, "Multiscale coarse graining of liquid-state systems", 
      The Journal of Chemical Physics, 123(13), 134105 (2005). doi:10.1063/1.2038787
-2. L. Lu, J. F. Dama, and G. A. Voth, "Fitting coarse-grained distribution functions 
+2. P. Liu, Q. Shi, H. D. Daume III, and G. A. Voth, "A Bayesian statistics approach
+      to multiscale coarse graining" Journal of Chemical Physics, 129, 214114 (2008).
+      doi:10.1063/1.3033218
+3. L. Lu, J. F. Dama, and G. A. Voth, "Fitting coarse-grained distribution functions 
      through an iterative force-matching method" Journal of Chemical Physics, 139, 
      121906 (2013). doi:10.1063/1.4811667
-3. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
+4. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
      Ultra-Coarse-Graining. 2. Numerical Implementation" Journal of Chemical Theory and
      Computation, 10 (12), 5265–5275 (2014). 
-4. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
+5. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
      Accurate interactions based on the centers of charge of coarse-grained sites", 
      Journal of Chemical Physics, 143, 243116 (2015). doi:10.1063/1.4933249
-5. J. W. Wagner, J. F. Dama, and G. A. Voth, "Predicting the Sensitivity of Multiscale 
+6. J. W. Wagner, J. F. Dama, and G. A. Voth, "Predicting the Sensitivity of Multiscale 
      Coarse-Grained Models to their Underlying Fine-Grained Model Parameters" Journal of 
      Chemical Theory and Computation, 11(8), 3547–3560 (2015). 
      doi:10.1021/acs.jctc.5b00180
-6. T. Dannenhoffer-Lafage, A. D. White, and G. A. Voth, "A Direct Method for Incorporating 
+7. T. Dannenhoffer-Lafage, A. D. White, and G. A. Voth, "A Direct Method for Incorporating 
     Experimental Data into Multiscale Coarse-Grained Models", Journal of Chemical Theory 
     and Computation, 12(5), 2144–2153 (2016). doi:10.1021/acs.jctc.6b00043 
 
@@ -457,13 +460,30 @@ regularization_style (0)
     Specifies the style of regularization
     * 0: no regularization
     * 1: scalar Tikhonov regularization specified using regularization_scalar
+    	 This scalar squared is applied after preconditioning the normal matrix.
     * 2: vector Tikhonov regularization with vector from 'lambda.in'
          This file has one value per line with the number of lines equaling the
          number of basis functions
+         This vector is applied as is to the normal matrix before preconditioning.
 regularization_scalar (0) 
     A scalar value corresponding to lambda in the primary reference, used to prevent over-
     fitting, larger values imply more aggressive smoothing
     Only used when regularization_style is 1
+bayesian_mscg_flag (0)
+	Whether or not to use the Bayesian MS-CG method
+	This works for newfm matrix_types 0, 3, and 4 and combinefm matrix_type 0.
+	* 0: no
+	* 1: yes
+	* 2: yes, also print out the normal matrix (once) and inverse matrix (each iteration)
+bayesian_max_iterations (1)
+	The number of iterations for the Bayesian MS-CG method.
+	This is only used if bayesian_mscg_flag is 1.
+	For each iteration the following outputs are generated:
+		- The alpha vector is output to "alpha.out".
+		- The beta value is output to "beta.out".
+		- The residual is output to "residual.out".
+		- The regularized normal matrix is output to "matrix.out"
+		- The inverse of the regularized normal matrix is output to "inverse.out".
 lanyuan_iterative_method_flag (0) 
     Whether or not to use Lanyuan's iterative FM method instead of the usual FM
     * 0: no 
@@ -474,15 +494,23 @@ iterative_update_rate_coeff (1.0)
     Only used when lanyuan_iterative_method_flag = 1
 primary_output_style (0) 
     Used to specify how this force-matching run's results should be used
+	The binary matrix output is written to "result.out"
     * 0: output tabulated interactions
     * 2: output tables and binary representations of the blockwise matrix equations
     * 3: output only binary representations of the blockwise matrix equations
+    	 do not solve for tables
+    Note: The sparse matrix style (4) also outputs a human readable for of the matrix
+          equations in CSR format in the file "result_csr.out". The first line lists
+          the rows, columns, and number of entries. The next four lines list (in order):
+          the values, the column indicies, the row sizes, and the RHS normal vector.
 output_solution_flag (0) 
     Whether or not to print out the singular values of a dense or accumulation matrices
     * 0: no
     * 1: yes
 output_residual_flag (0) 
     Whether or not to output the final MS-CG residual value
+    This residual does not have any normalization (e.g., dimension * frames * sites)
+    Note: This option only works for matrix_types 0, 3, and 4.
     * 0: no
     * 1: yes
 output_spline_coeffs_flag (0) 
@@ -581,8 +609,14 @@ papers were listed at the beginning of this manual.
    J. Chem. Phys. 123, 134105 (2005), i.e. 3*W(atom)+2*delta(E(kin)). Each value should 
    occupy its own line, so that the number of lines is equal to the number of frames in 
    the trajectory.
- 
-2. To use iterative force matching, one must first run the code using 
+   
+2. To use Bayesian MS-CG, one must set "bayesian_mscg_flag" to 1 and choose the desired
+   number of iterations in "bayesian_max_iterations". The alpha and beta values described
+   in this paper are calculated for each iteration and used to regularize the normal
+   matrix in the next iteration. One should look for convergence of either alpha/beta or
+   the solution elements as stopping criteria.
+
+3. To use iterative force matching, one must first run the code using 
    "primary_output_style 2" and "output_solution_flag 1". Then,rename result.out to 
    result.in and x.out to x.in.  Finally, use the "lanyuan_iterative_method_flag" and 
    "iterative_update_rate_coeff" options in control.in when running the code again with
@@ -591,17 +625,17 @@ papers were listed at the beginning of this manual.
    force matching code again with additional data.
    For a worked example, please look at the "iterative_fm" sub-directory of the examples.
     
-3. To force match interactions between sites where the site's type changes during the 
+4. To force match interactions between sites where the site's type changes during the 
    course of the simulation, use "dynamic_types 1". Make sure that mapped trajectory has
    the correct type assigned to it under the "type" field.
    Note: Dynamic types is only supported for LAMMPS trajectories.
    There is a worked example in the "ucg_lammps_fm_dynamic_type" sub-directory of the
    examples.
 
-4. To create center-of-charge MS-CG models, apply the mapping described in J. Chem. Phys.,
+5. To create center-of-charge MS-CG models, apply the mapping described in J. Chem. Phys.,
    143, 243116 (2015) to the FG trajectory. Then, prepare all other inputs as usual.
  
-5. There are two new methods described in J. Chem. Theory and Comput., 11(8), 3547–3560 
+6. There are two new methods described in J. Chem. Theory and Comput., 11(8), 3547–3560 
    (2015).
     a) MS-CG models can be constructed by reweighting frames at a different state-point or 
        from an enhanced sampling method using "use_statistical_reweighting". Any bias 
@@ -622,7 +656,7 @@ papers were listed at the beginning of this manual.
        trajectory where the result of that right-hand side is in place of the forces. 
        Then, run the package as usual.
  
-6. This package provides support for the fitting of CG interactions as described in 
+7. This package provides support for the fitting of CG interactions as described in 
    J. Chem. Theory Comput., 12(5), 2144–2153 (2016). The frames generated using resulting 
    EDS potential can be used as input to this package. Then, run the package as usual.
 

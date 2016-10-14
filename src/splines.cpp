@@ -16,6 +16,8 @@ SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
             return new BSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kLinearSpline) {
             return new LinearSplineComputer(ispec);
+        } else if (ispec->get_basis_type() == kBSplineAndDeriv) {
+        	return new BSplineAndDerivComputer(ispec);
         } else {
             printf("Unrecognized spline class.\n");
             exit(EXIT_FAILURE);
@@ -113,7 +115,7 @@ double BSplineComputer::evaluate_spline(const int index_among_defined, const int
 
 BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
-    int n_to_print_minus_bspline_k;
+    int n_to_print_minus_bspline_k, interaction_column_indices;
 
     n_coef = ispec_->get_bspline_k();
     n_to_force_match = ispec_->n_to_force_match; 
@@ -121,33 +123,50 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
     
-    if (ispec_->class_subtype == 1 || ispec_->class_subtype == 2) {
+    if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2)) {
         printf("Allocating b-spline temporaries for %d interactions.\n", ispec_->get_n_defined());
-        n_to_print_minus_bspline_k = floor(180.0 / binwidth + 0.5) + 1;
         bspline_vectors = gsl_vector_alloc(n_coef);
-        bspline_workspaces = new gsl_bspline_workspace*[n_defined];
-        for (unsigned counter = 0; counter < n_defined; counter++) {
-            bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-            gsl_bspline_knots_uniform(ispec_->lower_cutoffs[counter], ispec_->upper_cutoffs[counter], bspline_workspaces[counter]);
-        }
-        if (ispec_->class_subtype == 2) {
-            printf("Allocating b-spline temporaries for %d interactions.\n", ispec_->get_bspline_k());
-            bspline_matrices = gsl_matrix_alloc(n_coef, 2);
-            bspline_deriv_workspaces = gsl_bspline_deriv_alloc(n_coef);
+        
+       	bspline_matrices = gsl_matrix_alloc(n_coef, 2);
+       	bspline_deriv_workspaces = gsl_bspline_deriv_alloc(n_coef);
+        
+        if (ispec_->class_type == kThreeBodyNonbonded) {
+	       	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
+     		
+     		for (unsigned counter = 0; counter < n_defined; counter++) {
+            	bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
+            	gsl_bspline_knots_uniform(ispec_->lower_cutoffs[counter], ispec_->upper_cutoffs[counter], bspline_workspaces[counter]);
+        	}
+     	} else {
+     		bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
+       	
+      		int counter = 0;
+       		for (unsigned i = 0; i < n_defined; i++) {
+       			if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
+            		interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
+            		n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
+            		bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
+            		gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
+            		counter++;
+        		}
+        	}
         }
     }
 }
 
 BSplineAndDerivComputer::~BSplineAndDerivComputer() 
 {
-    if (class_subtype == 1 || class_subtype == 2) {
-        for (unsigned i = 0; i < n_defined; i++)  gsl_bspline_free(bspline_workspaces[i]);
+    if ((ispec_->class_type != kThreeBodyNonbonded) || (class_subtype == 1) || (class_subtype == 2)) {
+    	if (ispec_->class_type != kThreeBodyNonbonded) {
+    		for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
+    	} else {
+        	for (unsigned i = 0; i < n_defined; i++)  gsl_bspline_free(bspline_workspaces[i]);
+        }
+        
         delete [] bspline_workspaces;
         gsl_vector_free(bspline_vectors);
-        if (class_subtype == 2) {
-            gsl_matrix_free(bspline_matrices);
-            gsl_bspline_deriv_free(bspline_deriv_workspaces);
-        }
+        gsl_matrix_free(bspline_matrices);
+        gsl_bspline_deriv_free(bspline_deriv_workspaces);
     }
 }
 
@@ -189,7 +208,14 @@ double BSplineAndDerivComputer::evaluate_spline(const int index_among_defined, c
     size_t istart, iend;
     gsl_bspline_eval_nonzero(axis, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     double force = 0.0;
+    
     for (int tn = int(istart); tn <= int(iend); tn++) {
+    	if (spline_coeffs.size() <= first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn) {
+	       	printf("gsl_vector_get(bspline_vectors, %d - %d) = %lf\t", tn, (int)(istart), gsl_vector_get(bspline_vectors, tn - istart)); fflush(stdout);
+    		printf("spline_coeffs.size() = %u\n", (unsigned)(spline_coeffs.size())); fflush(stdout);
+    		printf("index %d = ", first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn); fflush(stdout);
+			printf("fnzbi %d + ici[%d - 1] %d + tn %d\n", first_nonzero_basis_index, index_among_matched_interactions, ispec_->interaction_column_indices[index_among_matched_interactions - 1], tn); fflush(stdout);
+    	}
         force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn];
     }
     return force;
@@ -199,10 +225,10 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
 {
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     size_t istart, iend;
-    gsl_bspline_deriv_eval_nonzero(axis, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions], bspline_deriv_workspaces);
+    gsl_bspline_deriv_eval_nonzero(axis, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1], bspline_deriv_workspaces);
     double deriv = 0.0;
     for (int tn = int(istart); tn <= int(iend); tn++) {
-        deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions] + tn];
+        deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn];
     }
     return deriv;
 }
@@ -214,9 +240,6 @@ LinearSplineComputer::LinearSplineComputer(InteractionClassSpec* ispec) : Spline
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
 }
-
-// Calculate the value of the a one-parameter linear spline; direction of the 
-// corresponding forces is calculated in the function calling this one.
 
 void LinearSplineComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
 {

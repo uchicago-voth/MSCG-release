@@ -17,4 +17,17 @@ Version 1.5.2 (September 15, 2016)
 		(This feature is activated through the output_*_parameter_distribution options
 		 and is only generated from rangefinder runs)
 	
-		
+Version 1.5.3 (October 13, 2016)
+	* Bayesian MS-CG support
+		** Updated manual
+		** Added "bayesian_fm" example
+		** result.out file now contain the number of frames and accumulated squared forces
+	* Support for residual calculation
+	* Support for vector regularization and improved documentation on regularization
+	* More permissive parser for interaction mode (fm+tab and tab+fm are now accepted)
+	* Consolidate geometric calculations into geometry.cpp
+	* Partial standardization of three-body interaction implementation
+	* Matrix object uses constructors and destructors
+	* Reorganize handing of matrix element accumulation
+	* Reorganize output internals
+	

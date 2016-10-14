@@ -72,6 +72,6 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg);
 void initialize_topology_data(TopologyData* const topo_data);
 
 // Determine appropriate non-bonded exclusions based on bonded topology and exclusion_style setting (used for LAMMPS fix).
-void setup_excluded_list( TopologyData const* topo_data );
+void setup_excluded_list(TopologyData const* topo_data,  TopoList* exclusion_list, const int excluded_style);
 
 #endif
