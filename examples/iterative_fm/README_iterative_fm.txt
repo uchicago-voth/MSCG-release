@@ -22,7 +22,7 @@ sampling to produce a converged result.
 ./newfm.x -l MeOH_example.dat
 
 4) Compare the results with those in the "output0" directory. These are the same results
-   as the "serial_fm" example.
+   as the "lammps_fm" example.
 
 5) For the next (and any subsequent) run, rename "result.out" to "result.in" and 
    "x.out" to "x.in". 
@@ -41,6 +41,6 @@ sampling to produce a converged result.
 ./newfm.x -f MeOH_CG.dat
 
 8) Compare the results with those in the "output1" directory. The output interactions 
-   are the sum of the previous interaction and the correction from the first iterative 
-   force matching run. Note: Additional iterations require the repetition of steps 6 
-   through 8.
+   in the new *.dat and *.table files are the sum of the previous interaction and the 
+   correction from the first iterative force matching run. Note: Additional iterations 
+   require the repetition of steps 6 through 8.

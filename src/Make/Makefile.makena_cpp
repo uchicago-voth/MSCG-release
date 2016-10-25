@@ -1,3 +1,9 @@
+# This Makefile is meant for use after
+# module load mkl/11.2
+# module load gsl/1.6
+# module load intel/12.0
+# on any of RCC's clusters at UChicago.
+
 MKLPATH = /software/intel/lib/intel64
 MKLINCLUDE = /software/intel/include
 GSLPATH = $(GSL_DIR)/lib
@@ -24,7 +30,7 @@ MKL_NO_GRO_CFLAGS   = $(MKL_OPT) -I$(GSLINC)
 CC           = icc
 
 COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input.o misc.o
-COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h
+COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h mscg.h
 MKL_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix_mkl.o splines.o topology.o trajectory_input.o misc.o
 NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input_no_gro.o misc.o
 MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix_mkl.o splines.o topology.o trajectory_input_no_gro.o misc.o
@@ -32,8 +38,8 @@ MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geom
 # Target executables
 
 # The library for LAMMPS is lib_mscg.a
-lib_mscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS) range_finding.o
-	ar rvs lib_mscg.a *.o
+libmscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS) range_finding.o
+	ar rvs libmscg.a *.o
 
 newfm.x: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
@@ -62,7 +68,7 @@ combinefm_mkl.x: combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS)
 # Target objects
 
 mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
-	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o
+	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o $(NO_GRO_LIBS)
 
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp

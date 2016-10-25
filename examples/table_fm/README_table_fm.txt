@@ -2,8 +2,8 @@
 -------------------------------------
 
 This example demonstrates the use of tabulated interactions.
-The input system is a system of 250 methanol molecules that have each been mapped
-to two center-of-mass sites (one for the methyl and the other for the hydroxyl). 
+The input system is a system of 250 ethylene carbonate molecules that have each been 
+mapped to two center-of-mass sites. 
 In this case, the bond between these two sites is tabulated (perhaps from Boltzmann
 Inversion) and should be subtracted before force matching the non-bonded interactions.
 As with all of the examples, the trajectory is not long enough to contain sufficient 

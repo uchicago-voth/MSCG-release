@@ -123,13 +123,12 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
     
-    if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2)) {
-        printf("Allocating b-spline temporaries for %d interactions.\n", ispec_->get_n_defined());
+    if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2) || (ispec_->class_subtype == 3) ) {
+        printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
         bspline_vectors = gsl_vector_alloc(n_coef);
         
        	bspline_matrices = gsl_matrix_alloc(n_coef, 2);
-       	bspline_deriv_workspaces = gsl_bspline_deriv_alloc(n_coef);
-        
+       	
         if (ispec_->class_type == kThreeBodyNonbonded) {
 	       	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
      		
@@ -156,7 +155,7 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
 
 BSplineAndDerivComputer::~BSplineAndDerivComputer() 
 {
-    if ((ispec_->class_type != kThreeBodyNonbonded) || (class_subtype == 1) || (class_subtype == 2)) {
+    if ((ispec_->class_type != kThreeBodyNonbonded) || (class_subtype == 1) || (class_subtype == 2) || (ispec_->class_subtype == 3)) {
     	if (ispec_->class_type != kThreeBodyNonbonded) {
     		for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
     	} else {
@@ -166,7 +165,6 @@ BSplineAndDerivComputer::~BSplineAndDerivComputer()
         delete [] bspline_workspaces;
         gsl_vector_free(bspline_vectors);
         gsl_matrix_free(bspline_matrices);
-        gsl_bspline_deriv_free(bspline_deriv_workspaces);
     }
 }
 
@@ -179,7 +177,7 @@ void BSplineAndDerivComputer::calculate_bspline_deriv_vals(const int index_among
 
     size_t junk;
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
-    gsl_bspline_deriv_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], (size_t)(1), bspline_matrices, &junk, &junk, bspline_workspaces[index_among_matched], bspline_deriv_workspaces);
+    gsl_bspline_deriv_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], (size_t)(1), bspline_matrices, &junk, &junk, bspline_workspaces[index_among_matched]);
     
     for (unsigned i = 0; i < n_coef; i++) {
         vals[i] = -gsl_matrix_get(bspline_matrices, i, 1);
@@ -225,9 +223,15 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
 {
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     size_t istart, iend;
-    gsl_bspline_deriv_eval_nonzero(axis, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1], bspline_deriv_workspaces);
+    gsl_bspline_deriv_eval_nonzero(axis, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     double deriv = 0.0;
     for (int tn = int(istart); tn <= int(iend); tn++) {
+    	if (spline_coeffs.size() <= first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn) {
+	       	printf("gsl_matrix_get(bspline_vectors, %d - %d) = %lf\t", tn, (int)(istart), gsl_vector_get(bspline_vectors, tn - istart)); fflush(stdout);
+    		printf("spline_coeffs.size() = %u\n", (unsigned)(spline_coeffs.size())); fflush(stdout);
+    		printf("index %d = ", first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn); fflush(stdout);
+			printf("fnzbi %d + ici[%d - 1] %d + tn %d\n", first_nonzero_basis_index, index_among_matched_interactions, ispec_->interaction_column_indices[index_among_matched_interactions - 1], tn); fflush(stdout);
+    	}
         deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn];
     }
     return deriv;

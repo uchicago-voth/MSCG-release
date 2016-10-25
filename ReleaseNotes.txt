@@ -31,3 +31,29 @@ Version 1.5.3 (October 13, 2016)
 	* Reorganize handing of matrix element accumulation
 	* Reorganize output internals
 	
+Version 1.5.4 (October 25, 2016)
+	* Update Makefiles
+		** Added simplified "makena" makefile
+		** Added no_gro to all makefiles
+		** Change lib_mscg to libmscg
+	* MS-CG library changes
+		** Added get functions to mscg.cpp 
+		** Separate header information mscg.cpp into mscg.h
+	* Added molecular exclusion (excluded_style 5)
+	* Improvements to three-body interactions
+		** Fix problem in walking three-body neighbor list
+		** Update GSL calls to version 2.0+ syntax
+		** Augment internal setup of interactions
+	* Iterative MS-CG support
+		** Correct binary read/write issues
+		** Correct normalization problems
+		** Updated example and outputs
+	* Additional Bayesian MS-CG updates
+		** Change system and outputs for "bayesian_fm" example
+		** Added number of frames and sum of squared forces to result.out for combinefm.x
+		** Output extended residual
+		** Added verbose output option to bayesian_mscg_flag
+	* Improvements to dihedral interactions
+		** Correct hashing inversion for dihedral interactions
+		** Standardize all angles to degrees
+		** Remove unnecessary dihedral shift in newfm

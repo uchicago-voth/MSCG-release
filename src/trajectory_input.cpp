@@ -9,8 +9,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <vector>
+#include <random>
 #include <stdint.h>
+#include <vector>
 
 #include "control_input.h"
 #include "misc.h"
@@ -406,11 +407,11 @@ void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_s
 
 int read_next_trr_frame(FrameSource* const frame_source)
 {
-	real junk_floating_point;
-    int return_val;
+    int return_val = 0;
     
     #if _exclude_gromacs == 1
 	#else
+	real junk_floating_point;
     // Use Gromacs xtc library routines to read all the data stored in the .trr file for a single frame.
     if (read_trr(frame_source->gromacs_data->trajectory_filepointer, frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, &junk_floating_point, frame_source->simulation_box_limits, frame_source->frame_config->x, NULL, frame_source->frame_config->f) == exdrOK) return_val = 1;
     else return_val = 0;
@@ -428,12 +429,13 @@ int read_next_trr_frame(FrameSource* const frame_source)
 
 int read_next_xtc_frame(FrameSource* const frame_source)
 {
-    int junk_integer;
-    real junk_floating_point;
-    int return_val;
+	int return_val = 0;
     
     #if _exclude_gromacs == 1
     #else
+    int junk_integer;
+    real junk_floating_point;
+   
     // Use Gromacs xtc library routines to read all the data stored in the .xtc files for a single frame.
     if ((read_xtc(frame_source->gromacs_data->extra_trajectory_filepointer, frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->frame_config->f, &junk_floating_point)
          == exdrOK) &&

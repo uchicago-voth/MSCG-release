@@ -60,7 +60,6 @@ protected:
     int class_subtype;
     gsl_bspline_workspace** bspline_workspaces;
     gsl_vector* bspline_vectors;
-    gsl_bspline_deriv_workspace* bspline_deriv_workspaces;
     gsl_matrix* bspline_matrices;
 
 public:

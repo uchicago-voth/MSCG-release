@@ -170,8 +170,8 @@ void invert_four_body_interaction_hash(const int m, const int n_cg_types, int &i
     j = curr_max_j;
     int remainder_hash = m - curr_max_ij_hash;
     if (curr_max_j != curr_max_i) {
-        k = int(remainder_hash / n_cg_types);
-        l = remainder_hash % n_cg_types;
+        k = int(remainder_hash / n_cg_types) + 1;
+        l = remainder_hash % n_cg_types + 1;
     } else {
         invert_two_body_interaction_hash(remainder_hash, n_cg_types, k, l);
     }

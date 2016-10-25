@@ -1,8 +1,8 @@
-cgsites 500
+cgsites 2000
 cgtypes 2
 1
 2
-moltypes 1 
+moltypes 1
 mol 2 3
 sitetypes
 1
@@ -10,4 +10,4 @@ sitetypes
 bonds 1
 1 2
 system 1
-1 250
+1 1000

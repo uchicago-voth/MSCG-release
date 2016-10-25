@@ -52,14 +52,21 @@ void write_fm_interaction_output_files(CG_MODEL_DATA* const cg, MATRIX_DATA* con
 
     // Write a binary copy of the solution vector if desired.
     if (mat->output_solution_flag == 1) {
+    	double value = 0.0;
         xout = open_file("x.out", "wb");
         if (mat->bootstrapping_flag == 1) {
         	for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
-        		fwrite(&(mat->bootstrap_solutions[i][0]), sizeof(double), mat->fm_matrix_columns, xout);
+        		for (int j = 0; j < mat->fm_matrix_columns; j++) {
+	        		value = mat->bootstrap_solutions[i][j];
+					fwrite(&value, sizeof(double), 1, xout);
+        		}
         	}
 		} else {
-        	fwrite(&(mat->fm_solution[0]), sizeof(double), mat->fm_matrix_columns, xout);
-		}
+			for (int i = 0; i < mat->fm_matrix_columns; i++) {
+				value = mat->fm_solution[i];
+				fwrite(&value, sizeof(double), 1, xout);
+			}
+        }
         fclose(xout);
     }
     // Write all interaction-by-interaction output files.
@@ -81,6 +88,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
             // If that interaction is being matched,
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) { 
+            	   
    				if (mat->bootstrapping_flag == 1) {
 	                // Write tabular output, regardless of spline type.
  	   	            write_bootstrapping_one_param_table_files(*icomp_iterator, cg->name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
@@ -135,16 +143,21 @@ void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const ic
 	for (unsigned i = 0; i < iclass->defined_to_matched_intrxn_index_map.size(); i++) {
 		// If that interaction is being matched,
 		if (iclass->defined_to_matched_intrxn_index_map[i] != 0) {
-			if(iclass->get_basis_type() == kBSpline) {
-				write_one_param_bspline_file(icomp, name, mat, i);
-				write_two_param_bspline_table_file(icomp, name, mat, i);
-			} else {
+			if (iclass->class_subtype == 3) {
 				int index_among_matched = iclass->defined_to_matched_intrxn_index_map[i];
+				printf("write 3b.dat value %lf\n", mat->fm_solution[icomp->interaction_class_column_index + iclass->interaction_column_indices[index_among_matched - 1]]); fflush(stdout);
 				fprintf(tb_out, "%.15le\n", mat->fm_solution[icomp->interaction_class_column_index + iclass->interaction_column_indices[index_among_matched - 1]]);
+			} else {
+				if(iclass->get_basis_type() == kBSpline || iclass->get_basis_type() == kBSplineAndDeriv) {
+					printf("write 3B B-spline table\n"); fflush(stdout);
+					write_one_param_bspline_file(icomp, name, mat, i);
+					write_two_param_bspline_table_file(icomp, name, mat, i);
+				} else {
+					write_one_param_linear_spline_file(icomp, name, mat, i);
+				}
 			}
 		}
 	}
-	
 	if (iclass->class_subtype == 3) fclose(tb_out);
 }
 

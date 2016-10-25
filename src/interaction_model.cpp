@@ -100,8 +100,7 @@ void InteractionClassSpec::read_interaction_class_ranges(FILE *range_in)
             // Adjust for a basis by rounding the cutoffs to even
             // numbers of bins.
 			adjust_cutoffs_for_basis(i);
-            // Adjust nonbonded interactions to match the global cutoff,
-            // adjust dihedrals by 180 if the interactions are degree-based.
+            // Adjust nonbonded interactions to match the global cutoff.
             adjust_cutoffs_for_type(i);
 		}
         if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"tab+fm") == 0) {
@@ -149,10 +148,6 @@ void InteractionClassSpec::adjust_cutoffs_for_type(int i)
     if (basis_type == kLinearSpline) {
         if (class_type == kPairNonbonded && fabs(upper_cutoffs[i] - cutoff - fm_binwidth) < VERYSMALL_F) upper_cutoffs[i] -= fm_binwidth;
     }
-    if (class_type == kDihedralBonded && class_subtype == 0) {
-        upper_cutoffs[i] -= 180.0;
-        lower_cutoffs[i] -= 180.0;
-    }
 }
 
 // Determine number of columns for each interaction to be force matched.
@@ -185,16 +180,27 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
     if (class_subtype > 0) {
 		interaction_column_indices = std::vector<unsigned>(get_n_defined(), 0);
 		interaction_column_indices[0] = 0;
+		
+		n_tabulated = 0;
+		n_to_force_match  = n_force = n_defined;
 
         if (class_subtype == 3) {
             // For this style, the whole interaction contributes only one single basis function.
-            for (int i = 1; i < get_n_defined() + 1; i++) interaction_column_indices[i] = i;
+            for (int i = 1; i < get_n_defined() + 1; i++) {
+            	interaction_column_indices[i] = i;
+            }
         } else {  
             // For other styles, the potential contributes more basis functions.
             if ((get_basis_type() == kBSpline) || (get_basis_type() == kBSplineAndDeriv)) { // Set up a B-spline basis for this interaction.
-                for (int i = 1; i < get_n_defined() + 1; i++) interaction_column_indices[i] = i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                for (int i = 1; i < get_n_defined() + 1; i++) {
+                	interaction_column_indices[i] = interaction_column_indices[i - 1] 
+                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                }
             } else if (get_basis_type() == kLinearSpline) { // Set up a linear spline basis for this interaction.
-                for (int i = 1; i < get_n_defined() + 1; i++) interaction_column_indices[i] = i * (floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                for (int i = 1; i < get_n_defined() + 1; i++) {
+                	interaction_column_indices[i] = interaction_column_indices[i - 1] 
+                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                }
 			}
 		}
 	}
@@ -266,9 +272,7 @@ void free_interaction_data(CG_MODEL_DATA* cg)
 
 //--------------------------------------------------------------------
 // Functions for setting up the potential model that will be used
-// in the CG model from a range.in file using lots of hard-to-maintain
-// tricks like 'if the range starts from -1, don't include this
-// interaction in the model'
+// in the CG model from a range.in file.
 //--------------------------------------------------------------------
 
 // Tabulated potential reading error reporting functions
@@ -429,4 +433,8 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
         deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);   
     	counter++;
     }
+    // Set the correct size for the output vectors of positions and forces.
+    axis_vals.resize(counter);
+    force_vals.resize(counter);
+
 }

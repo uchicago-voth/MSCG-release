@@ -13,21 +13,33 @@ OPT = -O2 -std=c++11
 LIBS         = $(GSLPATH)/libgsl.a -framework Accelerate -lm -lxdrfile
 LDFLAGS      = $(OPT) -L$(GMXPATH) -L$(GSLPATH)
 CFLAGS	     = $(OPT) -I$(GSLINC) -I$(GMXINC)
+
+NO_GRO_LIBS    = $(GSLPATH)/libgsl.a -framework Accelerate -lm
+NO_GRO_LDFLAGS = $(OPT) -L$(GSLPATH)
+NO_GRO_CFLAGS  = $(OPT) -I$(GSLINC)
+
 CC           = clang++
 
 COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input.o misc.o
-COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h
+NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input_no_gro.o misc.o
+COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h mscg.h
 
 # Target executables
 # The library for LAMMPS is lib_mscg.a
-lib_mscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS) range_finding.o
-	ar rvs lib_mscg.a *.o
+libmscg.a: mscg.o $(COMMON_OBJECTS) range_finding.o
+	ar rvs libmscg.a *.o
 
 newfm.x: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
 
+newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@ newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+
 rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+
+rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@ rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
 combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
@@ -35,7 +47,7 @@ combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
 # Target objects
 
 mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
-	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o
+	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o $(NO_GRO_LIBS)
 
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
@@ -84,6 +96,9 @@ topology.o: topology.cpp topology.h interaction_model.h misc.h
 
 trajectory_input.o: trajectory_input.cpp trajectory_input.h control_input.h misc.h
 	$(CC) $(CFLAGS) -c trajectory_input.cpp
+
+trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input.h misc.h
+	$(CC) $(NO_GRO_CFLAGS) -c trajectory_input.cpp -D"_exclude_gromacs=1" -o trajectory_input_no_gro.o
 
 # Other convenient commands
 

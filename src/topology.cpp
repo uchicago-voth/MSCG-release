@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
+#include <vector>
 
 #include "interaction_model.h"
 #include "misc.h"
@@ -26,6 +27,8 @@ void read_molecule_definition(TopologyData* const mol, TopologyData* const cg, F
 bool new_excluded_partner(unsigned** const excluded_partners, const int location, const unsigned current_size, const unsigned new_site);
 // Report an error in the topology input file.
 void report_topology_input_format_error(const int line, char *parameter_name);
+// Search function to determine molecular exclusion list.
+void recursive_exclusion_search(TopologyData const* topo_data, TopoList* exclusion_list, std::vector<int> &path_list);
 
 //---------------------------------------------------------------
 // Functions for managing TopoList structs
@@ -57,7 +60,7 @@ TopoList::~TopoList() {
 
 inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const int excluded_style) 
 {
-	assert( (excluded_style == 0) || (excluded_style == 2) || (excluded_style == 3) || (excluded_style == 4) );
+	assert( (excluded_style == 0) || (excluded_style == 2) || (excluded_style == 3) || (excluded_style == 4) || (excluded_style == 5) );
 	switch (excluded_style) {
 		case 2:
 			return topo_data->max_pair_bonds_per_site;
@@ -71,6 +74,10 @@ inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const in
 			return topo_data->max_pair_bonds_per_site + topo_data->max_angles_per_site + topo_data->max_dihedrals_per_site;
 			break;
 			
+		case 5:
+			return topo_data->max_pair_bonds_per_site + topo_data->max_angles_per_site + topo_data->max_dihedrals_per_site;
+			break;
+
 		default:
 			return 1;
 			break;
@@ -567,14 +574,52 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     }
 }
 
+void recursive_exclusion_search(TopologyData const* topo_data, TopoList* exclusion_list, std::vector<int> &path_list)
+{
+	int path_size = path_list.size();
+	int base_id = path_list[0];
+	int last_id = path_list[path_size - 1];
+	int bond_partner_size = topo_data->bond_list->partner_numbers_[ path_list[path_size - 1] ];
+	int partner_id;
+	
+	for (int i = 0; i < bond_partner_size; i++) {
+		partner_id = topo_data->bond_list->partners_[last_id][i];
+		
+		// Check if this site is already excluded
+		if ((base_id != partner_id) &&
+		    (new_excluded_partner(exclusion_list->partners_, base_id, exclusion_list->partner_numbers_[base_id], partner_id) == true)) {
+	        exclusion_list->partners_[base_id][ exclusion_list->partner_numbers_[base_id] ] = partner_id;
+    	    exclusion_list->partner_numbers_[base_id]++;
+ 	        
+            path_list.push_back(partner_id);
+            recursive_exclusion_search(topo_data, exclusion_list, path_list);
+            path_list.pop_back();
+		}
+	}
+}
+
 void setup_excluded_list( TopologyData const* topo_data, TopoList* exclusion_list, const int excluded_style) 
 {
 	// Automatically determine topology to set appropriate
     // bond, angle, and/or dihedral exclusion as appropriate.
 	printf("Setting up exclusion list for excluded_style %d.\n", excluded_style);
     if (excluded_style == 0) return;
+	
 	unsigned max_excluded_number = get_max_exclusion_number(topo_data, excluded_style);
-            
+       
+    if (excluded_style == 5) {
+    	for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
+    		std::vector<int> path_list = {(int)(i)};
+    		recursive_exclusion_search(topo_data, exclusion_list, path_list);
+    		
+    		if ( exclusion_list->partner_numbers_[i] > max_excluded_number ) {
+    			printf("Warning: Too many excluded interactions (%d) to handle based on max_pair_bonds_per_site (%d)!\n", exclusion_list->partner_numbers_[i], max_excluded_number);
+    			exit(EXIT_FAILURE);
+    		}
+		}
+    	return;	
+    }
+         
     // Loop over each CG site and its bonds to copy into exclusion list
     for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
         for (unsigned j = 0; j < topo_data->bond_list->partner_numbers_[i]; j++) {            

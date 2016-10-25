@@ -67,13 +67,13 @@ bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids
     for (int i = 0; i < 3; i++) {
         rr2 += displacement[i] * displacement[i];
     }
+    param_val = rr2;
     if (rr2 > cutoff2) {
         return false;
     } else {
         for (int i = 0; i < 3; i++) {
             derivatives[0][i] = 2.0 * displacement[i];
         }
-        param_val = rr2;
         return true;
     }
 }
@@ -145,7 +145,7 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const rve
 
 bool conditionally_calc_angle_and_intermediates(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, std::array<double, 3>* &dist_derivs_01, std::array<double, 3>* &dist_derivs_02, std::array<double, 3>* &derivatives, double &param_val, double &rr_01, double &rr_02)
 {
-    int particle_ids_01[2] = {particle_ids[0], particle_ids[1]};
+	int particle_ids_01[2] = {particle_ids[0], particle_ids[1]};
     int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
     double rr2_01, rr2_02;
     bool within_cutoff_01 = conditionally_calc_squared_distance_and_derivatives(particle_ids_01, particle_positions, simulation_box_half_lengths, cutoff2, rr2_01, dist_derivs_01);
@@ -210,7 +210,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double s = (disp01[0] * (pc[1] * pb[2] - pc[2] * pb[1]) + disp01[1] * (pb[0] * pc[2] - pb[2] * pc[0]) + disp01[2] * (pc[0] * pb[1] - pc[1] * pb[0])) * (rpb1 * rpc1 * rrbc);
     if (s < 0.0 && s > -VERYSMALL_F) s = -VERYSMALL_F;
     if (s > 0.0 && s < VERYSMALL_F) s = VERYSMALL_F;
-    param_val = atan2(s, c);
+    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
 
     // Calculate the derivatives, which requires many more intermediates.
     double gamma = rpb1 * rpc1 / s;
@@ -325,5 +325,5 @@ void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, con
     double s = (disp01[0] * (pc[1] * pb[2] - pc[2] * pb[1]) + disp01[1] * (pb[0] * pc[2] - pb[2] * pc[0]) + disp01[2] * (pc[0] * pb[1] - pc[1] * pb[0])) * (rpb1 * rpc1 * rrbc);
     if (s < 0.0 && s > -VERYSMALL_F) s = -VERYSMALL_F;
     if (s > 0.0 && s < VERYSMALL_F) s = VERYSMALL_F;
-    param_val = atan2(s, c);
+    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
 }

@@ -23,8 +23,6 @@
 
 // Utility functions for checking if a nonbonded interaction is excluded from the model due to bonding.
 
-bool check_anybond_nonbonded_exclusion(const TopologyData* const topo_data, const int i, const int j);
-bool check_pairbond_nonbonded_exclusion(const TopologyData* const topo_data, const int i, const int j);
 bool check_excluded_list(const TopologyData* const topo_data, const int i, const int j);
 
 // Main routine responsible for calling single-element matrix computations,
@@ -135,7 +133,7 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
     		 break;
     		 
     	case 2:
-    		if (ispec->get_basis_type() != kBSpline) {
+    		if ( (ispec->get_basis_type() != kBSpline) && (ispec->get_basis_type() != kBSplineAndDeriv) ) {
                 printf("Three body with fitted distance term can be only used with B-splines!\n");
                 exit(EXIT_FAILURE);
             }
@@ -153,8 +151,10 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
     if (ispec->class_subtype > 0) {
         interaction_class_column_index = *curr_iclass_col_index;
         *curr_iclass_col_index += ispec->interaction_column_indices[ispec->n_to_force_match];
+		process_interaction_matrix_elements = process_normal_interaction_matrix_elements;
     }
     fm_s_comp = new BSplineAndDerivComputer(ispec);
+	fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
 }
 
 //--------------------------------------------------------------------
@@ -303,11 +303,13 @@ inline void InteractionClassComputer::walk_3B_neighbor_list(MATRIX_DATA* const m
                     //three body
                     l = three_body_cell_list.list[k];
                     while (l >= 0) {
-                        if (l != j) {
-                           if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
-                               order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
-                           }
-                           l = three_body_cell_list.list[l];
+                    	if (l >= 0) {
+	                        if (l != j) {
+    	                       if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
+        	                       order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            	               }
+            	        	}
+                        	l = three_body_cell_list.list[l];
                         }
                     }
                     for (int nei_3 = 0; nei_3 < 26; nei_3++) {
@@ -355,34 +357,9 @@ inline void InteractionClassComputer::walk_3B_neighbor_list(MATRIX_DATA* const m
 }
 
 //--------------------------------------------------------------------
-//  Routines for checking if nonbonded interactions should be excluded
+//  Routine for checking if nonbonded interactions should be excluded
 // from the model because they are between bonded particles.
 //--------------------------------------------------------------------
-
-inline bool check_anybond_nonbonded_exclusion(const TopologyData* const topo_data, const int i, const int j)
-{
-    unsigned k;
-    // Check whether this nonbonded interaction is excluded from the model because the pair is bonded.
-    for (k = 0; k < topo_data->bond_list->partner_numbers_[i]; k++) {
-        if (topo_data->bond_list->partners_[i][k] == unsigned(j)) return true;
-    }
-    for (k = 0; k < topo_data->angle_list->partner_numbers_[i]; k++) {
-        if (topo_data->angle_list->partners_[i][2 * k + 1] == unsigned(j)) return true;
-    }
-    for (k = 0; k < topo_data->dihedral_list->partner_numbers_[i]; k++) {
-        if (topo_data->dihedral_list->partners_[i][3 * k + 2] == unsigned(j)) return true;
-    }
-    return false;
-}
-
-inline bool check_pairbond_nonbonded_exclusion(const TopologyData* const topo_data, const int i, const int j)
-{
-    // Check whether this nonbonded interaction is excluded from the model because the pair is bonded.
-    for (unsigned k = 0; k < topo_data->bond_list->partner_numbers_[i]; k++) {
-        if (topo_data->bond_list->partners_[i][k] == unsigned(j)) return true;
-    }
-    return false;
-}
 
 inline bool check_excluded_list(const TopologyData* const topo_data, const int i, const int j)
 {
@@ -435,7 +412,7 @@ void order_three_body_nonbonded_fm_matrix_element_calculation(InteractionClassCo
     icomp->index_among_tabulated_interactions = ispec->defined_to_tabulated_intrxn_index_map[icomp->index_among_defined_intrxns];
     if ((icomp->index_among_matched_interactions == 0) && (icomp->index_among_tabulated_interactions == 0)) return; // if the index is zero, it is not present in the model and should be ignored.
     
-    icomp->cutoff2 = ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    icomp->cutoff2 = ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns] * ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
     icomp->stillinger_weber_angle_parameter = ispec->stillinger_weber_angle_parameters_by_type[icomp->index_among_defined_intrxns];
     (*icomp->calculate_fm_matrix_elements)(icomp, x, simulation_box_half_lengths, mat); 
 }
@@ -553,7 +530,7 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
 
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[3] = {info->j, info->k, info->l};    
+	int particle_ids[3] = {info->j, info->k, info->l};    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
 
@@ -604,8 +581,8 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     fm_s_comp->calculate_bspline_deriv_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, basis_der_vals); 
     
     int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
-    int temp_row_index_2 = particle_ids[1] + icomp->current_frame_starting_row;
-    int temp_row_index_3 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
 	int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
         
     for (i = 0; i < info->fm_basis_fn_vals.size(); i++) {
@@ -623,6 +600,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
         (*mat->accumulate_fm_matrix_element)(temp_row_index_3, tn, &tx2[0], mat);
         for (j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, tn, &tx[0], mat);
+    
     }
     delete [] relative_site_position_2;
 	delete [] relative_site_position_3;
@@ -631,7 +609,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[3] = {info->j, info->k, info->l};    
+	int particle_ids[3] = {info->j, info->k, info->l};    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
     
@@ -680,8 +658,8 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     u = (cos_theta - icomp->stillinger_weber_angle_parameter) * (cos_theta - icomp->stillinger_weber_angle_parameter) * 4.184;
     u_1 = 2.0 * (cos_theta - icomp->stillinger_weber_angle_parameter) * sin(theta) * 4.184;
     
-    int temp_row_index_2 = particle_ids[1] + icomp->current_frame_starting_row;
-    int temp_row_index_3 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
     int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
     
@@ -699,7 +677,7 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     (*mat->accumulate_fm_matrix_element)(temp_row_index_3, tn, &tx2[0], mat);
     for (j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
     (*mat->accumulate_fm_matrix_element)(temp_row_index_1, tn, &tx[0], mat); 
-    
+        
     delete [] relative_site_position_2;
 	delete [] relative_site_position_3;   
 	delete [] derivatives;

@@ -185,9 +185,11 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     output_solution_flag 			= control_input->output_solution_flag;
     rcond							= control_input->rcond;
     itnlim 							= control_input->itnlim;
-    iterative_calculation_flag 		= control_input->iterative_calculation_flag;
-	num_sparse_threads 				= control_input->num_sparse_threads;
+    num_sparse_threads 				= control_input->num_sparse_threads;
 	
+	// Copy iterative information.
+	iterative_calculation_flag 		= control_input->iterative_calculation_flag;
+	iterative_update_rate_coeff     = control_input->iterative_update_rate_coeff;
 	// Copy bootstrapping information.
 	bootstrapping_flag 				= control_input->bootstrapping_flag;
 	bootstrapping_full_output_flag 	= control_input->bootstrapping_full_output_flag;
@@ -1187,7 +1189,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
     char tchar = 'T';
     int onei = 1;
     double oned = 1.0;
-    double frame_weight = mat->get_frame_weight();
+    double frame_weight = mat->get_frame_weight() * mat->normalization;
 
     // Take normal form of the current frame's target vector and add to the existing normal form target vector.
     dgemv_(&tchar, &mat->fm_matrix_rows, &mat->fm_matrix_columns, &frame_weight, mat->dense_fm_matrix->values, &mat->fm_matrix_rows, mat->dense_fm_rhs_vector, &onei, &oned, mat->dense_fm_normal_rhs_vector, &onei);
@@ -2396,14 +2398,16 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
 			alpha_vec[i] = alpha;
 		}
-			
+				
 		FILE* mat_fp;
-		FILE* inv_fp;	
+		FILE* inv_fp;
 		FILE* alpha_fp = fopen("alpha.out", "w");
 		FILE* beta_fp  = fopen("beta.out",  "w");
 		FILE* sol_fp   = fopen("solution.out", "w");
 		FILE* res_fp   = fopen("residual.out", "w");
+		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
+
 		if (mat->bayesian_flag == 2) {
 			mat_fp   = fopen("matrix.out", "w");
 			inv_fp   = fopen("inverse.out", "w");
@@ -2453,11 +2457,19 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
    			}
 			
 			residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
-					
-			iteration++;
+			
+			double* alpha_solution = new double[mat->fm_matrix_columns];
+			for (int k = 0; k < mat->fm_matrix_columns; k++) {
+				alpha_solution[k] = alpha_vec[k] * solution[k];
+			}
+			double alpha_product = ddot_(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
+			double extended_residual = beta * 0.5 * residual + 0.5 * alpha_product;
+			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
+			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
+			delete [] alpha_solution;
 		
 			// Calculate the values for the next round.
-			residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
+			iteration++;
 			printf("iteration %d: residual %lf\n", iteration, residual);
 			
 			// Alpha needs matrix inverse and beta needs the product of the inverse with an unregularized normal matrix
@@ -2483,8 +2495,9 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			dgetri_(&mat->fm_matrix_columns, it_normal_matrix->values, &mat->fm_matrix_columns, ipiv, work, &lwork, &info);
 			delete [] ipiv;
 			delete [] work;
-			it_normal_matrix->print_matrix(inv_fp);
-			
+			if (mat->bayesian_flag == 2) {
+				it_normal_matrix->print_matrix(inv_fp);
+			}		
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			char none = 'n';
@@ -2514,6 +2527,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		fclose(beta_fp);
 		fclose(sol_fp);
 		fclose(res_fp);
+		fclose(ext_fp);
 		if (mat->bayesian_flag == 2) {
 			fclose(mat_fp);
 			fclose(inv_fp);
@@ -2631,6 +2645,13 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         }
         fclose(mat_in);
         
+        // Write the RHS vector before calculating the difference
+        FILE* rhs_out = open_file("rhs.out", "w");
+        for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	fprintf(rhs_out, "%lf %lf\n", mat->dense_fm_normal_rhs_vector[i], in_rhs[i]);
+        }
+        fclose(rhs_out);
+        
         // The target for an iterative calculation is the difference between the targets
         // for this trajectory and the previous trajectory.
         for (i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2722,7 +2743,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     }
     
     // Calculate First Bayesian Estimates
-    if (mat->bayesian_flag == 1) {
+    if (mat->bayesian_flag == 1 || mat->bayesian_flag == 2) {
     	int iteration = 0;
 	    int onei = 1;
     	dense_matrix* it_dense_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
@@ -2747,15 +2768,21 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			alpha_vec[i] = alpha;
 		}
 				
+		FILE* mat_fp;
+		FILE* inv_fp;
 		FILE* alpha_fp = fopen("alpha.out", "w");
 		FILE* beta_fp  = fopen("beta.out",  "w");
 		FILE* sol_fp   = fopen("solution.out", "w");
 		FILE* res_fp   = fopen("residual.out", "w");
+		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-		FILE* mat_fp   = fopen("matrix.out", "w");
-		FILE* inv_fp   = fopen("inverse.out", "w");
-		backup_normal_matrix->print_matrix(mat_fp);
 		
+		if (mat->bayesian_flag == 2) {
+			mat_fp   = fopen("matrix.out", "w");
+			inv_fp   = fopen("inverse.out", "w");
+			backup_normal_matrix->print_matrix(mat_fp);
+		}
+			
 		while (iteration < mat->bayesian_max_iter) {
 		
 			// Initialize RHS vector and normal matrix from backups.
@@ -2785,64 +2812,71 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         		solution[i] = mat->dense_fm_normal_rhs_vector[i] * h[i];
         		mat->fm_solution[i] = solution[i];
     		}
-
 			
 			residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, 1.0);
-					
-			iteration++;
-			if (iteration != mat->bayesian_max_iter) {
-				// Calculate the values for the next round.
-				residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, 1.0);
-			
-				// Alpha needs matrix inverse and beta needs the product of the inverse with an unregularized normal matrix
-				it_dense_normal_matrix->reset_matrix();
-				product_reg_normal_matrix_inv_normal_matrix->reset_matrix();
-			
-				// Actually calculate the inverse of the regularized normal matrix
-				// // First, restore the normal matrix with regularization
-				for (i = 0; i < mat->fm_matrix_columns; i++) {
-					for (j = 0; j < mat->fm_matrix_columns; j++) {
-						it_dense_normal_matrix->assign_scalar(i, j, backup_normal_matrix->get_scalar(i, j));
-					}
-					it_dense_normal_matrix->add_scalar(i, i, alpha_vec[i] * mat->normalization / beta);
-				}
-		
-				// // Then, invert the matrix.
-				// // This routine overwrites the input matrix (it_dense_normal_matrix).
-				int* ipiv = new int[mat->fm_matrix_columns]();
-				double* work = new double[mat->fm_matrix_columns * mat->fm_matrix_columns];
-				int lwork = mat->fm_matrix_columns * mat->fm_matrix_columns;
-				int info = 0;			
-				dgetrf_(&mat->fm_matrix_columns, &mat->fm_matrix_columns, it_dense_normal_matrix->values, &mat->fm_matrix_columns, ipiv, &info);
-				dgetri_(&mat->fm_matrix_columns, it_dense_normal_matrix->values, &mat->fm_matrix_columns, ipiv, work, &lwork, &info);
-				delete [] ipiv;
-				delete [] work;
-				it_dense_normal_matrix->print_matrix(inv_fp);
-				
-				// Calculate product using inverse of regularized matrix
-				// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
-				char none = 'n';
-				double oned = 1.0;
-				dgemm_(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
-						it_dense_normal_matrix->values, &mat->fm_matrix_columns, backup_normal_matrix->values, &mat->fm_matrix_columns, &oned,
-						product_reg_normal_matrix_inv_normal_matrix->values, &mat->fm_matrix_columns);
-			
-				trace_product = 0.0;
-				for (i = 0; i < mat->fm_matrix_columns; i++) {
-					trace_product += product_reg_normal_matrix_inv_normal_matrix->get_scalar(i,i);
-				}
-				
-				// Alpha Vector
-				for (i = 0; i < mat->fm_matrix_columns; i++) {
-					// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
-					alpha_vec[i] = 1.0 / (solution[i] * solution[i] + it_dense_normal_matrix->get_scalar(i,i) * mat->normalization / beta);
-				}
-				
-				// Beta Scalar
-				beta =  (3.0 * n_cg_sites * n_frames - trace_product) / residual;				
+			double* alpha_solution = new double[mat->fm_matrix_columns];
+			for (k = 0; k < mat->fm_matrix_columns; k++) {
+				alpha_solution[k] = alpha_vec[k] * solution[k];
 			}
-			write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
+			double alpha_product = ddot_(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
+			double extended_residual = beta * 0.5 * residual + 0.5 * alpha_product;
+			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
+			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
+			delete [] alpha_solution;
+					
+			// Calculate the values for the next round.
+			iteration++;
 
+			// Alpha needs matrix inverse and beta needs the product of the inverse with an unregularized normal matrix
+			it_dense_normal_matrix->reset_matrix();
+			product_reg_normal_matrix_inv_normal_matrix->reset_matrix();
+		
+			// Actually calculate the inverse of the regularized normal matrix
+			// // First, restore the normal matrix with regularization
+			for (i = 0; i < mat->fm_matrix_columns; i++) {
+				for (j = 0; j < mat->fm_matrix_columns; j++) {
+					it_dense_normal_matrix->assign_scalar(i, j, backup_normal_matrix->get_scalar(i, j));
+				}
+				it_dense_normal_matrix->add_scalar(i, i, alpha_vec[i] * mat->normalization / beta);
+			}
+	
+			// // Then, invert the matrix.
+			// // This routine overwrites the input matrix (it_dense_normal_matrix).
+			int* ipiv = new int[mat->fm_matrix_columns]();
+			double* work = new double[mat->fm_matrix_columns * mat->fm_matrix_columns];
+			int lwork = mat->fm_matrix_columns * mat->fm_matrix_columns;
+			int info = 0;			
+			dgetrf_(&mat->fm_matrix_columns, &mat->fm_matrix_columns, it_dense_normal_matrix->values, &mat->fm_matrix_columns, ipiv, &info);
+			dgetri_(&mat->fm_matrix_columns, it_dense_normal_matrix->values, &mat->fm_matrix_columns, ipiv, work, &lwork, &info);
+			delete [] ipiv;
+			delete [] work;
+			if (mat->bayesian_flag == 2) {
+				it_dense_normal_matrix->print_matrix(inv_fp);
+			}
+						
+			// Calculate product using inverse of regularized matrix
+			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
+			char none = 'n';
+			double oned = 1.0;
+			dgemm_(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
+					it_dense_normal_matrix->values, &mat->fm_matrix_columns, backup_normal_matrix->values, &mat->fm_matrix_columns, &oned,
+					product_reg_normal_matrix_inv_normal_matrix->values, &mat->fm_matrix_columns);
+		
+			trace_product = 0.0;
+			for (i = 0; i < mat->fm_matrix_columns; i++) {
+				trace_product += product_reg_normal_matrix_inv_normal_matrix->get_scalar(i,i);
+			}
+			
+			// Alpha Vector
+			for (i = 0; i < mat->fm_matrix_columns; i++) {
+				// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
+				alpha_vec[i] = 1.0 / (solution[i] * solution[i] + it_dense_normal_matrix->get_scalar(i,i) * mat->normalization / beta);
+			}
+			
+			// Beta Scalar
+			beta =  (3.0 * n_cg_sites * n_frames - trace_product) / residual;				
+
+			write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		}
 		
 		// Clean-up bayesian allocated memory
@@ -2850,8 +2884,11 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 		fclose(beta_fp);
 		fclose(sol_fp);
 		fclose(res_fp);
-		fclose(mat_fp);
-		fclose(inv_fp);
+		fclose(ext_fp);
+		if (mat->bayesian_flag == 2) {
+			fclose(mat_fp);
+			fclose(inv_fp);
+		}
 		delete [] alpha_vec;
 		delete [] solution;
 		delete it_dense_normal_matrix;
@@ -2865,11 +2902,15 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         fflush(stdout);
         FILE* x_in;
         double* x0;
-        x_in = open_file("x.in", "r");
+        double tx;
+        x_in = open_file("x.in", "rb");
         x0 = new double[mat->fm_matrix_columns];
-        for (i = 0; i < mat->fm_matrix_columns; i++) fscanf(x_in, "%le", x0 + i);
+        for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	fread(&tx, sizeof(double), 1, x_in);
+        	x0[i] = tx;
+        }
         fclose(x_in);
-        //test
+        
         for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
         delete [] x0;
     }
@@ -3367,16 +3408,17 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
         }
         
         // Read the force_sq_total value
-        if ( fread(&tx, sizeof(double), 1, single_binary_matrix_input) != 1) {
+        if( fread(&tx, sizeof(double), 1, single_binary_matrix_input) != 1) {
         	tx = 0.0;
-        }
+    	}
         mat->force_sq_total += tx;
         
         // Read the inverse normalization
         if ( fread(&tx, sizeof(double), 1, single_binary_matrix_input) != 1) {
-        	tx = 1.0;
+        	inv_norm = 1.0;
         }
         inv_norm = tx;
+        
         inv_norm_sum += inv_norm;
         
         // Add the new normal form matrix to the existing one.
@@ -3518,12 +3560,9 @@ void read_regularization_vector(MATRIX_DATA* const mat)
 {
     mat->regularization_vector = new double[mat->fm_matrix_columns];
     FILE* lambda_in = open_file("lambda.in", "r");
-    printf("read lambda.in file\n");
     for (int i = 0; i < mat->fm_matrix_columns; i++) {
         fscanf(lambda_in, "%lf", mat->regularization_vector + i);
-    	printf("%lf\n", mat->regularization_vector[i]);
     }
-    printf("\n");
     fclose(lambda_in);
 }
 
