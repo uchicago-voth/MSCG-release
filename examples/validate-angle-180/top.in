@@ -1,0 +1,17 @@
+cgsites 3    // 6 sites per dopc molecule * 1152 dopc molecules = 6912 cg sites
+cgtypes 3       // 6 cg site types
+UP
+MD
+L1
+moltypes 1      // only one type of molecule ==> dopc
+mol 3 -1        // dopc with 6 sites
+sitetypes
+1
+2
+3
+bonds 0
+angles 1       //list the numbers in the order middle-end-end
+2 1 3
+dihedrals 0
+system 1
+1 1

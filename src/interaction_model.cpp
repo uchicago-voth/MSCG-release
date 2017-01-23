@@ -19,6 +19,9 @@
 // Prototypes for internal implementations.
 //---------------------------------------------------------------
 
+// Input extraction functions.
+inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name);
+
 // Non-standard setup functions.
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data);
 void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
@@ -27,7 +30,8 @@ void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
 void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const ispec, double const cutoff);
 void report_tabulated_interaction_format_error(const int line);
 void report_tabulated_interaction_data_consistency_error(const int line);
-void check_mode(char* mode);
+void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
+inline void check_mode(char* mode);
 
 // Get the name of a single defined interaction via its index among
 // defined interactions.
@@ -37,6 +41,17 @@ std::string InteractionClassSpec::get_interaction_name(char **type_names, const 
     // Name first by the types involved in the interaction.
     // Name as type1_type2..._typeN.
     std::vector<int> types = get_interaction_types(intrxn_index_among_defined);
+    
+    // Reorder for special angles and dihedrals.
+    if (format == 1) {
+    	if (types.size() == 3) {
+    		swap_pair(types[0], types[1]); // (start) B A C => A B C (end)
+    	} else { //size is 4
+    		swap_pair(types[2], types[1]); // (start) B C A D => B A C D
+    		swap_pair(types[0], types[1]); //         B A C D => A B C D (end)
+    	}
+    }
+    
     std::string namestring = std::string(type_names[types[0] - 1]);
     for(unsigned i = 1; i < types.size(); i++) {
         namestring += delimiter + type_names[types[i] - 1];
@@ -57,10 +72,10 @@ void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const isp
 	for (int i = 0; i < ispec->n_defined; i++) {
 		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 			if (ispec->upper_cutoffs[i] > (cutoff + ispec->output_binwidth + VERYSMALL) ) {
-				printf("An upper cutoff (%lf) specified in the range file is larger than the pair nonbonded cutoff speicified in the control file (%lf).\n", ispec->upper_cutoffs[i], cutoff);
-				printf("This can lead to unphysical looking interactions.\n");
-				printf("Please adjust and run again.\n");
-				fflush(stdout);
+				fprintf(stderr, "An upper cutoff (%lf) specified in the range file is larger than the pair nonbonded cutoff speicified in the control file (%lf).\n", ispec->upper_cutoffs[i], cutoff);
+				fprintf(stderr, "This can lead to unphysical looking interactions.\n");
+				fprintf(stderr, "Please adjust and run again.\n");
+				fflush(stderr);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -69,22 +84,26 @@ void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const isp
 
 // Functions for reading a range.in file and assigning the FM matrix column indices for each basis function.
 
-void InteractionClassSpec::read_interaction_class_ranges(FILE *range_in)
+void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in)
 {
     printf("Reading interaction ranges for %d %s interactions.\n", get_n_defined(), get_full_name().c_str());    
 
     int total_tabulated = 0;
     int total_to_fm = 0;
-    char mode[100] = "";
-	char junk[10];
+    
+    int n_fields;
+    int n_expected = 3 + get_n_body();
+	std::vector<int> types(get_n_body());
+	std::string* elements = new std::string[n_expected + 1];
+ 	std::string line;
+    char mode[10] = "";
 	
     for (int i = 0; i < n_defined; i++) {
-        // Skip over the type information.
-        for (int j = 0; j < get_n_body(); j++) {
-            fscanf(range_in, "%s", junk);
-        }
 
-		read_rmin_class(range_in, i, mode);
+    	check_and_read_next_line(range_in, line);		
+		// Check that this line has enough fields.
+		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) report_fields_error(get_full_name(), n_expected, n_fields);
+		read_rmin_class(elements, get_n_body(), i, mode);
 
         // If the mode is none, the interaction is not actually in the model.
         // If the mode is fm or fm+tab/tab+fm, the interaction should be force matched.
@@ -108,25 +127,100 @@ void InteractionClassSpec::read_interaction_class_ranges(FILE *range_in)
 			// Increment the running total of the tabulated interactions.
 			total_tabulated++;
 			defined_to_tabulated_intrxn_index_map[i] = total_tabulated;
-		}
-	}
+		}			
+    }
     n_to_force_match = total_to_fm;
-    n_force = total_to_fm;
     n_tabulated = total_tabulated;
     printf("Will force match %d %s interactions and %d are interactions tabulated", n_to_force_match, get_full_name().c_str(), n_tabulated);
-    printf(".\n");  
+    printf(".\n"); 
+    delete [] elements; 
 }
- 
-void InteractionClassSpec::read_rmin_class(FILE* range_in, int i, char* mode) 
+
+void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &range_in, char** name)
 {
-	fscanf(range_in, "%lf%lf%s\n", &lower_cutoffs[i], &upper_cutoffs[i], mode);
+    printf("Reading interaction ranges for %d %s interactions.\n", get_n_defined(), get_full_name().c_str());    
+
+    int total_tabulated = 0;
+    int total_to_fm = 0;
+    int total_intrxns = 0;
+    int n_fields;
+    int n_expected = 3 + get_n_body();
+    
+    std::vector<int> types(get_n_body());
+	std::string* elements = new std::string[n_expected + 1];
+    std::string line;
+    char mode[10];
+	
+	while( std::getline(range_in, line) != NULL) {
+	
+		// Check that this line has enough fields.
+		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) {	//allow for trailing white space
+			if(total_intrxns == 0) report_fields_error(get_full_name(), n_expected, n_fields);
+			// This allows the reading to terminate if 
+			// a line of whitespace is encountered before the end of file.
+			break;
+		}
+		
+		// Extract the useful information.
+		read_types(get_n_body(), types, &elements[0], n_cg_types, name);
+		int index_among_defined = calc_interaction_hash(types, n_cg_types);
+	
+		// Read the low and high parameter values;
+		read_rmin_class(elements, get_n_body(), index_among_defined, mode);
+		check_mode(mode);
+		total_intrxns++;
+
+        if (strcmp(mode,"fm") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"tab+fm") == 0) {
+			// This interaction is to be force matched.
+            // Increment running total and set the new index.
+            total_to_fm++;
+            defined_to_matched_intrxn_index_map[index_among_defined] = total_to_fm;
+            // Adjust for a basis by rounding the cutoffs to even
+            // numbers of bins.
+			adjust_cutoffs_for_basis(index_among_defined);
+            // Adjust nonbonded interactions to match the global cutoff.
+            adjust_cutoffs_for_type(index_among_defined);
+		}
+        if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"tab+fm") == 0) {
+			// This interaction is tabulated.
+			// Increment the running total of the tabulated interactions.
+			total_tabulated++;
+			defined_to_tabulated_intrxn_index_map[index_among_defined] = total_tabulated;
+		}			
+    }
+
+    n_to_force_match = total_to_fm;
+    n_tabulated = total_tabulated;
+    printf("Will force match %d %s interactions or %d are interactions tabulated", n_to_force_match, get_full_name().c_str(), n_tabulated);
+    printf(".\n");
+	delete [] elements;
+}
+
+// For use with smart_read_interaction_class
+
+void InteractionClassSpec::read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode) 
+{
+	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
+	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
+	sprintf(mode, "%s", elements[position + 2].c_str());	
+}
+		
+inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name)
+{
+	for (int j = 0; j < n_body; j++) {
+    	types[j] = match_type(elements[j], name, n_types);
+        if( types[j] == -1) {
+        	fprintf(stderr, "Unrecognized type %s!\n", elements[j].c_str());
+        	fflush(stderr);
+    	}
+    }
 }
 
 inline void check_mode(char* mode)
 {
-    if (strcmp(mode,"none") != 0 && strcmp(mode,"fm") != 0 && strcmp(mode,"tab") != 0 
-     && strcmp(mode,"fm+tab") != 0 && strcmp(mode,"tab+fm") != 0) {
-        printf("Interaction mode %s is not recognized\n", mode);
+    if (strcmp(mode,"none") != 0 && strcmp(mode,"fm") != 0 && strcmp(mode,"tab") != 0 && strcmp(mode,"fm+tab") != 0 && strcmp(mode,"tab+fm") != 0 ){
+        fprintf(stderr, "Interaction mode %s is not recognized\n", mode);
+        fflush(stderr);
     	exit(EXIT_FAILURE);
 	}
 }
@@ -159,7 +253,7 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 	interaction_column_indices = std::vector<unsigned>(n_to_force_match + 1, 0);
 
 	for (int i = 0; i < n_defined; i++) {
-		if (defined_to_matched_intrxn_index_map[i] != 0) { 
+		if (defined_to_matched_intrxn_index_map[i] != 0) {
 			grid_i = floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) + 1;
 			if (grid_i > 1000) {
 				fprintf(stderr, "\nWarning: An individual interaction has more than 1000 bins associated with it!\n");
@@ -169,7 +263,8 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 			}
 			
 			interaction_column_indices[counter + 1] = interaction_column_indices[counter] + grid_i;
-			if ((basis_type == kBSpline) || (basis_type == kBSplineAndDeriv)) interaction_column_indices[counter + 1] += bspline_k - 2;
+			// BSplines include an extra bspline_k - 2 knots.
+			if ((basis_type == kBSpline) || (basis_type == kBSplineAndDeriv)) interaction_column_indices[counter + 1] += get_bspline_k() - 2;
 			counter++;
 		}
 	}
@@ -183,12 +278,10 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
 		
 		n_tabulated = 0;
 		n_to_force_match  = n_force = n_defined;
-
+		
         if (class_subtype == 3) {
             // For this style, the whole interaction contributes only one single basis function.
-            for (int i = 1; i < get_n_defined() + 1; i++) {
-            	interaction_column_indices[i] = i;
-            }
+            for (int i = 1; i < get_n_defined() + 1; i++) interaction_column_indices[i] = i;
         } else {  
             // For other styles, the potential contributes more basis functions.
             if ((get_basis_type() == kBSpline) || (get_basis_type() == kBSplineAndDeriv)) { // Set up a B-spline basis for this interaction.
@@ -210,15 +303,23 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
 
 void InteractionClassSpec::setup_for_defined_interactions(TopologyData* topo_data)
 {
-	n_cg_types = topo_data->n_cg_types;
+	n_cg_types = (int)(topo_data->n_cg_types);
     determine_defined_intrxns(topo_data);
 	defined_to_matched_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
 	defined_to_tabulated_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
 	lower_cutoffs = new double[n_defined]();
 	upper_cutoffs = new double[n_defined]();
 	n_to_force_match = 0;
-	n_force = 0;
 	n_tabulated = 0;
+}
+
+void InteractionClassSpec::dummy_setup_for_defined_interactions(TopologyData* topo_data)
+{
+	n_defined = 0;
+	n_to_force_match = 0;
+	n_tabulated = 0;
+	lower_cutoffs = new double[1]();
+	upper_cutoffs = new double[1]();
 }
 
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data)
@@ -257,36 +358,32 @@ void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, Topo
     	
     }
 }
-		
-void free_interaction_data(CG_MODEL_DATA* cg)
-{
-    printf("Freeing interaction classes.\n"); fflush(stdout);
-    std::list<InteractionClassComputer*>::iterator icomp_iterator;
-	for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-		delete (*icomp_iterator)->fm_s_comp;
-	}
-	
-	// free three body interaction data
-	if(cg->three_body_nonbonded_computer.fm_s_comp != NULL) delete cg->three_body_nonbonded_computer.fm_s_comp;
-}
 
-//--------------------------------------------------------------------
-// Functions for setting up the potential model that will be used
-// in the CG model from a range.in file.
-//--------------------------------------------------------------------
+//-------------------------------------------------------------------------------
+// Functions for setting up the potential model that will be used in the CG model
+//-------------------------------------------------------------------------------
 
 // Tabulated potential reading error reporting functions
 
 void report_tabulated_interaction_format_error(const int line)
 {
-    printf("Wrong format in table.in:line %d!\n", line);
+    fprintf(stderr, "Wrong format in table.in:line %d!\n", line);
+    fflush(stderr);
     exit(EXIT_FAILURE);
 }
 
 void report_tabulated_interaction_data_consistency_error(const int line)
 {
-    printf("Numbers of tabulated interactions from lower_cutoffs.in/pair_bond_interaction_lower_cutoffs.in and table.in are not consistent:line %d!\n", line);
+    fprintf(stderr, "Numbers of tabulated interactions from lower_cutoffs.in/pair_bond_interaction_lower_cutoffs.in and table.in are not consistent:line %d!\n", line);
+    fflush(stderr);
     exit(EXIT_FAILURE);
+}
+
+void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields)
+{
+	fprintf(stderr, "This %s interaction requires at least %d entries, but only %d were detected!\n", full_name.c_str(), n_expected, n_fields);
+	fflush(stderr);
+	exit(EXIT_FAILURE);	
 }
 
 void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
@@ -304,21 +401,22 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 
     // Read normal range specifications.
     // Open the range files.
-    FILE* nonbonded_range_in = open_file("rmin.in", "r");
-    FILE* bonded_range_in = open_file("rmin_b.in", "r");
-    
+    std::ifstream nonbonded_range_in, bonded_range_in;    
+   	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
+	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
+
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
         if ((*iclass_iterator)->n_defined == 0) continue;
         if ((*iclass_iterator)->class_type == kPairNonbonded) {
-            (*iclass_iterator)->read_interaction_class_ranges(nonbonded_range_in);
-        } else {
+            (*iclass_iterator)->smart_read_interaction_class_ranges(nonbonded_range_in, cg->name);
+		} else {
             (*iclass_iterator)->read_interaction_class_ranges(bonded_range_in);
         }
     }	
 	// Close the range files.
-	fclose(nonbonded_range_in);
-    fclose(bonded_range_in);
+	nonbonded_range_in.close();
+    bonded_range_in.close();
 	
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
@@ -336,27 +434,27 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
 {
     int line = 0;
-    FILE* external_spline_table = open_file("table.in", "r");   
+    std::ifstream external_spline_table;
+    check_and_open_in_stream(external_spline_table, "table.in");
 	
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
 		line = (*iclass_iterator)->read_table(external_spline_table, line, cg->n_cg_types);
 	}
 	
-    fclose(external_spline_table);
+	external_spline_table.close();
 }
 
-int InteractionClassSpec::read_table(FILE* external_spline_table, int line, int num_cg_types) 
+int InteractionClassSpec::read_table(std::ifstream &external_spline_table, int line, int num_cg_types) 
 {
-    char buff[100];
+    std::string buff;
     char parameter_name[50];
     int hash_val, index_among_defined;
     int n_external_splines_to_read = 0;
     
     // Read the file header.
-    fgets(buff, 100, external_spline_table);
-    line++;
-    sscanf(buff, "%s %d %lf", parameter_name, &n_external_splines_to_read, &external_table_spline_binwidth);
+    check_and_read_next_line(external_spline_table, buff, line);
+    sscanf(buff.c_str(), "%s %d %lf", parameter_name, &n_external_splines_to_read, &external_table_spline_binwidth);
     if (strcmp(parameter_name, get_table_name().c_str()) != 0) report_tabulated_interaction_format_error(line);
     if (n_external_splines_to_read != n_tabulated) report_tabulated_interaction_data_consistency_error(line);
     if (n_external_splines_to_read <= 0) return line;
@@ -365,7 +463,7 @@ int InteractionClassSpec::read_table(FILE* external_spline_table, int line, int 
     external_table_spline_coefficients = new double*[n_external_splines_to_read];
     for (int i = 0; i < n_external_splines_to_read; i++) {
         // Read the types of the interaction.
-        fgets(buff, 100, external_spline_table); line++;
+        check_and_read_next_line(external_spline_table, buff, line);
         std::istringstream buffss(buff);
         std::vector<int> types(get_n_body());
         for (unsigned j = 0; j < types.size(); j++) buffss >> types[j];
@@ -378,21 +476,19 @@ int InteractionClassSpec::read_table(FILE* external_spline_table, int line, int 
     return line;
 }
 
-int InteractionClassSpec::read_bspline_table(FILE* external_spline_table, int line, int index_among_defined)
+int InteractionClassSpec::read_bspline_table(std::ifstream &external_spline_table, int line, int index_among_defined)
 {
-    char buff[100];
+    std::string buff;
     int index_among_tabulated, n_external_spline_control_points;
 
-    fgets(buff, 100, external_spline_table);
-    line++;
-    sscanf(buff, "%lf%lf", &lower_cutoffs[index_among_defined], &upper_cutoffs[index_among_defined]);
+    check_and_read_next_line(external_spline_table, buff, line);
+    sscanf(buff.c_str(), "%lf%lf", &lower_cutoffs[index_among_defined], &upper_cutoffs[index_among_defined]);
     n_external_spline_control_points = floor((upper_cutoffs[index_among_defined] - lower_cutoffs[index_among_defined]) / external_table_spline_binwidth + 0.5) + 1;
     index_among_tabulated = defined_to_tabulated_intrxn_index_map[index_among_defined] - 1;
     external_table_spline_coefficients[index_among_tabulated] = new double[n_external_spline_control_points];
     for (int j = 0; j < n_external_spline_control_points; j++) {
-        fgets(buff, 100, external_spline_table);
-        line++;
-        sscanf(buff, "%lf", &external_table_spline_coefficients[index_among_tabulated][j]);
+        check_and_read_next_line(external_spline_table, buff, line);
+		sscanf(buff.c_str(), "%lf", &external_table_spline_coefficients[index_among_tabulated][j]);
      }
      return line;
 }
@@ -401,13 +497,25 @@ void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double>
 {
     // Size the output vectors of positions and forces conservatively.
     unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    if (num_entries == 0) num_entries = 1;
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);    
     // Calculate forces by iterating over the grid points from low to high.
+    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
     double max = ispec->upper_cutoffs[index_among_defined];
+    if (min >= max) {
+    	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
+    }
+    
     unsigned counter = 0;
-    for (double axis = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth; axis < max; axis += binwidth) {
+    for (double axis = min; axis < max; axis += binwidth) {
         force_vals[counter] = fm_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
+        axis_vals[counter] = axis;
+        counter++;
+    }
+    if (counter == 0) {
+    	double axis = (ispec->upper_cutoffs[index_among_defined] + ispec->lower_cutoffs[index_among_defined]) * 0.5;
+    	force_vals[counter] = fm_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         axis_vals[counter] = axis;
         counter++;
     }
@@ -425,16 +533,21 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
 	deriv_vals = std::vector<double>(num_entries);
 	
     // Calculate forces by iterating over the grid points from low to high.
+    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
     double max = ispec->upper_cutoffs[index_among_defined];
+    if (min >= max) {
+    	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
+    }
+    
     unsigned counter = 0;
-    for (double axis = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth; axis < max; axis += binwidth) {
+    for (double axis = min; axis < max; axis += binwidth) {
     	axis_vals[counter] = axis;
         force_vals[counter] = s_comp_ptr->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);   
     	counter++;
     }
+    
     // Set the correct size for the output vectors of positions and forces.
     axis_vals.resize(counter);
     force_vals.resize(counter);
-
 }

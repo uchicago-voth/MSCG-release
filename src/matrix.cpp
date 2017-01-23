@@ -2910,7 +2910,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         	x0[i] = tx;
         }
         fclose(x_in);
-        
+         
         for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
         delete [] x0;
     }
@@ -2984,8 +2984,10 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         
         // The target for an iterative calculation is the difference between the targets
         // for this trajectory and the previous trajectory.
-        for (i = 0; i < mat->fm_matrix_columns; i++)
+                
+        for (i = 0; i < mat->fm_matrix_columns; i++) {
             mat->dense_fm_normal_rhs_vector[i] = dd1[i] - mat->dense_fm_normal_rhs_vector[i];
+        }
         delete [] dd1;
         
     } else {
@@ -3088,6 +3090,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // For iterative calculations, the solution is a difference, so the computed quantity
     // should be added on to the previous solution value to obtain the final solution.
     if (mat->iterative_calculation_flag == 1) {
+    
         printf("Adding iterative increment to previous solution.\n");
         fflush(stdout);
         FILE* x_in;

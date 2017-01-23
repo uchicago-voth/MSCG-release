@@ -38,7 +38,7 @@ void calc_angular_three_body_sampling_range(InteractionClassComputer* const icom
 void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer* const icomp, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep);
+void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep);
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
@@ -82,7 +82,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 	iclass->setup_for_defined_interactions(topo_data);
 	
     icomp->ispec = iclass;
-    if (iclass->class_type == kPairNonbonded) {
+	if (iclass->class_type == kPairNonbonded) {
         icomp->calculate_fm_matrix_elements = calc_isotropic_two_body_sampling_range;
     } else if (iclass->class_type == kPairBonded) {
         icomp->calculate_fm_matrix_elements = calc_isotropic_two_body_sampling_range;
@@ -102,7 +102,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 		} else {
 			report_unrecognized_class_subtype(iclass);
 		}
-    } else { // For three_body_interactions
+	} else { // For three_body_interactions
     	icomp->calculate_fm_matrix_elements = calc_nothing;
     }
 	
@@ -134,12 +134,15 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if ((icomp->ispec->output_parameter_distribution == 1) && (param < icomp->ispec->cutoff)) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1) {
+		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		else if (param < icomp->ispec->cutoff) 														   fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	}
 }
 
 void calc_angular_three_body_sampling_range(InteractionClassComputer* const icomp, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[3] = {icomp->j, icomp->k, icomp->l};
+    int particle_ids[3] = {icomp->k, icomp->l, icomp->j}; // end indices (k, l) followed by center index (j)
     double param;
     calc_angle(particle_ids, x, simulation_box_half_lengths, param);
 
@@ -151,7 +154,7 @@ void calc_angular_three_body_sampling_range(InteractionClassComputer* const icom
 
 void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer* const icomp, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[4] = {icomp->i, icomp->j, icomp->k, icomp->l};
+    int particle_ids[4] = {icomp->k, icomp->l, icomp->i, icomp->j}; // end indices (k, l) followed by central bond indices (i, j)
     double param;
     calc_dihedral(particle_ids, x, simulation_box_half_lengths, param);
 
@@ -170,9 +173,8 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 {
     FILE* nonbonded_interaction_output_file_handle = open_file("rmin.in", "w");
     FILE* bonded_interaction_output_file_handle = open_file("rmin_b.in", "w");
- 	
-    write_interaction_range_data_to_file_and_free_it(cg, mat, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle);
     
+    write_interaction_range_data_to_file_and_free_it(cg, mat, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle);
     
  	fclose(nonbonded_interaction_output_file_handle);
     fclose(bonded_interaction_output_file_handle);
@@ -185,7 +187,7 @@ void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, M
     for(iclass_iterator = cg->iclass_list.begin(), icomp_iterator = cg->icomp_list.begin(); (iclass_iterator != cg->iclass_list.end()) && (icomp_iterator != cg->icomp_list.end()); iclass_iterator++, icomp_iterator++) {
         if ((*iclass_iterator)->class_type == kPairNonbonded) {
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, nonbonded_spline_output_filep);
- 		} else {
+        } else {
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, bonded_spline_output_filep);
         }
     }
@@ -215,11 +217,9 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined)
 {
     InteractionClassSpec* ispec = icomp->ispec;
-    std::vector<int> types = ispec->get_interaction_types(index_among_defined);
+    std::string basename = ispec->get_interaction_name(name, index_among_defined, " ");
 	
-    for (unsigned i = 0; i < types.size(); i++) {
-        fprintf(solution_spline_output_file, "%s ", name[types[i] - 1]);
-    }
+	fprintf(solution_spline_output_file, "%s ", basename.c_str());
 
     if (fabs(ispec->upper_cutoffs[index_among_defined] + VERYLARGE) < VERYSMALL_F) {
         ispec->upper_cutoffs[index_among_defined] = -1.0;
@@ -233,8 +233,6 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
         }
     }
     fprintf(solution_spline_output_file, "%lf %lf fm", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
-	
-	fprintf(solution_spline_output_file, "\n");
 }
 
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name) 
@@ -249,8 +247,7 @@ void open_parameter_distribution_files_for_class(InteractionClassComputer* const
         	filename += "_" + ispec->get_short_name();
     	}
 	 	filename += ".dist";
-		ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
-		//printf("open distribution file: %s\n", filename.c_str());
+	 	ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
 	}		
 }
 
@@ -289,19 +286,13 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
         }
 		
 		// Open distribution file
-	 	filename = ispec->get_interaction_name(name, i, "_");
-		
+		filename = ispec->get_interaction_name(name, i, "_");
 		if (!ispec->get_short_name().empty()) {
         	filename += "_" + ispec->get_short_name();
     	}
     	filename += ".dist";
 		
-		dist_stream.open(filename, std::ifstream::in);
-		if (dist_stream.fail()) {
-			printf("Problem opening %s file!\n", filename.c_str());
-			exit(EXIT_FAILURE);
-		}
-		//printf("re-open distribution file: %s\n", filename.c_str());
+		check_and_open_in_stream(dist_stream, filename.c_str()); 
 		
 		// Populate histogram by reading distribution file
 		dist_stream >> value;
@@ -318,12 +309,11 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 		// Write histogram to file
 		filename = ispec->get_interaction_name(name, i, "_");
-		
 		if (!ispec->get_short_name().empty()) {
         	filename += "_" + ispec->get_short_name();
     	}
     	filename += ".hist";
-    	
+    
 		hist_stream.open(filename, std::ofstream::out);
 		
 		hist_stream << "#center\tcounts\n";
@@ -337,16 +327,4 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		delete [] bin_centers;
 		delete [] bin_counts;
 	}
-}
-
-//--------------------------------------------------------------------------
-
-void free_fm_sampling_range_calculation_temps(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
-{
-    // Free topology information.
-    free_topology_data(&cg->topo_data);
-    
-    // Free calculation intermediate.
-    delete [] mat->dense_fm_rhs_vector;
-	delete [] mat->dense_fm_normal_rhs_vector;
 }

@@ -24,12 +24,11 @@ int main(int argc, char* argv[])
     double start_cputime = clock();
 
     FrameSource fs;
-	ControlInputs control_input;
-
+    
     printf("Parsing command line arguments.\n");
     parse_command_line_arguments(argc, argv, &fs);
     printf("Reading high level control parameters.\n");
-    reset_control_defaults_and_read_control_input(&control_input);
+    ControlInputs control_input;
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(&control_input, &fs);
     if (control_input.three_body_flag != 0) {
@@ -61,7 +60,7 @@ int main(int argc, char* argv[])
     printf("Beginning range finding.\n");
     construct_full_fm_matrix(&cg, &mat, &fs);
     printf("Ending range finding.\n");
-    free_fm_sampling_range_calculation_temps(&cg, &mat);
+    
     printf("Writing final output.\n");
     write_range_files(&cg, &mat);
 
@@ -83,7 +82,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     
     // Skip the desired number of frames before starting the matrix building loops.
     frame_source->move_to_start_frame(frame_source);
-    
+
     // Begin the main building loops. This routine operates as a for loop
     // over frame blocks wrapped around a loop over frames within each block.
     // In the inner loop, frames are read every iteration and new matrix elements are computed.
@@ -148,7 +147,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             
             //Skip processing frame if frame weight is 0.
             if (frame_source->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
-            } else {
+            } else {   
                 FrameConfig* frame_config = frame_source->getFrameConfig();
     			calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
             }

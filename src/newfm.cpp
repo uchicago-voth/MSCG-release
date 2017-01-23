@@ -23,9 +23,7 @@ int main(int argc, char* argv[])
 {
     // Begin to compute the total run time
     double start_cputime = clock();
-
     FrameSource frame_source;      // Trajectory frame data; see types.h
-    ControlInputs control_input;
     
     //----------------------------------------------------------------
     // Set up the force matching procedure
@@ -44,8 +42,8 @@ int main(int argc, char* argv[])
     // the type of basis set to use, and many others described in
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
-    reset_control_defaults_and_read_control_input(&control_input);
-	CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
+    ControlInputs control_input; 		// Control parameters read from control.in
+	CG_MODEL_DATA cg(&control_input);   // CG model parameters and data (InteractionClasses and Computers)
     copy_control_inputs_to_frd(&control_input, &frame_source);
 
     // Read the topology file top.in to determine the definitions of
@@ -81,7 +79,7 @@ int main(int argc, char* argv[])
         fflush(stdout);
         read_frame_weights(&frame_source, control_input.starting_frame, control_input.n_frames); 
     }
-    
+        
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
     if (frame_source.bootstrapping_flag == 1) {
@@ -121,10 +119,10 @@ int main(int argc, char* argv[])
     	}
     	set_bootstrapping_normalization(&mat, frame_source.bootstrapping_weights, frame_source.n_frames);
     }
-    
+        
     // Record the dimensions of the matrix after initialization in a
     // solution file.
-    FILE* solution_file = fopen("sol_info.out", "w");
+    FILE* solution_file = open_file("sol_info.out", "w");
     fprintf(solution_file, "fm_matrix_rows:%d; fm_matrix_columns:%d;\n",
             mat.fm_matrix_rows, mat.fm_matrix_columns);
     fclose(solution_file);
@@ -142,8 +140,7 @@ int main(int argc, char* argv[])
     // not necessary for finding a solution to the final matrix
     // equations.
     printf("Finished constructing FM equations.\n");
-    free_fm_matrix_building_temps(&cg, &mat, &frame_source);
-	if (frame_source.bootstrapping_flag == 1) {
+    if (frame_source.bootstrapping_flag == 1) {
 		free_bootstrapping_weights(&frame_source);
 	}
 	
@@ -158,13 +155,7 @@ int main(int argc, char* argv[])
     // coefficients found in the solution step.
     printf("Writing final output.\n"); fflush(stdout);
     write_fm_interaction_output_files(&cg, &mat);
-	free_interaction_data(&cg);
 	
-	if (frame_source.bootstrapping_flag == 1) {
-		delete [] mat.bootstrap_solutions;
-    	delete [] mat.bootstrapping_normalization;
-    }
-
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
@@ -175,14 +166,14 @@ int main(int argc, char* argv[])
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const frame_source)
 {
     int n_blocks;
-	int total_frame_samples = frame_source->n_frames;
+    int read_stat = 1;
+    int total_frame_samples = frame_source->n_frames;
 	int traj_frame_num = 0;
 	int times_sampled = 1;
-    int read_stat = 1;
-    
+
     // Skip the desired number of frames before starting the matrix building loops.
     frame_source->move_to_start_frame(frame_source);
-    
+      
     // Begin the main building loops. This routine operates as a for loop
     // over frame blocks wrapped around a loop over frames within each block.
     // In the inner loop, frames are read every iteration and new matrix elements are computed.
@@ -190,13 +181,12 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     // then wiped for the process to start again with the next iteration.
 
     // Set up the loop index limits for the inner and outer loops.
-	if (frame_source->dynamic_state_sampling == 1) {
+    if (frame_source->dynamic_state_sampling == 1) {
 		total_frame_samples = frame_source->n_frames * frame_source->dynamic_state_samples_per_frame;
-	}
-	
+	}	
     if (mat->matrix_type == kDense) {
         n_blocks = total_frame_samples;
-        mat->frames_per_traj_block = 1;
+	    mat->frames_per_traj_block = 1;
     } else {
 		// Check if number of frames is divisible by frames per trajectory block.
 		if (total_frame_samples % mat->frames_per_traj_block != 0) {
@@ -205,8 +195,6 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 		}
 		n_blocks = total_frame_samples / mat->frames_per_traj_block;
 	}
-
-    mat->accumulation_row_shift = 0;
 
     // Initialize the cell linked lists for finding neighbors in the provided frames;
     // NVT trajectories are assumed, so this only needs to be done once.
@@ -220,6 +208,8 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
         }
         three_body_cell_list.init(max_cutoff, frame_source);
     }
+
+    mat->accumulation_row_shift = 0;
 
     // For each block of frame samples.
     printf("Entering primary matrix-building loop.\n"); fflush(stdout);
@@ -241,17 +231,19 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             // If reweighting is being used, scale the block of the FM matrix for this frame
             // by the appropriate weighting factor
             if (frame_source->use_statistical_reweighting) {
-                printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
-                mat->current_frame_weight = frame_source->frame_weights[traj_frame_num];
+                int frame_index = mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index;
+                printf("Reweighting entries for frame %d. ", frame_index);
+                mat->current_frame_weight = frame_source->frame_weights[frame_index];
             }
             
             //Skip processing frame if frame weight is 0.
             if (frame_source->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
-            } else {
+            } else {				
+				// Process frame information.
                 FrameConfig* frame_config = frame_source->getFrameConfig();
     			calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
             }
-
+			
             // Read the next frame; the success of this read will be
             // checked at the start of the next iteration of the loop.
             if (frame_source->dynamic_state_sampling == 0) {
@@ -262,12 +254,12 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 					read_stat = (*frame_source->get_next_frame)(frame_source);  
 				}
 				traj_frame_num++;
-			
+				
 			} else if (times_sampled < frame_source->dynamic_state_samples_per_frame) {
 				// Resample this frame.
 				frame_source->sampleTypesFromProbs();
 				times_sampled++;
-			
+				
 			} else {
 				// Read next frame, sample frame, and reset sampling counter.
 				// Only do this if we are not currently process the last frame.
@@ -280,7 +272,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 				traj_frame_num++;
 			}
 		}
-
+		
         // Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew
         printf("\r%d (%d) frames have been sampled. ", frame_source->current_frame_n, (mat->trajectory_block_index + 1) * mat->frames_per_traj_block);
         fflush(stdout);

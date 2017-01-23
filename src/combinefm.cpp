@@ -22,8 +22,6 @@ int main(int argc, char* argv[])
     double start_cputime = clock();
 
     ControlInputs control_input;
-
-    reset_control_defaults_and_read_control_input(&control_input);
     CG_MODEL_DATA cg(&control_input); // CG model parameters and data; put here to initialize without default constructor
     read_topology_file(&cg.topo_data, &cg);
     read_all_interaction_ranges(&cg);
@@ -31,10 +29,8 @@ int main(int argc, char* argv[])
     MATRIX_DATA mat(&control_input, &cg);
 
     set_up_force_computers(&cg);
-
+ 
     read_binary_matrix(&mat);
-
-    free_AV_fm_setup_temp_variables(&cg, &mat);
 
     mat.finish_fm(&mat);
 

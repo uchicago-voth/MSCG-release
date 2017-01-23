@@ -17,7 +17,4 @@ void initialize_range_finding_temps(CG_MODEL_DATA* const cg);
 // Main output function
 void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 
-// Memory deallocation following a complete trajectory read-through.
-void free_fm_sampling_range_calculation_temps(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
-
 #endif

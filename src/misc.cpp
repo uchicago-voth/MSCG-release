@@ -1,5 +1,5 @@
 //
-//  types.cpp
+//  misc.cpp
 //  
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <sstream>
 
 #include "misc.h"
 
@@ -25,7 +27,8 @@ FILE* open_file(const char* file_name, const char* mode)
 {
     FILE* filepointer = fopen(file_name, mode);
     if (filepointer == NULL) {
-        printf("Failed to open file %s.\n", file_name);
+        fprintf(stderr, "Failed to open file %s.\n", file_name);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
     return filepointer;
@@ -100,3 +103,56 @@ int StringSplit(std::string source, const char *const delimiter, std::string* re
     return count;
 }
 
+// A function to match a string against the list of type names.
+int match_type(std::string &source, char** name, const int n_types)
+{
+	char unknown[10];
+	sprintf(unknown, "%s", source.c_str());
+	
+	// Check if this type is a name.
+	for (int i = 0; i < n_types; i++) {
+		if( strcmp(unknown, name[i]) == 0 ) {
+			return i + 1;
+		}
+	}
+	
+	// Check if this type is a number.
+	if(isdigit(unknown[0]) != 0) {
+		return atoi(unknown); 
+	}
+	return -1;	
+}
+
+void check_and_open_in_stream(std::ifstream &in_stream, const char* filename) 
+{
+	in_stream.open(filename, std::ifstream::in);
+    if (in_stream.fail()) {
+		fprintf(stderr, "Problem opening file %s\n", filename);
+		fflush(stderr);
+		exit(EXIT_FAILURE);
+	}
+}
+
+void check_and_read_next_line(std::ifstream &in_stream, std::string &line)
+{
+	if(!std::getline(in_stream, line)) {
+			fprintf(stderr, "\nIt appears that the file is no longer open.\n");
+			fprintf(stderr, "Please check that you are not attempting to read past the end of the file and try again.\n");
+			fflush(stderr);
+			exit(EXIT_FAILURE);
+	}	
+}
+
+void check_and_read_next_line(std::ifstream &in_stream, std::string &line, int &line_num)
+{
+	check_and_read_next_line(in_stream, line);
+	line_num++;	
+}
+
+
+void swap_pair(int& a, int& b) 
+{
+	int tn = b;
+	b = a;
+	a = tn;
+}

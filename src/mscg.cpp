@@ -58,7 +58,6 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->start_cputime = clock();	
 	
 	mscg_struct->frame_source = new FrameSource;
-    mscg_struct->control_input = new ControlInputs;
     
     FrameSource *p_frame_source = mscg_struct->frame_source;
     ControlInputs *p_control_input = mscg_struct->control_input;
@@ -74,8 +73,8 @@ void* mscg_startup_part1(void* void_in)
     // the type of basis set to use, and many others described in
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
-    reset_control_defaults_and_read_control_input(p_control_input);
-	mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
+    mscg_struct->control_input = new ControlInputs;
+    mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
     
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
     
@@ -500,8 +499,7 @@ void* mscg_solve_and_output(void* void_in)
     p_frame_source->cleanup(p_frame_source);
 
     printf("Finished constructing FM equations.\n");
-    free_fm_matrix_building_temps(p_cg, mat, p_frame_source);
-	if (p_frame_source->bootstrapping_flag == 1) {
+    if (p_frame_source->bootstrapping_flag == 1) {
 		free_bootstrapping_weights(p_frame_source);
 	}
 	
@@ -536,7 +534,6 @@ void* mscg_solve_and_output(void* void_in)
     // coefficients found in the solution step.
     printf("Writing final output.\n"); fflush(stdout);
     write_fm_interaction_output_files(p_cg, mat);
-	free_interaction_data(p_cg);
 	
 	if (p_frame_source->bootstrapping_flag == 1) {
 		delete [] mat->bootstrap_solutions;
@@ -565,7 +562,6 @@ void* rangefinder_solve_and_output(void* void_in)
      // Free the space used to build the force-matching matrix that is
     // not necessary for the interaction range outputs.
   	printf("Ending range finding.\n");
-    free_fm_sampling_range_calculation_temps(mscg_struct->cg, mscg_struct->mat);
     printf("Writing final output.\n");
     write_range_files(mscg_struct->cg, mscg_struct->mat);
   	if (mscg_struct->frame_source->bootstrapping_flag == 1) {

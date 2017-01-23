@@ -88,7 +88,7 @@ struct csr_matrix {
     	column_indices = copy_column_indices;
     	row_sizes = copy_row_sizes; 
     }
-	
+
 	inline void write_file(FILE* fh) {
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, max_entries);
 		for (int i = 0; i < row_sizes[n_rows]; i++) {
@@ -117,7 +117,7 @@ struct csr_matrix {
 		}
 */
 	}
-
+	
     inline ~csr_matrix() {
         delete [] values;
         delete [] column_indices;
@@ -205,14 +205,14 @@ struct MATRIX_DATA {
 	// Poor-man's polymorphism for vector matrix operations.
 	accumulate_forces accumulate_matching_forces;
 	accumulate_table_forces accumulate_tabulated_forces;
-	
+
     // Basic layout implementation details
     int fm_matrix_rows;                             // Number of rows for FM matrix
     int fm_matrix_columns;                          // Number of columns for FM matrix
     int rows_less_virial_constraint_rows;           // Rows less the rows reserved for virial constraints
     int virial_constraint_rows;                     // Rows specifically for virial constraints
     int frames_per_traj_block;              // Number of frames to read in a single block of FM matrix construction
-    
+
     // For dense-matrix-based calculations
     dense_matrix* dense_fm_matrix;
     dense_matrix* dense_fm_normal_matrix;                 // Normal form of the force-matching matrix. Constructed one frame at a time.
@@ -225,21 +225,13 @@ struct MATRIX_DATA {
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times a frame is resampled. This is 1 unless dynamic_state_sampling is 1.
-    
+ 	
     // Optional extras for dense-matrix-based calculations
     double current_frame_weight;
     int iterative_calculation_flag;         // 0 for a non-iterative calculation; 1 to use Lanyuan's iterative force matching method
     double iterative_update_rate_coeff;                     // The parameter setting the aggressiveness of the fixed-point iteration used in Lanyuan's iterative force matching method
 
-	// Optional extras for residual, regularization, and bayesian calculations
-	int output_residual;							// 1 to calculate the residual; 0 otherwise
-	double force_sq_total;							
-	int bayesian_flag;								// 1 to use Bayesian MS-CG to calculate regularization and interactions
-	int bayesian_max_iter;
-    int regularization_style;                       // 0 to use no regularization; 1 to calculate results using single scalar regularization; 2 to calculate results using a set of regularization parameters in file lambda.in
-	double tikhonov_regularization_param;           // Parameter for Tikhonov regularization. (regularization_style = 1)
-	double* regularization_vector;					// Vector for regularization_style 2.
-	    
+	
 	// Optional extras for bootstrapping (dense and sparse)
 	int bootstrapping_flag;
 	int bootstrapping_full_output_flag;
@@ -273,6 +265,15 @@ struct MATRIX_DATA {
     double* lapack_temp_workspace;                  // Temp for LAPACK SVD and QR routines
     double* lapack_tau;                             // Temp for LAPACK SVD and QR routines
 
+	// Optional extras for residual, regularization, and bayesian calculations
+	int output_residual;							// 1 to calculate the residual; 0 otherwise
+	double force_sq_total;							
+	int bayesian_flag;								// 1 to use Bayesian MS-CG to calculate regularization and interactions
+	int bayesian_max_iter;
+    int regularization_style;                       // 0 to use no regularization; 1 to calculate results using single scalar regularization; 2 to calculate results using a set of regularization parameters in file lambda.in
+	double tikhonov_regularization_param;           // Parameter for Tikhonov regularization. (regularization_style = 1)
+	double* regularization_vector;					// Vector for regularization_style 2.
+
     // SVD routine parameter
     double rcond;                           // SVD condition number threshold
     
@@ -290,8 +291,35 @@ struct MATRIX_DATA {
     		delete [] bootstrapping_normalization;
     	}
     	if (regularization_style == 2) {
-    		delete [] regularization_vector;
-    	}
+	   		delete [] regularization_vector;
+	   	}
+	   	
+   	    // Free FM matrix building temps
+	    printf("Freeing equation building temporaries.\n");
+
+    	if (matrix_type == kDense) {
+			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+			delete [] dense_fm_rhs_vector;
+		} else if (matrix_type == kSparse) {
+			delete [] ll_sparse_matrix_row_heads;
+			delete [] block_fm_solution;
+			delete [] dense_fm_rhs_vector;
+			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+		} else if (matrix_type == kAccumulation) {
+			delete [] lapack_temp_workspace;
+			delete [] lapack_tau;
+		} else if (matrix_type == kSparseNormal) {
+			delete [] ll_sparse_matrix_row_heads;
+			delete [] dense_fm_rhs_vector;
+			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+		} else if (matrix_type == kSparseSparse) {
+			delete [] ll_sparse_matrix_row_heads;
+			delete [] dense_fm_rhs_vector;
+			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+		} else if (matrix_type == kDummy) {
+		    delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
+		}
 	}
    
     // Modification function for matrix.

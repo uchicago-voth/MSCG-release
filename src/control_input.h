@@ -83,9 +83,9 @@ typedef struct ControlInputs {
     double rcond;
 	double sparse_safety_factor; 
 	int num_sparse_threads;
+	
+	ControlInputs(void);
+	~ControlInputs(void);
 } ControlInputs;
-
-// Read a control input file.
-void reset_control_defaults_and_read_control_input(ControlInputs* const control_input);
 
 #endif

@@ -21,7 +21,7 @@ struct TopoList {
 
 	int modified;					// A flag indicating if the pointers for partners_ and partner_numbers_ arrays are shared (1 for yes, 0 for no).
 									// This is primarily useful in the LAMMPS fix when these arrays are allocated, freed, and owned by LAMMPS.
-	
+									
     inline TopoList() : TopoList(0, 0, 0) {}
     TopoList(unsigned n_sites, unsigned partners_per, unsigned max_partners);
     ~TopoList();
@@ -35,23 +35,27 @@ struct TopologyData {
     unsigned n_cg_types;                    // Total number of CG site types
     char** name;                            // Human-readable names for each CG site type
     int* cg_site_types;                     // List of the CG types for each site
-    
+	
     unsigned max_pair_bonds_per_site;            // Max pair bonds defined by connection to a single site
     unsigned max_angles_per_site;                // Max angles defined by connection to a single site
     unsigned max_dihedrals_per_site;             // Max dihedrals defined by connection to a single site
 
 	// Pointers to TopoLists containing the sites connected to a given site through a given topological feature.
     TopoList* bond_list;
-    TopoList* angle_list;
-    TopoList* dihedral_list;
+    TopoList* angle_list;			// This list only has "partners" for the end sites of an angle (not the middle).
+    								// The first partner in this list for each angle is the "center" followed by the remaining site.
+    TopoList* dihedral_list;		// This list only has "partners" for the end sites of an angle (not the central "bond").
+    								// The first two partners in this list for each dihedral are the "center bond sites" followed by the remaining site.
     TopoList* exclusion_list;
     
     int* bond_type_activation_flags;        // 0 if a given type of pair bonded interaction is active in the model; 1 otherwise
     int* angle_type_activation_flags;       // 0 if a given type of angular bonded interaction is active in the model; 1 otherwise
     int* dihedral_type_activation_flags;    // 0 if a given type of dihedral bonded interaction is active in the model; 1 otherwise
-
-	int excluded_style;					// 0 no exclusions; 2 exclude 1-2 bonded; 3 exclude 1-2 and 1-3 bonded; 4 exclude 1-2, 1-3 and 1-4 bonded interactions
 	
+	int excluded_style;					// 0 no exclusions; 2 exclude 1-2 bonded; 3 exclude 1-2 and 1-3 bonded; 4 exclude 1-2, 1-3 and 1-4 bonded interactions
+	int angle_format;
+	int dihedral_format;
+		
 	inline TopologyData () {
 		TopologyData(4,12,36);
 	}
@@ -59,7 +63,14 @@ struct TopologyData {
 	inline TopologyData (int max_bonds, int max_angles, int max_dihedrals) :
 		max_pair_bonds_per_site(max_bonds),
 		max_angles_per_site(max_angles),
-		max_dihedrals_per_site(max_dihedrals) {};
+		max_dihedrals_per_site(max_dihedrals) {
+		bond_list = angle_list = dihedral_list  = NULL;
+		exclusion_list = NULL;
+		cg_site_types = NULL;
+  		bond_type_activation_flags = angle_type_activation_flags = dihedral_type_activation_flags = NULL;
+		};
+	
+	void free_topology_data(void);
 };
 
 // Helper functions for managing TopologyData structs.
@@ -72,6 +83,5 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg);
 void initialize_topology_data(TopologyData* const topo_data);
 
 // Determine appropriate non-bonded exclusions based on bonded topology and exclusion_style setting (used for LAMMPS fix).
-void setup_excluded_list(TopologyData const* topo_data,  TopoList* exclusion_list, const int excluded_style);
-
+void setup_excluded_list(TopologyData const* topo_data,  TopoList* &exclusion_list, const int excluded_style);
 #endif

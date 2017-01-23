@@ -31,5 +31,6 @@ void calc_distance(const int* particle_ids, const rvec* &particle_positions, con
 void calc_angle(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val);
 void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val);
 
+void get_minimum_image(const int l, rvec* frx, const real *simulation_box_half_lengths);
 
 #endif

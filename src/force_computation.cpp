@@ -46,10 +46,6 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void do_nothing(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-// Utility functions for calculating angles, distances, etc. in a periodic domain.
-
-void get_minimum_image(const int l, rvec* frx, const real *simulation_box_half_lengths);
-
 //--------------------------------------------------------------------
 // Initialization routines to start the FM matrix calculation
 //--------------------------------------------------------------------
@@ -133,7 +129,7 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
     		 break;
     		 
     	case 2:
-    		if ( (ispec->get_basis_type() != kBSpline) && (ispec->get_basis_type() != kBSplineAndDeriv) ) {
+    		if ((ispec->get_basis_type() != kBSpline) && (ispec->get_basis_type() != kBSplineAndDeriv)) {
                 printf("Three body with fitted distance term can be only used with B-splines!\n");
                 exit(EXIT_FAILURE);
             }
@@ -151,10 +147,10 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
     if (ispec->class_subtype > 0) {
         interaction_class_column_index = *curr_iclass_col_index;
         *curr_iclass_col_index += ispec->interaction_column_indices[ispec->n_to_force_match];
-		process_interaction_matrix_elements = process_normal_interaction_matrix_elements;
+        process_interaction_matrix_elements = process_normal_interaction_matrix_elements;
     }
     fm_s_comp = new BSplineAndDerivComputer(ispec);
-	fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
+    fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
 }
 
 //--------------------------------------------------------------------
@@ -182,10 +178,10 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
     }
     
     // Calculate matrix elements by looking through interaction (cell and topology) lists to find active (and non-excluded) interactions.
-    cg->pair_nonbonded_computer.calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
-    cg->pair_bonded_computer.calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
-    cg->angular_computer.calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
-    cg->dihedral_computer.calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
+    std::list<InteractionClassComputer*>::iterator icomp_iterator;
+	for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+        (*icomp_iterator)->calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
+    }
     cg->three_body_nonbonded_computer.calculate_3B_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, three_body_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
 }
 
@@ -255,6 +251,10 @@ void AngularClassComputer::calculate_interactions(MATRIX_DATA* const mat, int tr
     current_frame_starting_row = curr_frame_starting_row;
     for (k = 0; k < int(topo_data.n_cg_sites); k++) {
         for (unsigned kk = 0; kk < topo_data.angle_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from angle list (organization of angle_list described in topology files).
+        	// j is the "center" index while l and k are the "ends" of the angle.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
             l = topo_data.angle_list->partners_[k][2 * kk + 1];
             j = topo_data.angle_list->partners_[k][2 * kk];
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
@@ -270,6 +270,10 @@ void DihedralClassComputer::calculate_interactions(MATRIX_DATA* const mat, int t
     current_frame_starting_row = curr_frame_starting_row;
     for (k = 0; k < int(topo_data.n_cg_sites); k++) {
         for (unsigned kk = 0; kk < topo_data.dihedral_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
             l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
             i = topo_data.dihedral_list->partners_[k][3 * kk];
             j = topo_data.dihedral_list->partners_[k][3 * kk + 1];
@@ -277,7 +281,7 @@ void DihedralClassComputer::calculate_interactions(MATRIX_DATA* const mat, int t
         }
     }
 }
-  
+
 // Calculate matrix elements for three body non-bonded interactions.
 // Find all pairs of neighbors of all particles and call nonbonded matrix element computations
 // for any triples that interact. Exclusion lists are handled in the called subroutines.
@@ -303,15 +307,15 @@ inline void InteractionClassComputer::walk_3B_neighbor_list(MATRIX_DATA* const m
                     //three body
                     l = three_body_cell_list.list[k];
                     while (l >= 0) {
-                    	if (l >= 0) {
+                        if (l >= 0) {
 	                        if (l != j) {
     	                       if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
         	                       order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
             	               }
             	        	}
                         	l = three_body_cell_list.list[l];
-                        }
-                    }
+						}
+					}
                     for (int nei_3 = 0; nei_3 < 26; nei_3++) {
                         int ll_3 = three_body_cell_list.stencil[26 * kk + nei_3];
                         l = three_body_cell_list.head[ll_3];
@@ -376,7 +380,6 @@ inline bool check_excluded_list(const TopologyData* const topo_data, const int i
 // each frame and possibly found not to interact after.
 //--------------------------------------------------------------------
 
-
 void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, const rvec* x, const real *simulation_box_half_lengths)
 {
     // Calculate the appropriate matrix elements.
@@ -384,7 +387,7 @@ void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer
     info->index_among_matched_interactions = info->ispec->defined_to_matched_intrxn_index_map[info->index_among_defined_intrxns];
     info->index_among_tabulated_interactions = info->ispec->defined_to_tabulated_intrxn_index_map[info->index_among_defined_intrxns];
     
-    if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+	if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
     calc_matrix_elements(info, x, simulation_box_half_lengths, mat);
 }
 
@@ -396,6 +399,7 @@ void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const 
     info->index_among_tabulated_interactions = info->ispec->defined_to_tabulated_intrxn_index_map[info->index_among_defined_intrxns];
     
     if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+
     (*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 }
 
@@ -437,7 +441,7 @@ inline void process_normal_interaction_matrix_elements(InteractionClassComputer*
     	basis_sum  = info->table_basis_fn_vals[0] + info->table_basis_fn_vals[1];
     	
     	// Add to force target.
-    	mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+		mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
     	
     	// Add to target virial if virial_flag is non-zero.
     	switch (virial_flag) {
@@ -456,9 +460,9 @@ inline void process_normal_interaction_matrix_elements(InteractionClassComputer*
 	    // Compute the strength of each basis function.
 	    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
     	
-    	// Add to the force matching.       
- 		mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
-    		
+    	// Add to the force matching.
+	    mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+ 			
     	// Add to virial matching if virial_flag is non-zero.
     	switch (virial_flag) {
     		case 1:
@@ -489,25 +493,31 @@ void calc_isotropic_two_body_fm_matrix_elements(InteractionClassComputer* const 
     int particle_ids[2] = {info->k, info->l};
     std::array<double, 3>* derivatives = new std::array<double, 3>[1];
 	double distance;
-    if ( conditionally_calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives) ) {
+	if ( conditionally_calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives) ) {
         int index_among_defined = info->index_among_defined_intrxns;
     	if (distance < info->ispec->lower_cutoffs[index_among_defined] ||
-        	distance > info->ispec->upper_cutoffs[index_among_defined]) return;
-		info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
+        	distance > info->ispec->upper_cutoffs[index_among_defined]) {
+        	delete [] derivatives;
+        	return;
+        }
+    	info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
     }
     delete [] derivatives;
 }
 
 void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[3] = {info->j, info->k, info->l};
+    int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l), followed by center index (j)
     std::array<double, 3>* derivatives = new std::array<double, 3>[2];
     int index_among_defined = info->index_among_defined_intrxns;
     double angle;
 
     if ( conditionally_calc_angle_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, angle, derivatives) ) {
         if (angle < info->ispec->lower_cutoffs[index_among_defined] ||
-        	angle > info->ispec->upper_cutoffs[index_among_defined]) return;
+        	angle > info->ispec->upper_cutoffs[index_among_defined]) {
+        	delete [] derivatives;
+        	return;
+        }
         info->process_interaction_matrix_elements(info, mat, 3, particle_ids, derivatives, angle, 0, 0.0, 0.0);
     }
     delete [] derivatives;
@@ -515,14 +525,17 @@ void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const 
 
 void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-    int particle_ids[4] = {info->i, info->j, info->k, info->l};
+    int particle_ids[4] = {info->k, info->l, info->i, info->j}; // end indices (k, l) followed by central bond indices (i, j)
     std::array<double, 3>* derivatives = new std::array<double, 3>[3];
     int index_among_defined = info->index_among_defined_intrxns;
     double dihedral;
 
     if ( conditionally_calc_dihedral_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, dihedral, derivatives) ) {
         if (dihedral < info->ispec->lower_cutoffs[index_among_defined] ||
-        	dihedral > info->ispec->upper_cutoffs[index_among_defined]) return;
+        	dihedral > info->ispec->upper_cutoffs[index_among_defined]) {
+        	delete [] derivatives;
+        	return;
+        }
 		info->process_interaction_matrix_elements(info, mat, 4, particle_ids, derivatives, dihedral, 0, 0.0, 0.0);
     }
 	delete [] derivatives;
@@ -530,21 +543,19 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
 
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-	int particle_ids[3] = {info->j, info->k, info->l};    
+    int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l) followed by center index (j).    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
 
 	std::array<double, 3>* relative_site_position_2 = new std::array<double, 3>[1];
 	std::array<double, 3>* relative_site_position_3 = new std::array<double, 3>[1];
 	std::array<double, 3>* derivatives = new std::array<double, 3>[2];
-	std::array<double, 3> ty1, ty2, ty;
 	std::array<double, 3> tx1, tx2, tx;
 	double theta, rr1, rr2;
     double s1, s2, s1_1, s2_1, rt1, rt2;
     double c1, c2, c3;
     double tt;
-    unsigned i;
-	int	j, tn;
+    int	this_column;
 	
 	bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, x,simulation_box_half_lengths, info->cutoff2, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2);
 	if (!within_cutoff) {
@@ -555,13 +566,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     }
 
     icomp->intrxn_param = theta;
-    
-    for (i = 0; i < 3; i++) {
-        ty1[i] = derivatives[0][i];
-        ty2[i] = derivatives[1][i];
-        ty[i] = -ty1[i] - ty2[i];
-    }
-        
+            
     rt1 = rr1 - icomp->cutoff2;
     rt2 = rr2 - icomp->cutoff2;
     s1 = exp(ispec->three_body_gamma / rt1);
@@ -585,22 +590,21 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
 	int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
         
-    for (i = 0; i < info->fm_basis_fn_vals.size(); i++) {
+    for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
-        tn = temp_column_index + i;
+        this_column = temp_column_index + i;
         tt = basis_der_vals[i] * c1;
-        for (j = 0; j < 3; j++) tx1[j] = ty1[j] * tt;
-        for (j = 0; j < 3; j++) tx2[j] = ty2[j] * tt;
+        for (int j = 0; j < 3; j++) tx1[j] = derivatives[0][j] * tt;
+        for (int j = 0; j < 3; j++) tx2[j] = derivatives[1][j] * tt;
         
         tt = info->fm_basis_fn_vals[i] * c2;
-        for (j = 0; j < 3; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
-        (*mat->accumulate_fm_matrix_element)(temp_row_index_2, tn, &tx1[0], mat);
+        for (int j = 0; j < 3; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
+        (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
         tt = info->fm_basis_fn_vals[i] * c3;
-        for (j = 0; j < 3; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
-        (*mat->accumulate_fm_matrix_element)(temp_row_index_3, tn, &tx2[0], mat);
-        for (j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
-        (*mat->accumulate_fm_matrix_element)(temp_row_index_1, tn, &tx[0], mat);
-    
+        for (int j = 0; j < 3; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
+        (*mat->accumulate_fm_matrix_element)(temp_row_index_2, this_column, &tx2[0], mat);
+        for (int j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
+        (*mat->accumulate_fm_matrix_element)(temp_row_index_3, this_column, &tx[0], mat);
     }
     delete [] relative_site_position_2;
 	delete [] relative_site_position_3;
@@ -609,18 +613,16 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-	int particle_ids[3] = {info->j, info->k, info->l};    
+    int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l) followed by center index (j).    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
     
 	std::array<double, 3>* relative_site_position_2 = new std::array<double, 3>[1];
 	std::array<double, 3>* relative_site_position_3 = new std::array<double, 3>[1];
 	std::array<double, 3>* derivatives = new std::array<double, 3>[2];
-	std::array<double, 3> ty1, ty2, ty;
 	std::array<double, 3> tx1, tx2, tx;
     double theta, rr1, rr2;
     double cos_theta;
-    int i, j, tn;
     double s1, s2, s1_1, s2_1, rt1, rt2;
     double c1, c2, c3;
     double u, u_1;
@@ -637,12 +639,6 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     icomp->intrxn_param = theta;
     theta /= DEGREES_PER_RADIAN;
     cos_theta = cos(theta);
-    
-    for (i = 0; i < 3; i++) {
-        ty1[i] = derivatives[0][i];
-        ty2[i] = derivatives[1][i];
-        ty[i] = -ty1[i] - ty2[i];
-    }
     
     rt1 = rr1 - icomp->cutoff2;
     rt2 = rr2 - icomp->cutoff2;
@@ -662,22 +658,20 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
     int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
-    
-    tn = temp_column_index;
-    
+        
     tt = c1 * u_1;
-    for (j = 0; j < 3; j++) tx1[j] = ty1[j] * tt;
-    for (j = 0; j < 3; j++) tx2[j] = ty2[j] * tt;
+    for (int j = 0; j < 3; j++) tx1[j] = derivatives[0][j] * tt;
+    for (int j = 0; j < 3; j++) tx2[j] = derivatives[1][j] * tt;
     
     tt = c2 * u;
-    for (j = 0; j < 3; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
-    (*mat->accumulate_fm_matrix_element)(temp_row_index_2, tn, &tx1[0], mat);
+    for (int j = 0; j < 3; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
+    (*mat->accumulate_fm_matrix_element)(temp_row_index_1, temp_column_index, &tx1[0], mat);
     tt = c3 * u;
-    for (j = 0; j < 3; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
-    (*mat->accumulate_fm_matrix_element)(temp_row_index_3, tn, &tx2[0], mat);
-    for (j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
-    (*mat->accumulate_fm_matrix_element)(temp_row_index_1, tn, &tx[0], mat); 
-        
+    for (int j = 0; j < 3; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
+    (*mat->accumulate_fm_matrix_element)(temp_row_index_2, temp_column_index, &tx2[0], mat);
+    for (int j = 0; j < 3; j++) tx[j] = -(tx1[j] + tx2[j]);
+    (*mat->accumulate_fm_matrix_element)(temp_row_index_3, temp_column_index, &tx[0], mat); 
+    
     delete [] relative_site_position_2;
 	delete [] relative_site_position_3;   
 	delete [] derivatives;
@@ -685,70 +679,4 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
 
 void do_nothing(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat) 
 {
-}
-
-//--------------------------------------------------------------------
-// Utility functions for calculating the parameters that the potential
-// basis functions depend on, such as distances, angles, and dihedrals
-//--------------------------------------------------------------------
-
-inline void get_minimum_image(const int l, rvec* frx, const real *simulation_box_half_lengths)
-{
-    for (int i = 0; i < 3; i++) {
-        if (frx[l][i] < 0) frx[l][i] += 2.0 * simulation_box_half_lengths[i];
-        else if (frx[l][i] >= 2.0 * simulation_box_half_lengths[i]) frx[l][i] -= 2.0 * simulation_box_half_lengths[i];
-    }
-}
-
-//--------------------------------------------------------------------
-// Free the temps used in FM matrix building, retaining only what is 
-// still needed for solution and output.
-//--------------------------------------------------------------------
-
-void free_fm_matrix_building_temps(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const frame_source)
-{    
-    // Free topology information
-    printf("Freeing topology information.\n");
-    free_topology_data(&cg->topo_data);
-    
-    // Free tabulated potential data
-    printf("Freeing tabulated reference potential information.\n");
-	std::list<InteractionClassComputer*>::iterator icomp_iterator;
-    for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-        delete (*icomp_iterator)->table_s_comp;
-        (*icomp_iterator)->ispec->free_force_tabulated_interaction_data();
-    }    
-    // Free FM matrix building temps
-    printf("Freeing equation building temporaries.\n");
-
-    if (mat->matrix_type == kDense) {
-        if (mat->virial_constraint_rows > 0) delete [] mat->dense_fm_matrix;
-        delete [] mat->dense_fm_rhs_vector;
-    } else if (mat->matrix_type == kSparse) {
-        delete [] mat->ll_sparse_matrix_row_heads;
-        delete [] mat->block_fm_solution;
-        delete [] mat->dense_fm_rhs_vector;
-        if (mat->virial_constraint_rows > 0) delete [] mat->dense_fm_matrix;
-    } else if (mat->matrix_type == kAccumulation) {
-        delete [] mat->lapack_temp_workspace;
-        delete [] mat->lapack_tau;
-    } else if (mat->matrix_type == kSparseNormal) {
-        delete [] mat->ll_sparse_matrix_row_heads;
-        delete [] mat->dense_fm_rhs_vector;
-        if (mat->virial_constraint_rows > 0) delete [] mat->dense_fm_matrix;
-    } else if (mat->matrix_type == kSparseSparse) {
-        delete [] mat->ll_sparse_matrix_row_heads;
-        delete [] mat->dense_fm_rhs_vector;
-        if (mat->virial_constraint_rows > 0) delete [] mat->dense_fm_matrix;
-    }
-}
-
-void InteractionClassSpec::free_force_tabulated_interaction_data() 
-{
-    if (n_tabulated > 0) {
-        for (int i = 0; i < n_tabulated; i++) {
-            delete [] external_table_spline_coefficients[i];
-        }
-        delete [] external_table_spline_coefficients;
-    }
 }

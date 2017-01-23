@@ -1,6 +1,8 @@
 #ifndef MSCG_H
 #define MSCG_H
 
+#include <cassert>
+#include <cstring>
 #include "batch_fm_combination.h"
 #include "control_input.h"
 #include "external_matrix_routines.h"

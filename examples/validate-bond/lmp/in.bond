@@ -1,0 +1,34 @@
+# NaCl Simulations - Sensitivity Sample 0to5ns
+
+units		real
+dimension   3
+atom_style	full
+ 
+read_data bond.data
+
+pair_style lj/cut 5.0
+bond_style      harmonic
+angle_style     none
+dihedral_style  none
+
+pair_coeff	*	*	0.000	1.0
+
+bond_coeff	1	500.0	1.000
+
+set type * charge 	 0.000
+
+velocity all create 300.0 8675309 mom yes rot yes dist gaussian
+
+#allow atoms to move
+fix 1 all nve
+
+thermo_style custom step pe    ke    evdwl    ecoul    ebond    eangle    edihed    temp    press   vol
+thermo 100
+write_restart bond.restart
+
+thermo_style custom step pe    ke    evdwl    ecoul    ebond    eangle    edihed    temp    press   vol
+dump tj2 all custom 100 bond_example.dat	id	mol type x y z fx fy fz
+
+run 100000
+
+write_restart bond.1.restart

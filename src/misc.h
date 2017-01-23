@@ -11,7 +11,7 @@
 typedef float real;
 typedef real rvec[3];
 
-#include <cstring>
+#include <fstream>
 #include <string>
 #include "stdio.h"
 #include <vector>
@@ -33,6 +33,13 @@ extern const double DEGREES_PER_RADIAN;
 // An error-catching wrapper for fopen.
 FILE* open_file(const char* file_name, const char* mode);
 
+// An error-catching wrapper for open c++ filestreams for input
+void check_and_open_in_stream(std::ifstream &in_stream, const char* filename);
+
+// An (overloaded) error-catching wrapper for std::getline
+void check_and_read_next_line(std::ifstream &in_stream, std::string &line);
+void check_and_read_next_line(std::ifstream &in_stream, std::string &line, int &line_num);
+
 // Integrate function to calculate a potential from a force and distance vectors.
 void integrate_force(const std::vector<double> &axis_vals, const std::vector<double> &force_vals, std::vector<double> &potential_vals);
 
@@ -42,6 +49,13 @@ unsigned get_min_index(const std::vector<double> &potential_vals);
 // Subtract off minimum value from a vector.
 void standardize_potential(std::vector<double> &potential_vals);
 
-// A tokenizing function for strings
+// A tokenizing function for strings.
 int StringSplit(std::string source, const char* const delimiter, std::string* results);
+
+// A function that matches an std::string against type names.
+int match_type(std::string &source, char** name, const int n_types);
+
+// A simple function for swapping two numbers.
+void swap_pair(int& a, int& b);
+
 #endif

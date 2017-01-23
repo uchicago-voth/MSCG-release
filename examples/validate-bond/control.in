@@ -1,0 +1,17 @@
+block_size 1
+constrain_pressure_flag 0  
+start_frame 0
+n_frames 1000
+nonbonded_cutoff 5.0            
+basis_type 0                    
+primary_output_style 0
+output_solution_flag 1
+output_spline_coeffs_flag 1
+pair_nonbonded_bspline_basis_order 6
+pair_nonbonded_basis_set_resolution 0.01
+pair_nonbonded_output_binwidth 0.01
+pair_bond_bspline_basis_order 4
+pair_bond_basis_set_resolution 0.002
+pair_bond_output_binwidth 0.002
+matrix_type 0
+lanyuan_iterative_method_flag 0

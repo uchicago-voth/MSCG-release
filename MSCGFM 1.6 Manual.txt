@@ -1,8 +1,8 @@
 Multi-scale coarse-graining force-matching (MSCGFM)
-MSCGFM version 1.5
+MSCGFM version 1.6
 Manual author: Jacob Wagner
 Prior versions by James Dama, Lanyuan Lu, and Ron Hills
-Last updated 08/29/16 by Jacob Wagner
+Last updated 01/23/17 by Jacob Wagner
 
 
 I) Introduction
@@ -134,18 +134,21 @@ bonds Nb    (Header for the block defining all pair bonds between sites in the m
             (* Nb  = number of pair bonds)
 i j         (For each bond i-j, site indices i and j use the ordering in sitetypes)
 . .         (Should have entries for all Nb bonds in this molecule)
-angles  Na  (Header for the block defining manually-specified angles between sites in
+angles  Na Fa (Header for the block defining manually-specified angles between sites in
              the molecule)
             (* Na = number of angles)
-            ( Note: angles and dihedrals are optional)
-j i k       (For each angle i-j-k, site indices i, j, and k use the ordering in sitetypes)
-            ( Note: the order of sites here specifies the central site j first)
+            (* Fa = angle format)
+i j k		( ** Fa = 1 : For each angle i-j-k, site indices i, j, and k use the ordering in sitetypes)     
+j i k       ( ** Fa = 0 : For each angle i-j-k, site indices i, j, and k use the ordering in sitetypes)
+            ( Note: the order of sites with Fa = 0 specifies the central site j first)
 . . .       (Should have entries for all Na angles in this molecule)
-dihedrals Nd (Header for the block defining the manually-specified dihedrals between sites 
+dihedrals Nd Fd (Header for the block defining the manually-specified dihedrals between sites 
               in the molecule)
-j k i l     (For each dihedral i-j-k-l, site indices i, j, k, and l use the ordering in
-             in the molecule)
-            ( Note: the order of sites here specifies the central sites j and k first)
+            ( * Nd = number of dihedrals
+            ( * Fd = dihedral format)
+i j k l		( ** Fd = 1 : For each dihedral i-j-k-l, site indices i, j, k, and l use the ordering in sitetypes)     
+j k i l     ( ** Fd = 0 : For each dihedral i-j-k-l, site indices i, j, k, and l use the ordering in sitetypes)
+            ( Note: the order of sites with Fd = 0 specifies the central sites j and k first)
 . . . .     (Should have entries for all Nd dihedrals in this molecule)
 . . . . . . (Define additional molecule types until Nm molecule types have been defined)
             (Note: this goes from the mol tag through the bonds, angles, or dihedral tags)

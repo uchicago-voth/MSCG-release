@@ -17,21 +17,6 @@
 #include "matrix.h"
 #include "misc.h"
 
-void free_AV_fm_setup_temp_variables(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
-{
-    free_topology_data(&cg->topo_data);
-
-    if (mat->matrix_type == kDense || mat->matrix_type == kSparse) {
-        delete [] mat->dense_fm_rhs_vector;
-    }
-    if (mat->matrix_type == kDense && mat->virial_constraint_rows > 0) delete mat->dense_fm_matrix;
-    if (mat->matrix_type == kSparse) {
-        delete [] mat->ll_sparse_matrix_row_heads;
-        delete mat->block_fm_solution;
-    }
-    if (mat->matrix_type == kAccumulation) delete [] mat->lapack_tau;
-}
-
 void solve_regularized_accumulation_form_fm_equations(MATRIX_DATA* const mat)
 {
     int i, j, k;
@@ -140,9 +125,9 @@ void solve_regularized_accumulation_form_fm_equations(MATRIX_DATA* const mat)
         
         // Use the singular values to determine the FM solution
         // using many-parameter regularization 
-        lambda_table = fopen("lambda.in", "r");
+        lambda_table = open_file("lambda.in", "r");
         fscanf(lambda_table, "%d%d", &n_l, &l_mod);
-        lout = fopen("l.out", "w");
+        lout = open_file("l.out", "w");
 
         lam = new double[n_l];
         lam2 = new double[n_l];
@@ -197,6 +182,6 @@ void solve_regularized_accumulation_form_fm_equations(MATRIX_DATA* const mat)
     delete [] singular_values;
     delete [] lapack_temp_workspace;
     delete [] mat->dense_fm_normal_rhs_vector;
-    delete mat->dense_fm_matrix;
+    delete [] mat->dense_fm_matrix;
     if (mat->regularization_style == 2) exit(EXIT_SUCCESS);
 }

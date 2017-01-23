@@ -28,18 +28,12 @@ void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int>
 
 // Calculate a two-body interaction hash number from the two types of site involved.
 int calc_two_body_interaction_hash(int i, int j, const int n_cg_types);
-// Invert a two-body interaction hash number of the two types of site involved.
-void invert_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j);
 
 // Calculate a three-body interaction hash number from the three types of site involved.
 int calc_three_body_interaction_hash(int i, int j, int k, const int n_cg_types);
-// Invert a three-body interaction hash number of the three types of site involved.
-void invert_three_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k);
 
 // Calculate a four-body interaction hash number from the four types of site involved.
 int calc_four_body_interaction_hash(int i, int j, int k, int l, const int n_cg_types);
-// Invert a four-body interaction hash number of the four types of site involved.
-void invert_four_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l);
 
 // Search a sorted integer table to obtain the index of a desired value.
 int SearchIntTable(const std::vector<unsigned> &a, const unsigned m);

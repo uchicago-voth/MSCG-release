@@ -9,6 +9,7 @@
 #define _interaction_model_h
 
 #include <array>
+#include <fstream>
 #include <list>
 #include <string>
 #include <vector>
@@ -33,7 +34,7 @@ void free_interaction_data(CG_MODEL_DATA* cg);
 //-------------------------------------------------------------
 
 enum InteractionClassType {kPairNonbonded, kPairBonded, kAngularBonded, kDihedralBonded, kThreeBodyNonbonded};
-// function pointer "type" used for polymorphism of matrix element calculation
+// function pointer "type" used for polymorphism of matrix element calculation 
 typedef void (*calc_pair_matrix_elements)(InteractionClassComputer* const, const rvec*, const real*, MATRIX_DATA* const);
 typedef void (*calc_interaction_matrix_elements)(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, 3>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
 
@@ -67,8 +68,8 @@ struct InteractionClassSpec {
 	// defined_to_matched_intrxn_index_map indicates (for non-bonded-type interactions) which interactions
 	// // will actually be determined through FM.
 	// // n_to_force_match is the total number of interactions to be fit.
-	// // n_force is the total number of FM interactions to be determined.
 	// defined_to_tabulated_intrxn_inex_map indicates which interactions are tabulated
+	// // n_force is the total number of FM interactions to be determined.
 	// // n_from_table is the total number of external tables to be read.
 	// // n_force is the total number of tables.
 	int n_cg_types;    
@@ -81,6 +82,7 @@ struct InteractionClassSpec {
     int n_force;
     int n_from_table;
     int n_tabulated;
+    int format; //Used to determine output name ordering.
     
     double *lower_cutoffs;
     double *upper_cutoffs;
@@ -99,7 +101,7 @@ struct InteractionClassSpec {
     virtual char get_char_id(void) const = 0;
 
 	// Optionally overriden functions
-	virtual void read_rmin_class(FILE* range_in, int i, char* mode);
+	virtual void read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode);
 	virtual std::string get_interaction_name(char **type_names, const int intrxn_index_among_defined, const std::string &delimiter) const;
     virtual std::vector<int> get_interaction_types(const int intrxn_index_among_defined) const;
     virtual void setup_indices_in_fm_matrix(void);
@@ -109,10 +111,10 @@ struct InteractionClassSpec {
     void adjust_cutoffs_for_type(int i);
     void setup_for_defined_interactions(TopologyData* topo_data); 
 	void dummy_setup_for_defined_interactions(TopologyData* topo_data);
-	void read_interaction_class_ranges(FILE*); 
-    int read_table(FILE* external_spline_table, int line, int offset);
-	int read_bspline_table(FILE* external_spline_table, int line, int offset);
-	void free_tabulated_interaction_data(FILE* spline_output_filep);
+	void read_interaction_class_ranges(std::ifstream &range_in); 
+	void smart_read_interaction_class_ranges(std::ifstream &range_in, char** name);
+    int read_table(std::ifstream &external_spline_table, int line, int offset);
+	int read_bspline_table(std::ifstream &external_spline_table, int line, int offset);
 	void free_force_tabulated_interaction_data(void);
 	
 	inline int get_index_from_hash(const int hash_val) const {if (defined_to_possible_intrxn_index_map.size() == 0) return hash_val; else return SearchIntTable(defined_to_possible_intrxn_index_map, hash_val);}
@@ -142,9 +144,20 @@ struct InteractionClassSpec {
 		return fm_binwidth;
 	};
 
+	InteractionClassSpec(void) {
+		n_tabulated = 0;
+	}
+	
 	~InteractionClassSpec() {
 		delete [] lower_cutoffs;
 		delete [] upper_cutoffs;
+		
+	    if (n_tabulated > 0) {
+    	    for (int i = 0; i < n_tabulated; i++) {
+        	    delete [] external_table_spline_coefficients[i];
+        	}
+        	delete [] external_table_spline_coefficients;
+    	}
 	}
 };
 
@@ -156,7 +169,7 @@ struct InteractionClassComputer {
     // Raw interaction class specifications
     InteractionClassSpec *ispec;
     double cutoff2;                             // Squared cutoff; used only for nonbonded interactions
-
+	
     // Matrix-locations for storing results of computation
     int trajectory_block_frame_index;           // Index of the current frame in the current block of frames
     int current_frame_starting_row;             // Starting row number for the block of the FM matrix determined by the current frame
@@ -176,7 +189,7 @@ struct InteractionClassComputer {
     int index_among_defined_intrxns;
     int index_among_matched_interactions;
     int index_among_tabulated_interactions;
-
+    
     // Calculation intermediates for the interaction
     double intrxn_param;                       // The interaction parameter for any single-parameter interaction (ie distance, angle, dihedral angle)
     double intrxn_param_less_lower_cutoff;     // Pair distance from the pair_nonbonded_interaction_lower_cutoffs_XOR_lower_cutoffs
@@ -204,6 +217,11 @@ struct InteractionClassComputer {
 	void walk_neighbor_list(MATRIX_DATA* const mat, calc_pair_matrix_elements calc_matrix_elements, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, const rvec* x, const real* simulation_box_half_lengths);
 	void walk_3B_neighbor_list(MATRIX_DATA* const mat, const int n_cg_types, const TopologyData& topo_data, const ThreeBCellList& three_body_cell_list, const rvec* x, const real* simulation_box_half_lengths);
 
+	void set_indices(void) {
+		index_among_matched_interactions   = ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
+		index_among_tabulated_interactions = ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
+	};
+
     // Spline computation objects for force matched and
     // tabulated interactions.
     SplineComputer* fm_s_comp;
@@ -213,6 +231,11 @@ struct InteractionClassComputer {
     std::vector<double> fm_basis_fn_vals;
     std::vector<double> table_basis_fn_vals;
 
+	InteractionClassComputer() {
+		fm_s_comp = NULL;
+		table_s_comp = NULL;
+	}
+	
 	protected:
 	void calculate_bspline_matrix_elements(void);
 	void calculate_linear_spline_matrix_elements(void);
@@ -233,6 +256,7 @@ struct PairNonbondedClassSpec: InteractionClassSpec {
 		
 	void determine_defined_intrxns(TopologyData *topo_data) {
         n_defined = calc_n_distinct_pairs(topo_data->n_cg_types);
+        format = 0;
 	}
 	
 	inline int get_n_body () const { return 2;}
@@ -262,6 +286,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
         n_defined = calc_n_active_interactions(topo_data->bond_type_activation_flags, n_possible_interactions);
         defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
         set_up_interaction_type_hash_array(topo_data->bond_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = 0;
 	}
 	
 	int get_n_body () const { return 2;}
@@ -290,6 +315,7 @@ struct AngularClassSpec: InteractionClassSpec {
         n_defined = calc_n_active_interactions(topo_data->angle_type_activation_flags, n_possible_interactions);
         defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
         set_up_interaction_type_hash_array(topo_data->angle_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = topo_data->angle_format;
 	}
 	
 	int get_n_body () const { return 3;}
@@ -318,6 +344,7 @@ struct DihedralClassSpec: InteractionClassSpec {
         n_defined = calc_n_active_interactions(topo_data->dihedral_type_activation_flags, n_possible_interactions);
         defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
         set_up_interaction_type_hash_array(topo_data->dihedral_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = topo_data->dihedral_format;
 	}
 	
 	int get_n_body () const { return 4;}
@@ -374,6 +401,7 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
        	delete [] tb_n;
        	for (int ii = 0; ii < n_cg_types; ii++) delete [] tb_list[ii];
        	delete [] tb_list;
+       	format = 0;
 	}
 	
 	int get_n_body () const { return 3;}
@@ -388,6 +416,7 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
 struct PairNonbondedClassComputer : InteractionClassComputer {
 	void class_set_up_computer(void);
 	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, const rvec* x, const real* simulation_box_half_lengths);
+
     int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
 	    return calc_two_body_interaction_hash(cg_site_types[k], cg_site_types[l], n_cg_types);
 	}
@@ -459,14 +488,14 @@ struct CG_MODEL_DATA {
     AngularClassSpec angular_interactions;
     DihedralClassSpec dihedral_interactions;
     ThreeBodyNonbondedClassSpec three_body_nonbonded_interactions;
-
+	
     // Interaction class computation structs.
     PairNonbondedClassComputer pair_nonbonded_computer;
     PairBondedClassComputer pair_bonded_computer;
     AngularClassComputer angular_computer;
     DihedralClassComputer dihedral_computer;
     ThreeBodyNonbondedClassComputer three_body_nonbonded_computer;
-
+	
 	// List for interactions and computer used by iterators.
 	std::list<InteractionClassSpec*> iclass_list;
 	std::list<InteractionClassComputer*> icomp_list;
@@ -496,22 +525,27 @@ struct CG_MODEL_DATA {
 		icomp_list.push_back(&dihedral_computer);
 	}
 		
-	~CG_MODEL_DATA() {};
+	~CG_MODEL_DATA() {    
+    	// Free tabulated potential data
+
+	    printf("Freeing interaction classes.\n"); fflush(stdout);
+    	std::list<InteractionClassComputer*>::iterator icomp_iterator;
+    	for(icomp_iterator=icomp_list.begin(); icomp_iterator != icomp_list.end(); icomp_iterator++) {
+        	if( (*icomp_iterator)->fm_s_comp != NULL ) delete (*icomp_iterator)->fm_s_comp;
+    	}
+    	if (three_body_nonbonded_computer.fm_s_comp != NULL) delete three_body_nonbonded_computer.fm_s_comp;    	
+    	
+    	printf("Freeing tabulated reference potential information.\n");
+	    for(icomp_iterator=icomp_list.begin(); icomp_iterator != icomp_list.end(); icomp_iterator++) {
+        	if( (*icomp_iterator)->fm_s_comp != NULL ) {
+        		delete (*icomp_iterator)->table_s_comp;
+    		}
+    	}	
+		if(three_body_nonbonded_computer.table_s_comp != NULL) delete three_body_nonbonded_computer.table_s_comp;
+		
+		topo_data.free_topology_data();
+	};
 };
-
-// Uniform-interface wrappers for interaction hashing
-// In header for inlining
-inline int calculate_two_body_interaction_hash(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types) {
-    return calc_two_body_interaction_hash(cg_site_types[info->k], cg_site_types[info->l], n_cg_types);
-}
-
-inline int calculate_three_body_interaction_hash(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types) {
-    return calc_three_body_interaction_hash(cg_site_types[info->j], cg_site_types[info->k], cg_site_types[info->l], n_cg_types);
-}
-
-inline int calculate_four_body_interaction_hash(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types) {
-    return calc_four_body_interaction_hash(cg_site_types[info->i], cg_site_types[info->j], cg_site_types[info->k], cg_site_types[info->l], n_cg_types);
-}
 
 //--------------------------------------------------------------------
 // Functions for setting up the potential model that will be used
