@@ -14,8 +14,12 @@
 
 // Internal function prototypes.
 
+// Calculate a two-body interaction hash number from the two types of site involved.
+int calc_asymmetric_two_body_interaction_hash(int i, int j, const int n_cg_types);
 // Invert a two-body interaction hash number of the two types of site involved.
 void invert_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j);
+// Invert a two-body interaction hash number of the two types of site involved.
+void invert_asymmetric_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j);
 
 // Invert a three-body interaction hash number of the three types of site involved.
 void invert_three_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k);
@@ -27,7 +31,9 @@ int four_body_ij_hash(int i, int j, const int n_cg_types);
 
 // Calculate a hash number from a vector of types involved.
 int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types) {
-	if (types.size() == 2) {
+	if (types.size() == 1) {
+		return types[0] - 1;
+    } else if (types.size() == 2) {
         return calc_two_body_interaction_hash(types[0], types[1], n_cg_types);
     } else if (types.size() == 3) {
         return calc_three_body_interaction_hash(types[0], types[1], types[2], n_cg_types);
@@ -39,10 +45,23 @@ int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types) {
     }
 }
 
+int calc_asymmetric_interaction_hash(const std::vector<int> &types, const int n_cg_types) {
+	if (types.size() == 1) {
+		return types[0] - 1;
+    } else if (types.size() == 2) {
+        return calc_asymmetric_two_body_interaction_hash(types[0], types[1], n_cg_types);
+    } else {
+    	fprintf(stderr, "asymmetric interaction hash is not designed to handle %d types at the same time!\n", (int)(types.size()));
+		assert(false);	
+	}
+}
+
 // Invert a hash number into a vector of types involved.
 // Infers the number of types from the size of 'types'.
 void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int> &types) {
-    if (types.size() == 2) {
+    if (types.size() == 1) {
+    	types[0] = m + 1;
+    } else if (types.size() == 2) {
         invert_two_body_interaction_hash(m, n_cg_types, types[0], types[1]);
     } else if (types.size() == 3) {
         invert_three_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2]);
@@ -53,6 +72,19 @@ void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int>
     }
 }
 
+// Invert a hash number into a vector of types involved.
+// Infers the number of types from the size of 'types'.
+void invert_asymmetric_interaction_hash(const int m, const int n_cg_types, std::vector<int> &types) {
+    if (types.size() == 1) {
+    	types[0] = m + 1;
+    } else if (types.size() == 2) {
+        invert_asymmetric_two_body_interaction_hash(m, n_cg_types, types[0], types[1]);
+    } else {
+    	fprintf(stderr, "asymmetric interaction hash is not designed to handle %d types at the same time!\n", (int)(types.size()));
+		assert(false);	
+	}
+}
+
 // Calculate a two-body interaction hash number from the two types of site involved.
 int calc_two_body_interaction_hash(int i, int j, const int n_cg_types)
 {
@@ -60,6 +92,15 @@ int calc_two_body_interaction_hash(int i, int j, const int n_cg_types)
     assert(0 < j && j <= n_cg_types);
     if (i > j) swap_pair(i, j);
     return ((i - 1) * n_cg_types + j - 1) - i * (i - 1) / 2;
+}
+
+// Calculate a two-body asymmetric interaction hash number from the two types of site involved.
+int calc_asymmetric_two_body_interaction_hash(int i, int j, const int n_cg_types)
+{
+    assert(0 < i && i <= n_cg_types);
+    assert(0 < j && j <= n_cg_types);
+    
+    return ((i - 1) * n_cg_types + j - 1);
 }
 
 // Invert a two-body interaction hash number to get the two types of site involved.
@@ -74,6 +115,18 @@ void invert_two_body_interaction_hash(const int m, const int n_cg_types, int &i,
     }
     i = curr_max_i;
     j = i + (m - curr_max_i_hash);
+}
+
+// Invert a two-body interaction hash number to get the two types of site involved.
+void invert_asymmetric_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j)
+{
+    int curr_max_i_hash = calc_two_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types);
+    assert(0 <= m && m <= curr_max_i_hash);
+    i = m % n_cg_types;
+    j = (int)( (m - i) / n_cg_types);
+    
+    i++;
+    j++;
 }
 
 // Calculate a three-body interaction hash number from the three types of site involved.

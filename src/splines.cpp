@@ -13,7 +13,7 @@
 inline void check_bspline_size(const int control_points, const int order);
 inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart);
 inline void check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff);
-inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart); 
+inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart);
 
 SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
 {
@@ -22,8 +22,12 @@ SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
             return new BSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kLinearSpline) {
             return new LinearSplineComputer(ispec);
+        } else if (ispec->get_basis_type() == kDelta) {
+        	return new DeltaSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kBSplineAndDeriv) {
         	return new BSplineAndDerivComputer(ispec);
+        } else if (ispec->get_basis_type() == kNone) {
+        	return NULL;
         } else {
             fprintf(stderr, "Unrecognized spline class.\n");
             exit(EXIT_FAILURE);
@@ -124,8 +128,8 @@ double BSplineComputer::evaluate_spline(const int index_among_defined, const int
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
-    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart); 
-        force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ici_index + tn];
+        check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
+        force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn];
     }
     return force;
 }
@@ -149,7 +153,7 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
         	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
      		
      		for (unsigned counter = 0; counter < n_defined; counter++) {
-     			//n_to_print_minus_bspline_k = floor(180.0 / cg->three_body_nonbonded_interactions.fm_binwidth + 0.5) + 1;
+     			//n_to_print_minus_bspline_k = floor(180.0 / cg->three_body_nonbonded_interactions.fm_binwidth + 0.5) + 1
      			interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
             	n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
             	check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
@@ -234,7 +238,7 @@ double BSplineAndDerivComputer::evaluate_spline(const int index_among_defined, c
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
     	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
-    	force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ici_index + tn];
+    	force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + tn];
     }
     return force;
 }
@@ -251,7 +255,7 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
-    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart); 
+    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
         deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ici_index + tn];
     }
     return deriv;
@@ -263,6 +267,38 @@ LinearSplineComputer::LinearSplineComputer(InteractionClassSpec* ispec) : Spline
     n_to_force_match = ispec_->n_to_force_match;
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
+}
+
+DeltaSplineComputer::DeltaSplineComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
+{
+    n_coef = 1;
+    n_to_force_match = ispec_->n_to_force_match;
+    n_defined = ispec_->get_n_defined();
+    binwidth = ispec_->get_fm_binwidth();
+}
+
+// Calculate the value of the a one-parameter linear spline; direction of the 
+// corresponding forces is calculated in the function calling this one.
+
+void DeltaSplineComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
+{
+    assert(vals.size() == n_coef);
+    first_nonzero_basis_index = 0;
+    vals[0] = 1.0;
+}
+
+double DeltaSplineComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
+{
+    int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
+	double param_less_lower_cutoff = axis - ispec_->lower_cutoffs[index_among_defined];
+	int basis_function_column_index = (int)(param_less_lower_cutoff / binwidth);
+    double force = 0.0;
+    if ( (unsigned)(first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + basis_function_column_index) <= spline_coeffs.size()) {
+	    force = spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + basis_function_column_index];
+    } else {
+        fprintf(stderr, "Warning: attempting to read %d columns past interaction column %d in a matrix of %lu columns.", basis_function_column_index + 1, first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1], spline_coeffs.size());
+    }
+    return force;
 }
 
 void LinearSplineComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
@@ -280,6 +316,7 @@ double LinearSplineComputer::evaluate_spline(const int index_among_defined, cons
     int ici_index = 0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
 	double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, axis);
+
 	int basis_function_column_index = (int)(param_less_lower_cutoff / binwidth);
     double remainder_after_binning = fmod(param_less_lower_cutoff / binwidth, 1.0);
     if (index_among_matched_interactions > 0) {
@@ -291,7 +328,7 @@ double LinearSplineComputer::evaluate_spline(const int index_among_defined, cons
     } else if (unsigned(first_nonzero_basis_index + ici_index + basis_function_column_index + 1) == spline_coeffs.size()) {
         force = spline_coeffs[first_nonzero_basis_index + ici_index + basis_function_column_index];
     } else {
-       fprintf(stderr, "Warning: attempting to read %d columns past interaction column %d in a matrix of %lu columns, to be multiplied by a coefficient %g.", basis_function_column_index + 1, first_nonzero_basis_index + ici_index, spline_coeffs.size(), remainder_after_binning);
+        fprintf(stderr, "Warning: attempting to read %d columns past interaction column %d in a matrix of %lu columns, to be multiplied by a coefficient %g.", basis_function_column_index + 1, first_nonzero_basis_index + ici_index, spline_coeffs.size(), remainder_after_binning);
     }
     return force;
 }
@@ -350,7 +387,7 @@ inline void check_against_cutoffs(const double axis, const double lower_cutoff, 
 	}
 }
 
-inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart) 
+inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart)
 {
 	if ((int)(coeffs_size) <= first_nonzero_basis_index + ici_index + tn) {
 		fprintf(stderr, "Internal sizing issue encountered!\n");

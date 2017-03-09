@@ -6,47 +6,7 @@
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
 
-// This file provides the library interface to the multi-scale coarse-graining (MS-CG)
-// code, which is also referred to as the force matching (FM) code. 
-// The order in which functions are intended to be called for FM is the following:
-// mscg_startup_part1
-// setup_topology_and_frame
-// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
-// either setup_exclusion_topology or generate_exclusion_topology
-// mscg_startup_part2
-// mscg_process_frame for each frame
-// mscg_solve_and output.
-// Additional functions are provided for updating or modifying certain information
-// after the data is initially set using one of the functions before or during 
-// mscg_startup_part2.
-
-// The order in which functions are intended to be called for range finding is the following:
-// rangefinder_startup_part1
-// setup_topology_and_frame
-// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
-// either setup_exclusion_topology or generate_exclusion_topology
-// rangefinder_startup_part2
-// rangefinder_process_frame for each frame
-// rangefinder_solve_and output.
-
 #include "mscg.h"
-
-// Prototype function definition for functions called internal to this file
-void finish_fix_reading(FrameSource *const frame_source);
-
-// Data structure holding all MSCG information.
-// It is passed to the driver function (LAMMPS fix) as an opaque pointer.
-struct MSCG_struct {
-	int curr_frame;
-	int nblocks;
-	int trajectory_block_frame_index;
-	int traj_frame_num;
-	double start_cputime;
-	FrameSource *frame_source;      // Trajectory frame data
-    CG_MODEL_DATA *cg;  			// CG model parameters and data
-    ControlInputs *control_input;	// Input settings read from control.in
-    MATRIX_DATA *mat;				// Matrix storage structure
-};
 
 // This function starts the MSCG process by allocating memory for the mscg_struct
 // and reading information from the control.in file.
@@ -299,7 +259,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
-    
+
 	// Convert 1D x and f arrays into rvec array
 	FrameConfig* p_frame_config = p_frame_source->frame_config;
 	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
@@ -321,7 +281,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
         }
         three_body_cell_list.init(max_cutoff, p_frame_source);
     }
-    
+
     // The trajectory_block_frame_index is incremented for each frame-sample processed.
     // When this index reaches the block size (frames_per_traj_block),
     // The end-of-frame-block routines are called.
@@ -381,7 +341,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
 	p_frame_source->current_frame_n++;
 	mscg_struct->traj_frame_num = traj_frame_num;
 	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
-	
+    
 	return (void*)(mscg_struct);
 }
 
@@ -394,7 +354,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
-    
+
 	// Convert 1D x and f arrays into rvec array
 	FrameConfig* p_frame_config = p_frame_source->frame_config;
 	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
@@ -475,7 +435,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 	p_frame_source->current_frame_n++;
 	mscg_struct->traj_frame_num = traj_frame_num;
 	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
-	
+    
 	return (void*)(mscg_struct);
 }
 
@@ -562,6 +522,7 @@ void* rangefinder_solve_and_output(void* void_in)
      // Free the space used to build the force-matching matrix that is
     // not necessary for the interaction range outputs.
   	printf("Ending range finding.\n");
+    
     printf("Writing final output.\n");
     write_range_files(mscg_struct->cg, mscg_struct->mat);
   	if (mscg_struct->frame_source->bootstrapping_flag == 1) {
@@ -697,8 +658,10 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
     
     // Process three-body nonbonded interaction information, if appropriate.
     if (p_cg->three_body_nonbonded_interactions.class_subtype > 0) {
-    	FILE* top_in = fopen("top.fix", "r");
-		char buff[100], parameter_name[50];
+    	std::ifstream top_in;
+    	check_and_open_in_stream(top_in, "top.in");
+		std::string buff;
+		char parameter_name[50];
 		int line = 0;
 		unsigned tbtype, i;
 		int* tb_i;
@@ -706,9 +669,8 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 		int* tb_k;
 
 		// Check that label matches three body flag.
-		fgets(buff, 100, top_in);
-		line++;
-		sscanf(buff, "%s%d", parameter_name, &tbtype);
+		check_and_read_next_line(top_in, buff, line);
+		sscanf(buff.c_str(), "%s%d", parameter_name, &tbtype);
 		if (strcmp(parameter_name, "threebody") != 0) {
 			printf("Error: Expected threebody label instead of %s on line %d of top.fix file.\n", parameter_name, line);
 			exit(EXIT_FAILURE);
@@ -724,9 +686,8 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 	
 		// Read interaction specifications.
 		for (i = 0; i < tbtype; i++) {
-			fgets(buff, 100, top_in);
-			line++;
-			sscanf(buff, "%d%d%d%lf%lf", tb_i + i, tb_j + i, tb_k + i, p_cg->three_body_nonbonded_interactions.stillinger_weber_angle_parameters_by_type + i, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs + i);
+			check_and_read_next_line(top_in, buff, line);
+			sscanf(buff.c_str(), "%d%d%d%lf%lf", tb_i + i, tb_j + i, tb_k + i, p_cg->three_body_nonbonded_interactions.stillinger_weber_angle_parameters_by_type + i, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs + i);
 			tb_i[i]--;
 			tb_j[i]--;
 			tb_k[i]--;
@@ -1052,16 +1013,3 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
 	return (void*)(mscg_struct);
 }
 
-// Returns the n_frames parameter
-int get_n_frames(void* void_in)
-{
-  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-  return mscg_struct->control_input->n_frames;
-}
-
-// Returns the block_size parameter
-int get_block_size(void* void_in)
-{
-  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-  return mscg_struct->control_input->frames_per_traj_block;
-}

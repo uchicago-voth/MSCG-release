@@ -1,0 +1,4 @@
+ALL ALL 1.0
+ALL T1 5.0
+T1 ALL 2.0
+T1 T1 2.0
