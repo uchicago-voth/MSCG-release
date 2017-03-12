@@ -328,7 +328,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
         (*mat->do_end_of_frameblock_matrix_manipulations)(mat);
 	}
 
-    printf("Finishing frame parsing.\n");
+    printf("\nFinishing frame parsing.\n");
     
     // Close the trajectory and free the relevant temp variables.
     frame_source->cleanup(frame_source);
