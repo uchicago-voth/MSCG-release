@@ -160,8 +160,14 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
     iclass->interaction_column_indices = std::vector<unsigned>(iclass->n_to_force_match + 1);
 	
 	if(iclass->output_parameter_distribution == 1){
-		if(iclass->class_type == kDensity) open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
-		else open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		if(iclass->class_type == kDensity) {
+			open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
+ 		} else if (iclass->class_type == kRadiusofGyration) {
+ 			RadiusofGyrationClassSpec* rg_class = static_cast<RadiusofGyrationClassSpec*>(iclass);
+			open_parameter_distribution_files_for_class(icomp, rg_class->molecule_group_names);
+		} else {
+			open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		}
 	}
 }
 
