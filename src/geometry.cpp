@@ -18,7 +18,6 @@ void subtract_min_image_vectors(const std::array<double, DIMENSION> const &parti
 void cross_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b, std::array<double, DIMENSION> &c);
 double dot_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b);
 double dot_product(const double* a, const double* b);
-//void calc_radius_of_gyration_old(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val);
 inline void check_sine(double &s);
 inline void check_cos(double &cos_theta);
 
@@ -258,16 +257,21 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	// The displacements are averaged before adding the offset of the first particle. 
 	sub_particle_ids[0] = particle_ids[0];
 	for (int j = 0; j < DIMENSION; j++) com[j] = 0.0;
+//	printf("REF: %lf, %lf, %lf\n", particle_positions[particle_ids[0]][0], particle_positions[particle_ids[0]][1], particle_positions[particle_ids[0]][2]);
+//	printf("COM calculation: \n");
 	for (int i = 1; i < n_ids; i++) {
+//		printf("\t%d: %lf, %lf, %lf => ", i, particle_positions[particle_ids[i]][0], particle_positions[particle_ids[i]][1], particle_positions[particle_ids[i]][2]);
 		sub_particle_ids[1] = particle_ids[i];
 		subtract_min_image_vectors(sub_particle_ids, particle_positions, simulation_box_half_lengths, displacement); 
 		for (int j = 0; j < DIMENSION; j++) com[j] += displacement[j];
+//		printf("\t%d: %lf, %lf, %lf => ",  i, displacement[0],  displacement[1],  displacement[2]);
 	}
 	for (int i = 0; i < DIMENSION; i++) {
 		com[i] /= (double)(n_ids);
 		com[i] += particle_positions[particle_ids[0]][i];
 	}
-	
+//	printf("COM: %lf, %lf, %lf\n\n", com[0], com[1], com[2]);
+		
 	// Now, simultaneously calculate the derivative and the radius of gyration.
 	// The last index is treated separately since its derivative is not explicitly calculated.
 	for (int i = 0; i < n_ids - 1; i++) {
@@ -287,7 +291,8 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	rg2 += (rr2 / (double)(n_ids));
 
 	// The scaling is included in the loop over n_ids
-	param_val = rg2;	
+	// The returned value is rg (not rg2)
+	param_val = sqrt(rg2);	
 }
 
 //------------------------------------------------------------
@@ -386,28 +391,40 @@ void calc_radius_of_gyration(const int* particle_ids, const std::array<double, D
 	
 	// Calculate the center of mass.
 	// All positions are wrapped relative to particle_id.
+//	printf("REF: %lf, %lf, %lf\n", particle_positions[particle_ids[0]][0], particle_positions[particle_ids[0]][1], particle_positions[particle_ids[0]][2]);
+//	printf("COM calculation: \n");
+
 	for (int i = 1; i < num_particles; i++) {
+//		printf("\t%d: %lf, %lf, %lf => ", i, particle_positions[particle_ids[i]][0], particle_positions[particle_ids[i]][1], particle_positions[particle_ids[i]][2]);
 		sub_particle_ids[1] = particle_ids[i];
 		subtract_min_image_vectors(sub_particle_ids, particle_positions, simulation_box_half_lengths, displacement); 
 		for (int j = 0; j < DIMENSION; j++) com[j] += displacement[j];
+//		printf("%lf, %lf, %lf \n", displacement[0],  displacement[1],  displacement[2]);
 	}
+		
 	// The displacements are averaged before adding the offset of the first particle. 
 	for (int i = 0; i < DIMENSION; i++) {
 		com[i] /= (double)(num_particles);
 		com[i] += particle_positions[particle_ids[0]][i];
 	}
-
+//	printf("COM: %lf, %lf, %lf\n\n", com[0], com[1], com[2]);
+	
 	// Now, calculate the radius of gyration.
+//	printf("RG calculation: \n");
 	for (int i = 0; i < num_particles; i++) {
 		distance = 0;
 		id = particle_ids[i];
+//		printf("\t%d: %lf, %lf, %lf => ", i, particle_positions[particle_ids[i]][0], particle_positions[particle_ids[i]][1], particle_positions[particle_ids[i]][2]);
 		subtract_min_image_vectors(com, particle_positions[id], simulation_box_half_lengths, displacement);
 		for (int j = 0; j < DIMENSION; j++) distance += (displacement[j] * displacement[j]);
 		rg2 += distance;
+//		printf("%lf, %lf, %lf => %lf\n", displacement[0],  displacement[1],  displacement[2], distance);
 	}
 	
 	// Include the scaling.
-	param_val = rg2 / (double)(num_particles);	
+	double rg = sqrt( rg2 / (double)(num_particles) );	
+//	printf( "%lf = sqrt %lf / %lf\n\n", rg, rg2, (double)(num_particles));
+	param_val = rg;
 }
 
 inline void check_sine(double &s)
