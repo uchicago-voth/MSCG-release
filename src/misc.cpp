@@ -45,6 +45,48 @@ void integrate_force(const std::vector<double> &axis_vals, const std::vector<dou
     }
 }
 
+// Function to pad 2 vectors so that the first runs between low and high values with fpad
+
+void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+	std::vector<double>::iterator axis_it;
+  	std::vector<double>::iterator force_it;
+ 
+	double spacing = axis_vals[1] - axis_vals[0];
+	while (axis_vals[0] - spacing > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, axis_vals[0] - spacing);
+		force_vals.insert(force_it, fpad);	
+	}
+	
+	if (axis_vals[0] - 0.01 > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, low);
+		force_vals.insert(force_it, fpad);
+	}
+}
+
+void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+	double spacing = axis_vals[2] - axis_vals[1];
+	int size = axis_vals.size();	
+	while (axis_vals[size] + spacing < high) {
+		axis_vals.push_back(axis_vals[size] + spacing);
+		force_vals.push_back(fpad);
+		size++;
+	}
+	
+	if (axis_vals[size] + 0.01 < high) {
+		axis_vals.push_back(axis_vals[size] + spacing);
+		force_vals.push_back(fpad);
+	}
+	
+}
+
 // Find the index of the minimum value in a vector.
 
 unsigned get_min_index(const std::vector<double> &potential_vals) 

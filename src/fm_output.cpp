@@ -187,13 +187,14 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
     }
 
     // Write special header lines for specific interaction types.
-	if( (i_type == 'n') || (i_type == 'p')) {
-		fprintf(curr_table_output_file, "N %lu R %lf %lf\n", axis_vals.size(), axis_vals[0], axis_vals[axis_vals.size() - 1]);
-	} else if ( (i_type == 'b') || (i_type == 'a') ) {
+	if ( (i_type == 'b') || (i_type == 'a') ) {
+		// bond and angle
         int min_index = get_min_index(potential_vals);
 		fprintf(curr_table_output_file, "N %lu FP 0.0 0.0 EQ %lf\n", axis_vals.size(), axis_vals[min_index]);
-	} else if (i_type == 'd') {
+	} else if (i_type == 'd') { // dihedral
 		fprintf(curr_table_output_file, "N %lu DEGREES\n", axis_vals.size());
+	} else { // pair non-bonded, density, RG
+		fprintf(curr_table_output_file, "N %lu R %lf %lf\n", axis_vals.size(), axis_vals[0], axis_vals[axis_vals.size() - 1]);
 	}
 
 	fprintf(curr_table_output_file, "\n");
@@ -239,7 +240,16 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
-    write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, potential_vals, force_vals);   
+    
+    if (icomp->ispec->get_char_id() == 'a') {
+    	std::vector<double> padded_potential_vals;
+    	pad_values_front(0.0, axis_vals, force_vals, 0.0);
+    	pad_values_back(0.0, axis_vals, force_vals, 0.0);
+    	integrate_force(axis_vals, force_vals, padded_potential_vals);
+    	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals); 
+    } else {
+    	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, potential_vals, force_vals);   
+	}
 }
 
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined)
