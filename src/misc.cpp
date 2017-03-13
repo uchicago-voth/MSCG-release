@@ -73,15 +73,15 @@ void pad_values_front(const double low, std::vector<double>& axis_vals, std::vec
 void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
 {
 	double spacing = axis_vals[2] - axis_vals[1];
-	int size = axis_vals.size();	
-	while (axis_vals[size] + spacing < high) {
-		axis_vals.push_back(axis_vals[size] + spacing);
+	int last = axis_vals.size() - 1;	
+	while (axis_vals[last] + spacing < high) {
+		axis_vals.push_back(axis_vals[last] + spacing);
 		force_vals.push_back(fpad);
-		size++;
+		last++;
 	}
 	
-	if (axis_vals[size] + 0.01 < high) {
-		axis_vals.push_back(axis_vals[size] + spacing);
+	if (axis_vals[last] + 0.01 < high) { 
+		axis_vals.push_back(high);
 		force_vals.push_back(fpad);
 	}
 	
