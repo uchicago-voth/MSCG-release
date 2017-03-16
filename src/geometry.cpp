@@ -243,59 +243,6 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     return true;
 }
 
-void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double, DIMENSION>* &derivatives)
-{
-	double rg2 = 0.0;
-	double rr2;
-	std::array<double, DIMENSION> com;
-	std::array<double, DIMENSION> displacement;
-	int sub_particle_ids[2];
-	int id;
-	
-	// Calculate the center of mass.
-	// All positions are wrapped relative to particle_id.
-	// The displacements are averaged before adding the offset of the first particle. 
-	sub_particle_ids[1] = particle_ids[0];
-	for (int j = 0; j < DIMENSION; j++) com[j] = 0.0;
-//	printf("REF: %lf, %lf, %lf\n", particle_positions[particle_ids[0]][0], particle_positions[particle_ids[0]][1], particle_positions[particle_ids[0]][2]);
-//	printf("COM calculation: \n");
-	for (int i = 1; i < n_ids; i++) {
-//		printf("\t%d: %lf, %lf, %lf => ", i, particle_positions[particle_ids[i]][0], particle_positions[particle_ids[i]][1], particle_positions[particle_ids[i]][2]);
-		sub_particle_ids[0] = particle_ids[i];
-		subtract_min_image_vectors(sub_particle_ids, particle_positions, simulation_box_half_lengths, displacement); 
-		for (int j = 0; j < DIMENSION; j++) com[j] += displacement[j];
-//		printf("\t%d: %lf, %lf, %lf => ",  i, displacement[0],  displacement[1],  displacement[2]);
-	}
-	for (int i = 0; i < DIMENSION; i++) {
-		com[i] /= (double)(n_ids);
-		com[i] += particle_positions[particle_ids[0]][i];
-	}
-//	printf("COM: %lf, %lf, %lf\n\n", com[0], com[1], com[2]);
-		
-	// Now, simultaneously calculate the derivative and the radius of gyration.
-	// The last index is treated separately since its derivative is not explicitly calculated.
-	for (int i = 0; i < n_ids - 1; i++) {
-		rr2 = 0;
-		id = particle_ids[i];
-		subtract_min_image_particles(com, particle_positions[id], simulation_box_half_lengths, displacement);
-		for (int j = 0; j < DIMENSION; j++) rr2 += (displacement[j] * displacement[j]);
-		for (int j = 0; j < DIMENSION; j++) derivatives[i][j] = 2.0 * displacement[j] / (double)(n_ids);
-		rg2 += (rr2 / (double)(n_ids));
-	}
-	
-	// The last index should not have derivatives calculated
-	rr2 = 0;
-	id = particle_ids[n_ids - 1];
-	subtract_min_image_particles(com, particle_positions[id], simulation_box_half_lengths, displacement);
-	for (int j = 0; j < DIMENSION; j++) rr2 += (displacement[j] * displacement[j]);
-	rg2 += (rr2 / (double)(n_ids));
-
-	// The scaling is included in the loop over n_ids
-	// The returned value is rg (not rg2)
-	param_val = sqrt(rg2);	
-}
-
-
 void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
 
@@ -326,7 +273,7 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	for (int i = 0; i < num_particles - 1; i++) {
 		for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule[particle_ids[i]][j] - com[j];
 		for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
-		for (int j = 0; j < DIMENSION; j++) derivatives[i][j] = 2.0 * displacement[j] / (double)(n_ids);
+		for (int j = 0; j < DIMENSION; j++) derivatives[i][j] = 2.0 * displacement[j] / (double)(num_particles);
 	}
 
 	// The last index should not have derivatives calculated
@@ -334,7 +281,8 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
 
 	// Include the scaling.
-	param_val = rg2 / (double)(num_particles) );	
+	param_val = rg2 / (double)(num_particles);	
+}
 
 //------------------------------------------------------------
 // Without derivatives.
@@ -446,12 +394,12 @@ void calc_radius_of_gyration(const int* particle_ids, const std::array<double, D
 	
 	// Now, calculate the radius of gyration as distances from the center of mass.
 	for (int i = 0; i < num_particles; i++) {
-		for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule+[particle_ids[i]][j] - com[j];
+		for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule[particle_ids[i]][j] - com[j];
 		for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
 	}
 	
 	// Include the scaling.
-	param_val = rg2 / (double)(num_particles) );	
+	param_val = rg2 / (double)(num_particles);	
 }
 
 inline void check_sine(double &s)
