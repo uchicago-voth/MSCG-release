@@ -254,7 +254,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     	for (int i = 0; i < size; i++) {
     		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
     		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
-    		write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_als, rg_potential_vals, force_vals);
+    		write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, rg_potential_vals, force_vals);
     	}
     } else {
     	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, potential_vals, force_vals);   
