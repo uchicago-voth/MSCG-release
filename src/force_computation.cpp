@@ -965,7 +965,7 @@ void calc_radius_of_gyration_fm_matrix_elements(InteractionClassComputer* const 
 	
 	int index_among_defined = info->index_among_defined_intrxns;
 	int n_ids = rg_spec->topo_data_->molecule_list->partner_numbers_[info->k];
-	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[n_ids];
+	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[n_ids - 1];
 	int* particle_ids = new int[n_ids];
 	for (int i = 0; i < n_ids; i++) particle_ids[i] = (int)(rg_spec->topo_data_->molecule_list->partners_[info->k][i]);
 	
