@@ -232,7 +232,7 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
             ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
         }
     }
-    fprintf(solution_spline_output_file, "%lf %lf fm", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
+    fprintf(solution_spline_output_file, "%lf %lf fm\n", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
 }
 
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name) 
