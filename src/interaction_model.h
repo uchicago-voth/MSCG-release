@@ -123,7 +123,6 @@ struct InteractionClassSpec {
 	
 	// Helper and implementation functions.
 	void adjust_cutoffs_for_basis(int i);
-    void adjust_cutoffs_for_type(int i);
     void setup_for_defined_interactions(TopologyData* topo_data); 
 	void dummy_setup_for_defined_interactions(TopologyData* topo_data);
 	void read_interaction_class_ranges(std::ifstream &range_in); 

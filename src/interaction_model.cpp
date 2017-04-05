@@ -150,9 +150,7 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
             // Adjust for a basis by rounding the cutoffs to even
             // numbers of bins.
 			adjust_cutoffs_for_basis(i);
-            // Adjust nonbonded interactions to match the global cutoff.
-            adjust_cutoffs_for_type(i);
-		}
+        }
         if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"sym+tab") == 0
          || strcmp(mode,"tab+fm") == 0 || strcmp(mode,"tab+sym") == 0) {
 			// This interaction is tabulated.
@@ -171,9 +169,7 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
 			// Adjust for a basis by rounding the cutoffs to even
             // numbers of bins.
 			adjust_cutoffs_for_basis(i);
-            // Adjust nonbonded interactions to match the global cutoff.
-            adjust_cutoffs_for_type(i);
-		}
+        }
 		if (strcmp(mode,"tabsym") == 0 || strcmp(mode,"fm+tabsym") == 0 || strcmp(mode,"sym+tabsym") == 0
 		 || strcmp(mode,"tabsym+fm") == 0 || strcmp(mode,"tabsym+sym") == 0) {
 			// Increment the running total of the tabulated interactions.
@@ -264,8 +260,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
             // numbers of bins.
 			adjust_cutoffs_for_basis(index_among_defined);
             // Adjust nonbonded interactions to match the global cutoff.
-            adjust_cutoffs_for_type(index_among_defined);
-		}
+        }
         if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"sym+tab") == 0
          || strcmp(mode,"tab+fm") == 0 || strcmp(mode,"tab+sym") == 0) {
 			// This interaction is tabulated.
@@ -285,8 +280,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
             // numbers of bins.
 			adjust_cutoffs_for_basis(index_among_defined);
             // Adjust nonbonded interactions to match the global cutoff.
-            adjust_cutoffs_for_type(index_among_defined);
-		}
+        }
 		if (strcmp(mode,"tabsym") == 0 || strcmp(mode,"fm+tabsym") == 0 || strcmp(mode,"sym+tabsym") == 0
 		 || strcmp(mode,"tabsym+fm") == 0 || strcmp(mode,"tabsym+sym") == 0) {
 			// Increment the running total of the tabulated interactions.
@@ -429,22 +423,17 @@ void setup_site_to_density_group_index(DensityClassSpec* iclass)
 
 void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
 {
-    if (basis_type == kLinearSpline) {
-        lower_cutoffs[i] = floor(lower_cutoffs[i] / output_binwidth + 0.5) * output_binwidth;
+   if ((basis_type == kLinearSpline) || (basis_type == kBSpline) ||  (basis_type == kBSplineAndDeriv)) {
+    	// Do not adjust upper cutoff if the pair nonbonded interaction is already at the user-defined cutoff in control.in
+    	// Otherwise, adjust so that the upper cutoff is divisible by the output binwidth.
+        if (!(class_type == kPairNonbonded && fabs(upper_cutoffs[i] - cutoff)) < VERYSMALL_F) {
+         upper_cutoffs[i] = floor( (upper_cutoffs[i] / output_binwidth) + 0.5 ) * output_binwidth;
+        }
+        // Now, round down the lower cutoff so that there is an integer number of a bin.
+        lower_cutoffs[i] = upper_cutoffs[i] - floor( ((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 0.5 ) * fm_binwidth;
         if (lower_cutoffs[i] < 0.0) lower_cutoffs[i] = 0.0;
-        upper_cutoffs[i] = lower_cutoffs[i] + floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) * fm_binwidth;
-    } else if ((basis_type == kBSpline) ||  (basis_type == kBSplineAndDeriv)) {
-        upper_cutoffs[i] = (((int)(upper_cutoffs[i] / output_binwidth)) + 1) * output_binwidth;
-        lower_cutoffs[i] = upper_cutoffs[i] - ((int)((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 1) * fm_binwidth;
     } else if (basis_type == kDelta) {
     	// Nothing to be done here.
-    }
-}
-
-void InteractionClassSpec::adjust_cutoffs_for_type(int i)
-{
-    if (basis_type == kLinearSpline) {
-        if (class_type == kPairNonbonded && fabs(upper_cutoffs[i] - cutoff - fm_binwidth) < VERYSMALL_F) upper_cutoffs[i] -= fm_binwidth;
     }
 }
 
