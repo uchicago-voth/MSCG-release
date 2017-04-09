@@ -59,8 +59,8 @@ II) Preparation
 ---------------
 
 This package provides force-matching algorithms only. It does not provide tools for 
-creating fine-grained (CG) trajectories, choosing coarse-grained models, or converting the 
-fine-grained (FG) models into coarse-grained models. Each of those steps must be completed 
+creating fine-grained (FG) trajectories, choosing coarse-grained models, or converting the 
+fine-grained models into coarse-grained models. Each of those steps must be completed 
 prior to using this code. Once they are done, the results should be prepared in the 
 following manner so that the MSCGFM package's executables can parse the results.
 
