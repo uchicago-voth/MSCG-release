@@ -49,7 +49,6 @@ int main(int argc, char* argv[])
     // the type of basis set to use, and many others described in
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
-    reset_control_defaults_and_read_control_input(&control_input);
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(&control_input, &fs_cg);
     copy_control_inputs_to_frd(&control_input, &fs_ref);
@@ -81,9 +80,9 @@ int main(int argc, char* argv[])
     // read.
     printf("Beginning to read frames.\n");
     printf("In CG trajectory:");
-    fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types);
+    fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
     printf("In reference trajectory:");
-    fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types);
+    fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 
     //dynamic state sampling???
 
@@ -127,8 +126,6 @@ int main(int argc, char* argv[])
     // coefficients found in the solution step.
     printf("Writing final output.\n");
     write_fm_interaction_output_files(&cg,&mat_cg);
-    free_interaction_data(&cg);
-    free_fm_matrix_building_temps(&cg, &mat_cg, &fs_cg); // I do nothing
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
@@ -168,7 +165,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   PairCellList pair_cell_list = PairCellList();
   ThreeBCellList three_body_cell_list = ThreeBCellList();
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
-  if( fs->three_body_flag != 0){
+  if( cg->three_body_nonbonded_interactions.class_subtype > 0){
     printf("three body non-bonded interactions are not yet supported by newrem\n");
     exit(EXIT_FAILURE);
   }
