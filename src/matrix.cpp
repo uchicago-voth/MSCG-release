@@ -1110,7 +1110,7 @@ void accumulate_entropy_elements(InteractionClassComputer* const info, const int
   
 }
 
-void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSIOn>* const &derivatives, MATRIX_DATA * const mat) 
+void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
   printf("Tabulated interactions cannot be done through REM framework. Please remove tabulated interactions from rmin files.\n");
   exit(EXIT_FAILURE);
