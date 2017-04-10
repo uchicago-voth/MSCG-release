@@ -59,8 +59,8 @@ void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const 
 void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
-void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
-void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 
 // Matrix insertion routines
 
@@ -1099,7 +1099,7 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
     }
 }
 
-void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat)
+void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
   
     int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
@@ -1110,7 +1110,7 @@ void accumulate_entropy_elements(InteractionClassComputer* const info, const int
   
 }
 
-void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat) 
+void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSIOn>* const &derivatives, MATRIX_DATA * const mat) 
 {
   printf("Tabulated interactions cannot be done through REM framework. Please remove tabulated interactions from rmin files.\n");
   exit(EXIT_FAILURE);
