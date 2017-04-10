@@ -146,8 +146,10 @@ struct FrameSource {
 //-------------------------------------------------------------
 
 void parse_command_line_arguments(const int num_arg, char** arg, FrameSource* const frame_source);
+void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref);
 
 // Copy trajectory-reading specifications from ControlInputs to FRAME_DATA.
+void parse_command_line_set(char* arg1, char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref);
 void copy_control_inputs_to_frd(struct ControlInputs* const control_input, FrameSource* const frame_source);
 
 //-------------------------------------------------------------

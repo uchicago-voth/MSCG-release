@@ -29,6 +29,7 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
 
@@ -44,6 +45,7 @@ void set_sparse_accumulation_matrix_to_zero(MATRIX_DATA* const mat);
 void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat);
 void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat, dense_matrix* const dense_fm_matrix);
 void set_dummy_matrix_to_zero(MATRIX_DATA* const mat);
+void set_rem_matrix_to_zero(MATRIX_DATA* const mat);
 
 // Interface-level functions that convert force magnitude and derivatives to matrix elements.
 
@@ -57,12 +59,15 @@ void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const 
 void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
 
 // Matrix insertion routines
 
 void insert_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
+void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* const mat);
 
 void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
@@ -94,6 +99,7 @@ void accumulate_accumulation_matrices(MATRIX_DATA* const mat);
 void solve_sparse_matrix(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA* const mat);
+void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat);
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat);
 
 // Helper solver routines
@@ -197,6 +203,12 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 		control_input->frames_per_traj_block = 1;
 	}
 	
+	if( (MatrixType(control_input->matrix_type) == kREM) == 1) {
+	    printf("frame block size must be 1 when doing relative entropy minimization\n");
+	    printf("Setting block_size to 1.\n");
+	    control_input->frames_per_traj_block = 1;
+	}
+	
 	if (control_input->position_dimension <= 0) {
 		printf("Position dimension must be a positive integer\n");
 		exit(EXIT_FAILURE);
@@ -290,6 +302,10 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	case kDummy:
         matrix_type = kDummy;
         initialize_dummy_matrix(this, control_input, cg);
+        break;
+    case kREM:
+        matrix_type = kREM;
+        initialize_rem_matrix(this, control_input, cg);
         break;
     default:
         printf("Invalid matrix type.");
@@ -746,6 +762,40 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 	printf("Initialized a sparse-sparse normal FM matrix.\n");
 }
 
+void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  //make sure to overwrite any functions pointers set in constructor
+  mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
+  //  mat->accumulate_fm_matrix_element = insert_rem_matrix_element;
+  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy;
+
+  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+
+  mat->fm_matrix_rows = 2;
+
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows;
+    mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
+    mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+    //mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
+
+    //mat->finish_fm = solve_rem_equation;
+
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+ 
+    mat->temperature = control_input->temperature;
+    mat->rem_chi = control_input->REM_iteration_step_size;
+    mat->boltzmann = control_input->boltzmann;
+
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  
+}
+
 // "Initialize" a dummy matrix.
 
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg) 
@@ -865,6 +915,12 @@ void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* c
 // Set all elements of a dense matrix to zero.
 
 inline void set_dense_matrix_to_zero(MATRIX_DATA* const mat)
+{
+    mat->dense_fm_matrix->reset_matrix();
+}
+
+// Set all elements of a dense matrix to zero.
+inline void set_rem_matrix_to_zero(MATRIX_DATA* const mat)
 {
     mat->dense_fm_matrix->reset_matrix();
 }
@@ -1041,6 +1097,23 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
             (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, ref_column + k, &forces[DIMENSION * i], mat);
         }
     }
+}
+
+void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat)
+{
+  
+    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+
+   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+     insert_rem_matrix_element(ref_column + k, basis_fn_vals[k], mat);    
+   }
+  
+}
+
+void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat) 
+{
+  printf("Tabulated interactions cannot be done through REM framework. Please remove tabulated interactions from rmin files.\n");
+  exit(EXIT_FAILURE);
 }
 
 //---------------------------------------------------------------------
@@ -1260,6 +1333,11 @@ inline void insert_accumulation_matrix_element(const int i, const int j, double*
 {
     mat->dense_fm_matrix->add_vector(mat->size_per_vector * i + mat->accumulation_row_shift, j, x);
 }
+
+inline void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* const mat)
+{
+  mat->dense_fm_matrix->add_scalar(0,i,x);
+}  
 
 // Add a scalar force element to a dense matrix.
 
@@ -1910,6 +1988,18 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
       // CSR formatted FM and normal temp matrices are freed by destructor at end of function
   	 }
 } 
+
+void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
+{
+  int i;
+  for(i = 0;i < mat->fm_matrix_columns;i++)
+    {
+      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i];
+      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
+      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i];
+    }
+  mat->dense_fm_matrix->reset_matrix();
+}
 
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat) {}
 

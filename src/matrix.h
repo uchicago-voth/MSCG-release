@@ -30,7 +30,7 @@ typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, co
 // Matrix-equation-related type definitions
 //-------------------------------------------------------------
 
-enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kDummy = -1};
+enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kREM = 5, kDummy = -1};
 
 // Linked-list-based sparse row matrix element struct. x,y,z components are stored together.
 
@@ -233,6 +233,12 @@ struct MATRIX_DATA {
     double* fm_solution_normalization_factors;      // Weighted number of times each unknown has been found nonzero in the solution vectors of all blocks
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
+	// REM variables
+	std::vector<double> previous_rem_solution;        // Previous splie coeffs to be used in REM iteration
+    double temperature;
+    double rem_chi;
+    double boltzmann;
+    
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times a frame is resampled. This is 1 unless dynamic_state_sampling is 1.
@@ -331,7 +337,9 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kDummy) {
 		    delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
-		}
+		} else if (matrix_type == kREM) {
+	    	delete dense_fm_matrix;
+	 	}
 	}
    
     // Modification function for matrix.

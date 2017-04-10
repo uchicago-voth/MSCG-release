@@ -100,7 +100,9 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
 	else if (strcmp("output_radius_of_gyration_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_radius_of_gyration_parameter_distribution);
 	else if (strcmp("output_density_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_density_parameter_distribution);
     else if (strcmp("iterative_update_rate_coeff", parameter_name) == 0) sscanf(val, "%lf", &control_input->iterative_update_rate_coeff);
-    else if (strcmp("temperature", parameter_name) == 0) return; //sscanf(val, "%lf", &control_input->temperature);
+    else if ((strcmp("temperature", parameter_name) == 0) || (strcmp("Temperature", parameter_name) == 0)) sscanf(val, "%lf", &control_input->temperature);
+    else if (strcmp("boltzmann", parameter_name) == 0) sscanf(val, "%lf", &control_input->boltzmann);
+    else if (strcmp("REM_iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->REM_iteration_step_size);
     else printf("Warning: Unknown parameter name '%s' in control.in: line %d!\n", parameter_name, line);
 }
 
@@ -187,9 +189,11 @@ ControlInputs::ControlInputs(void)
     output_radius_of_gyration_parameter_distribution = 0;
 	output_density_parameter_distribution = 0;
     iterative_update_rate_coeff = 1.0;
+    REM_iteration_step_size = 1.0;
+    temperature = 300;
+    boltzmann = 0.0019872041;
     
     // Read control.in to set all specified parameters to new values.
-    
     std::string line;
     std::ifstream control_in;
     check_and_open_in_stream(control_in, "control.in");

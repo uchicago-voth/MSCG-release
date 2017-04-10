@@ -106,6 +106,11 @@ typedef struct ControlInputs {
 	double sparse_safety_factor; 
 	int num_sparse_threads;
 	
+	//REM specification
+  	double REM_iteration_step_size;
+  	double temperature;
+  	double boltzmann;
+
 	ControlInputs(void);
 	~ControlInputs(void);
 } ControlInputs;
