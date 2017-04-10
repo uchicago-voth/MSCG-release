@@ -37,6 +37,9 @@ MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geom
 lib_mscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS)
 	ar rvs lib_mscg.a *.o
 
+newrem.x: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) $(LIBS)
+
 newfm.x: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
 
@@ -65,6 +68,9 @@ rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
 
 mscg.o: mscg.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
 
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
@@ -133,4 +139,5 @@ clean:
 all:
 	make newfm.x; \
 	make rangefinder.x; \
-	make combinefm.x;
+	make combinefm.x; \
+	make newrem.x;
