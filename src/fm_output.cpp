@@ -26,6 +26,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const icomp, MATRIX_DATA* const mat, char ** const name);
 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined);
 
 void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined_intrxns);
@@ -88,7 +89,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	        printf("Unrecognized basis type.\n");
                 	    exit(EXIT_FAILURE);
 		}
-		else{
+	      } else {
             	 // Select the correct type name array for the interaction.
                  if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
 					name = dspec->density_group_names;
@@ -222,16 +223,16 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 }
 
 // Write the tabular output for a single interaction.
-void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vecotr<doubel> &spline_coeffs, const int index_aomng_defined_intrxns)
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
 {
 
-  std::vecotr<double> axis_vals, force_vals, potential_vals;
+  std::vector<double> axis_vals, force_vals, potential_vals;
   if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
     {
       icomp->calc_one_force_val(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals, potential_vals);
     } else
     {
-      icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrnxs, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
+      icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
       integrate_force(axis_vals, force_vals, potential_vals);
     }
     // Determine base for output filenames.
