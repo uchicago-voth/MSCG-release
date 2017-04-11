@@ -73,7 +73,7 @@ void pad_values_front(const double low, std::vector<double>& axis_vals, std::vec
 void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
 {
 	double spacing = axis_vals[2] - axis_vals[1];
-	int last = axis_vals.size() - 1;	
+	int last = axis_vals.size() - 1;	 
 	while (axis_vals[last] + spacing < high) {
 		axis_vals.push_back(axis_vals[last] + spacing);
 		force_vals.push_back(fpad);
@@ -87,6 +87,62 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 	
 }
 
+void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& forces_vals)
+{
+
+  double spacing = axis_vals[1] - axis_vals[0];
+  int last = axis_vals.size() - 1;
+  int i = 0;
+  while(force_vals[i] < 0)
+    {
+      i = i + 1;
+    }
+  while(force_vals[i]<force_vals[i+1])
+    {
+      i = i + 1;
+    }
+  while(i > 0)
+    {
+      force_vals[i-1]=2*force_vals[i]-force_vals[i+1];
+      i = i - 1;
+    }
+  while(axis_vals - spacing > spacing)
+    {
+      axis_it = axis_vals.begin();
+      force_it = force_vals.begin();
+
+      axis_vals.insert(axis_it, axis_vals[0] - spacing);
+      force_vals.insert(force_it, 2*force_vals[i]-force_vals[i+1]);
+    }
+}
+
+void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::vector<double>& force_vals)
+{
+  double spacing = axis_vals[2] - axis_vals[1];
+  int last = axis_vals.size() - 1;
+  int i = last;
+  while(force_vals[i]>0)
+    {
+      i = i - 1;
+    }
+  while(force_vals[i]>force_vals[i-1])
+    {
+      i = i - 1;
+    }
+  while(i<last)
+    {
+      force_vals[i]=2*force_vals[i-1]-force_vals[i-2];
+      i = i + 1;
+    }
+  while (axis_vals[last] + spacing < high)
+    {
+      axis_vals.push_back(axis_vals[last] + spacing);
+      force_vals.push_back(2*force_vals[i-1]-force_vals[i-2]);
+      last++;
+    }
+}
+
+  
 // Find the index of the minimum value in a vector.
 
 unsigned get_min_index(const std::vector<double> &potential_vals) 
