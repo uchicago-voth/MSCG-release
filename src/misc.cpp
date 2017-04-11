@@ -87,11 +87,13 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 	
 }
 
-void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& forces_vals)
+void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals)
 {
+  std::vector<double>::iterator axis_it;
+  std::vector<double>::iterator force_it;
 
+  
   double spacing = axis_vals[1] - axis_vals[0];
-  int last = axis_vals.size() - 1;
   int i = 0;
   while(force_vals[i] < 0)
     {
@@ -106,7 +108,7 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
       force_vals[i-1]=2*force_vals[i]-force_vals[i+1];
       i = i - 1;
     }
-  while(axis_vals - spacing > spacing)
+  while(axis_vals[0] - spacing > spacing)
     {
       axis_it = axis_vals.begin();
       force_it = force_vals.begin();
