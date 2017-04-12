@@ -103,6 +103,7 @@ void initialize_topology_data(TopologyData* const topo_data)
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
         topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
     }
+    topo_data->max_quints_per_site = topo_data->max_dihedrals_per_site + 2;
     // Ready pair bond data structures.
     topo_data->bond_type_activation_flags = new int[calc_n_distinct_pairs(topo_data->n_cg_types)]();
     topo_data->bond_list = new TopoList(nsites, 1, topo_data->max_pair_bonds_per_site);
@@ -112,6 +113,9 @@ void initialize_topology_data(TopologyData* const topo_data)
     // Ready dihedral bond data structures.
     topo_data->dihedral_type_activation_flags = new int[calc_n_distinct_quadruples(topo_data->n_cg_types)]();
     topo_data->dihedral_list = new TopoList(nsites, 3, topo_data->max_dihedrals_per_site);
+    // Ready dihedral bond data structures.
+    topo_data->quint_type_activation_flags = new int[calc_n_distinct_quints(topo_data->n_cg_types)]();
+    topo_data->quint_list = new TopoList(nsites, 4, topo_data->max_quints_per_site);
     // Ready exclusion list data structures.
 	topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->excluded_style));
 	// Read density exclusion list data structures.
@@ -136,6 +140,7 @@ void TopologyData::free_topology_data(void) {
     if (bond_list != NULL) delete bond_list;
     if (angle_list != NULL) delete angle_list;
     if (dihedral_list != NULL) delete dihedral_list;
+    if (quint_list != NULL) delete quint_list;
     if (molecule_list != NULL) delete molecule_list;
     delete exclusion_list;
 	delete density_exclusion_list;
@@ -144,6 +149,7 @@ void TopologyData::free_topology_data(void) {
     if (bond_type_activation_flags != NULL) delete [] bond_type_activation_flags;
     if (angle_type_activation_flags != NULL) delete [] angle_type_activation_flags;
     if (dihedral_type_activation_flags != NULL) delete [] dihedral_type_activation_flags;
+    if (quint_type_activation_flags != NULL) delete [] quint_type_activation_flags;
 }
 
 //---------------------------------------------------------------
@@ -297,6 +303,10 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
                 topo_data->dihedral_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].dihedral_list->partner_numbers_[k];
                 for (l = 0; l < 3 * mol[molecule_type].dihedral_list->partner_numbers_[k]; l++) {
                     topo_data->dihedral_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].dihedral_list->partners_[k][l] + first_site_in_molecule;
+                }
+                topo_data->quint_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].quint_list->partner_numbers_[k];
+                for (l = 0; l < 4 * mol[molecule_type].quint_list->partner_numbers_[k]; l++) {
+                    topo_data->quint_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].quint_list->partners_[k][l] + first_site_in_molecule;
                 }
             }
             first_site_in_molecule += mol[molecule_type].n_cg_sites;
@@ -847,6 +857,39 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
 	        }
             printf("Automatically generated dihedral topology; %d dihedrals of %d dihedral types.\n", total_dihedrals/2, calc_n_active_interactions(topo_data->dihedral_type_activation_flags, calc_n_distinct_quadruples(topo_data->n_cg_types)));
         }
+    }
+    
+    // Set-up quint list by connecting angles with angles that do not go "back" on themselves
+    // Loop over CG sites in the molecule
+    for (i = 0; i < mol->n_cg_sites; i++) {
+    	int n_quints = 0;
+    	int hash;
+        // Loop over angles involving that CG site.
+        for (j = 0; j < mol->angle_list->partner_numbers_[i]; j++) {
+        	// Then look at angles involving that site (j).
+			for (unsigned k = 0; k < mol->angle_list->partner_numbers_[mol->angle_list->partners_[i][2 * j + 1]]; k++) {
+				// Make sure that this angle is not folding back on the first angle
+				// // The end of the 2nd angle can not match a site in the 1st angle.
+				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1] == i) continue;
+				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1] == mol->angle_list->partners_[i][2 * j]) continue;
+				// // The middle of the 2nd angle can not match a site in the 1st angle.
+				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j]][2 * k] == i) continue;
+				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j]][2 * k] == mol->angle_list->partners_[i][2 * j]) continue;
+				
+				// Add this quint to this partner list
+				mol->quint_list->partners_[i][4 * n_quints] = mol->angle_list->partners_[i][2 * j];
+				mol->quint_list->partners_[i][4 * n_quints + 1] = mol->angle_list->partners_[i][2 * j + 1];
+				mol->quint_list->partners_[i][4 * n_quints + 2] = mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k];
+				mol->quint_list->partners_[i][4 * n_quints + 3] = mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1];
+				
+				// Set the activation flag for this site. 
+				hash = calc_five_body_interaction_hash(mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints]], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 1]], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 2]], mol->cg_site_types[i], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 3]], topo_data->n_cg_types);
+				topo_data->quint_type_activation_flags[hash] = 1;
+				n_quints++;
+			}
+		}
+		// set actual number of quints for this site
+		mol->dihedral_list->partner_numbers_[i] = n_quints;
     }
 }
 

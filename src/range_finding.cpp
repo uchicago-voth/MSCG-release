@@ -42,8 +42,7 @@ void calc_radius_of_gyration_interaction_sampling_range(InteractionClassComputer
 void evaluate_density_sampling_range(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
-
+void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
@@ -112,7 +111,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 		} else {
 			report_unrecognized_class_subtype(iclass);
 		}
-    } else if (iclass->class_type == kDihedralBonded) {
+	 } else if (iclass->class_type == kDihedralBonded) {
         if (iclass->class_subtype == 0) { //Angle based dihedral interactions
 			icomp->calculate_fm_matrix_elements = calc_dihedral_four_body_interaction_sampling_range;
         } else if (iclass->class_subtype == 1) { // Distance based dihedral interactions
@@ -120,7 +119,18 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 		} else {
 			report_unrecognized_class_subtype(iclass);
 		}
-	} else if (iclass->class_type == kRadiusofGyration) {
+	} else if (iclass->class_type == kR13Bonded ||
+			   iclass->class_type == kR14Bonded ||
+			   iclass->class_type == kR15Bonded) {
+		if (iclass->class_subtype == 0) {
+			icomp->calculate_fm_matrix_elements = calc_nothing;
+		} else if (iclass->class_subtype == 1) {
+			icomp->calculate_fm_matrix_elements = calc_isotropic_two_body_sampling_range;
+        }
+        else {
+        	report_unrecognized_class_subtype(iclass);
+        }
+   } else if (iclass->class_type == kRadiusofGyration) {
 		if (iclass->class_subtype == 1) { 
 			icomp->calculate_fm_matrix_elements = calc_radius_of_gyration_interaction_sampling_range;
 		} else if (iclass->class_subtype == 0) { // Do nothing
@@ -381,23 +391,29 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
  	
     FILE* nonbonded_interaction_output_file_handle = open_file("rmin.in", "w");
     FILE* bonded_interaction_output_file_handle = open_file("rmin_b.in", "w");
+    FILE* distance_interaction_output_file_handle;
     FILE* density_interaction_output_file_handle;
     FILE* radius_of_gyration_interaction_output_file_handle;
+    if (cg->r13_interactions.class_subtype > 0 ||
+        cg->r14_interactions.class_subtype > 0 ||
+        cg->r15_interactions.class_subtype > 0) distance_interaction_output_file_handle = open_file("rmin_r.in", "w");
     if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
-    write_interaction_range_data_to_file_and_free_it(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
-    
+    write_interaction_range_data_to_file_and_free_it(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
  	}
  	fclose(nonbonded_interaction_output_file_handle);
     fclose(bonded_interaction_output_file_handle);
+    if (cg->r13_interactions.class_subtype > 0 ||
+        cg->r14_interactions.class_subtype > 0 ||
+        cg->r15_interactions.class_subtype > 0) fclose(distance_interaction_output_file_handle);
 	if (cg->density_interactions.class_subtype > 0) fclose(density_interaction_output_file_handle);
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) fclose(radius_of_gyration_interaction_output_file_handle);
 }
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
+void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -406,6 +422,11 @@ void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, M
         	write_one_body_iclass_range_specifications(*icomp_iterator, cg->name, mat, one_body_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kPairNonbonded) {
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, nonbonded_spline_output_filep);
+        } else if ( ((*iclass_iterator)->class_type == kR13Bonded ||
+        		 (*iclass_iterator)->class_type == kR14Bonded ||
+        		 (*iclass_iterator)->class_type == kR15Bonded) &&
+        		 (*iclass_iterator)->class_subtype != 0 ) {
+        	write_iclass_range_specifications(*icomp_iterator, cg->name, mat, distance_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kRadiusofGyration) {
 			write_iclass_range_specifications(*icomp_iterator, cg->radius_of_gyration_interactions.molecule_group_names, mat, radius_of_gyration_interaction_output_filep);
 		} else if ((*iclass_iterator)->class_type == kDensity) {

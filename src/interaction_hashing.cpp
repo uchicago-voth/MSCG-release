@@ -27,7 +27,11 @@ void invert_three_body_interaction_hash(const int m, const int n_cg_types, int &
 // Invert a four-body interaction hash number of the four types of site involved.
 void invert_four_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l);
 
+// Invert a five-body interaction hash number of the four types of site involved.
+void invert_five_body_interaction_hash(const int m, const int n_cg_types, int &h, int &i, int &j, int &k, int &l);
+
 int four_body_ij_hash(int i, int j, const int n_cg_types);
+int five_body_ij_hash(int i, int j, const int n_cg_types);
 
 // Calculate a hash number from a vector of types involved.
 int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types) {
@@ -39,6 +43,8 @@ int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types) {
         return calc_three_body_interaction_hash(types[0], types[1], types[2], n_cg_types);
     } else if (types.size() == 4) {
         return calc_four_body_interaction_hash(types[0], types[1], types[2], types[3], n_cg_types);
+    } else if (types.size() == 5) {
+        return calc_five_body_interaction_hash(types[0], types[1], types[2], types[3], types[4], n_cg_types);
     } else {
         assert(false);
         return -1;
@@ -67,6 +73,8 @@ void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int>
         invert_three_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2]);
     } else if (types.size() == 4) {
         invert_four_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2], types[3]);
+    } else if (types.size() == 5) {
+        invert_five_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2], types[3], types[4]);
     } else {
         assert(false);
     }
@@ -107,7 +115,8 @@ int calc_asymmetric_two_body_interaction_hash(int i, int j, const int n_cg_types
 void invert_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j)
 {
     int curr_max_i_hash = calc_two_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types);
-    assert(0 <= m && m <= curr_max_i_hash);
+    assert(0 <= m);
+    assert(m <= curr_max_i_hash);
     int curr_max_i = n_cg_types;
     while (curr_max_i_hash > m) {
         curr_max_i--;
@@ -121,7 +130,8 @@ void invert_two_body_interaction_hash(const int m, const int n_cg_types, int &i,
 void invert_asymmetric_two_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j)
 {
     int curr_max_i_hash = calc_two_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types);
-    assert(0 <= m && m <= curr_max_i_hash);
+    assert(0 <= m);
+    assert(m <= curr_max_i_hash);
     i = m % n_cg_types;
     j = (int)( (m - i) / n_cg_types);
     
@@ -142,7 +152,9 @@ int calc_three_body_interaction_hash(int i, int j, int k, const int n_cg_types)
 // Calculate a three-body interaction hash number from the three types of site involved.
 void invert_three_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k)
 {
-    assert(0 <= m && m <= calc_three_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types));
+	int curr_max_i_hash = calc_three_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types);
+    assert(0 <= m);
+    assert(m <= curr_max_i_hash);
     
     i = 1 + floor(m / ((n_cg_types * (n_cg_types + 1)) / 2));
     int remainder_hash = m % ((n_cg_types * (n_cg_types + 1)) / 2);
@@ -154,13 +166,30 @@ int four_body_ij_hash(int i, int j, const int n_cg_types) {
     assert(0 < i && i <= n_cg_types); 
 	assert(0 < j && j <= n_cg_types);
     int n_ab, n1_ab;
+    // The "normal" two body hash with degeneracy correction
     n_ab = ((i - 1) * n_cg_types + j - 1) - i * (i - 1) / 2;
     if (i != j) {
         n1_ab = n_ab - i;
-        return n1_ab * n_cg_types * n_cg_types + i * (n_cg_types * (n_cg_types + 1) / 2);
+        return n1_ab * n_cg_types * n_cg_types + i * n_cg_types * (n_cg_types + 1) / 2;
     } else {
         n1_ab = n_ab - (i - 1);
-        return n1_ab * n_cg_types * n_cg_types + (i - 1) * (n_cg_types * (n_cg_types + 1) / 2);
+        return n1_ab * n_cg_types * n_cg_types + (i - 1) * n_cg_types * (n_cg_types + 1) / 2;
+    }
+}
+
+// Helper function for hashing the first two types of a five type interaction.
+int five_body_ij_hash(int i, int j, const int n_cg_types) {
+    assert(0 < i && i <= n_cg_types); 
+	assert(0 < j && j <= n_cg_types);
+    int n_ab, n1_ab;
+    // The "normal" two body hash with degeneracy correction
+    n_ab = ((i - 1) * n_cg_types + j - 1) - i * (i - 1) / 2;
+    if (i != j) {
+        n1_ab = n_ab - i;
+        return n1_ab * n_cg_types * n_cg_types * n_cg_types + i * n_cg_types * (n_cg_types + 1) / 2;
+    } else {
+        n1_ab = n_ab - (i - 1);
+        return n1_ab * n_cg_types * n_cg_types * n_cg_types + (i - 1) * n_cg_types * (n_cg_types + 1) / 2;
     }
 }
 
@@ -190,7 +219,9 @@ int calc_four_body_interaction_hash(int i, int j, int k, int l, const int n_cg_t
 
 void invert_four_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l)
 {
-    assert(0 <= m && m <= calc_four_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types));
+	int curr_max_i_hash = calc_four_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types);
+    assert(0 <= m);
+    assert(m <= curr_max_i_hash);
     int curr_max_i = n_cg_types;
     int curr_max_j = n_cg_types;
     int curr_max_ij_hash = four_body_ij_hash(curr_max_i, curr_max_j, n_cg_types);
@@ -224,6 +255,66 @@ void invert_four_body_interaction_hash(const int m, const int n_cg_types, int &i
     }
 }
 
+
+// Calculate a five-body interaction hash number from the four types of site involved.
+int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int n_cg_types)
+{
+    assert(0 < i && i <= n_cg_types); 
+	assert(0 < j && j <= n_cg_types);
+    assert(0 < k && k <= n_cg_types); 
+	assert(0 < l && l <= n_cg_types);
+	assert(0 < m && m <= n_cg_types);
+	
+    // make sure that the first site has the lower type number
+    if (i > m) {
+    	swap_pair(i, m);
+        swap_pair(j, l);
+    }
+
+    int n_ij, n_klm;
+    n_ij = five_body_ij_hash(i, j, n_cg_types);
+    n_klm = calc_three_body_interaction_hash(k, l, m, n_cg_types);
+    if (i == j) {
+        n_klm -= k * (k - 1) / 2; // This does not seem right.
+    }
+    return (n_ij + n_klm);
+}
+
+void invert_five_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l, int &n)
+{
+	int curr_max_i_hash = calc_five_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types);
+    assert(0 <= m);
+    assert(m <= curr_max_i_hash);
+    int curr_max_i = n_cg_types;
+    int curr_max_j = n_cg_types;
+
+    int curr_max_ij_hash = five_body_ij_hash(curr_max_i, curr_max_j, n_cg_types);
+
+    while (curr_max_ij_hash > m) {
+        assert(curr_max_j >= curr_max_i);
+        if (curr_max_j > curr_max_i) {
+            curr_max_j--;
+            if (curr_max_j > curr_max_i + 1) {
+                // This is the most commonly called (~n_cg_types^2) hash difference & the simplest.
+                curr_max_ij_hash -= n_cg_types * n_cg_types;
+            } else {
+                // Suggestion for improvement: derive the correct simple difference for this update.
+                curr_max_ij_hash = five_body_ij_hash(curr_max_i, curr_max_j, n_cg_types);
+            }  
+        } else {
+            curr_max_i--;
+            curr_max_j = n_cg_types;
+            // Suggestion for improvement: derive the correct simple difference for this update.
+            curr_max_ij_hash = five_body_ij_hash(curr_max_i, curr_max_j, n_cg_types);
+        }
+    }
+    i = curr_max_i;
+    j = curr_max_j;
+    int remainder_hash = m - curr_max_ij_hash;
+    invert_three_body_interaction_hash(remainder_hash, n_cg_types, k, l, n);
+}
+
+
 // Search a monotonic integer table to obtain the index of a desired value.
 int SearchIntTable(const std::vector<unsigned> &a, const unsigned m)
 {
@@ -242,11 +333,11 @@ int SearchIntTable(const std::vector<unsigned> &a, const unsigned m)
     return return_val;
 }
 
-int calc_n_active_interactions(const int* const activation_flags_by_type, const int tol_n)
+int calc_n_active_interactions(const int* const activation_flags_by_type, const int total_num)
 {
-    int tol = 0;
-    for (int i = 0; i < tol_n; i++) if (activation_flags_by_type[i] == 1) tol++;
-    return tol;
+    int total_active = 0;
+    for (int i = 0; i < total_num; i++) if (activation_flags_by_type[i] == 1) total_active++;
+    return total_active;
 }
 
 // Set up a cached array of interaction hashes for fast lookup

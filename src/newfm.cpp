@@ -69,6 +69,9 @@ int main(int argc, char* argv[])
         cg.pair_bonded_interactions.n_tabulated > 0 ||
         cg.angular_interactions.n_tabulated > 0 ||
         cg.dihedral_interactions.n_tabulated > 0 ||
+        cg.r13_interactions.n_tabulated > 0 ||
+        cg.r14_interactions.n_tabulated > 0 ||
+        cg.r15_interactions.n_tabulated > 0 ||
         cg.radius_of_gyration_interactions.n_tabulated > 0 ||
 		cg.density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");

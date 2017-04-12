@@ -145,6 +145,24 @@ void DihedralClassComputer::class_set_up_computer(void)
     else calculate_fm_matrix_elements = calc_dihedral_four_body_fm_matrix_elements;
 }
 
+void R13ClassComputer::class_set_up_computer(void) 
+{
+    cutoff2 = 1.0e6;
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R14ClassComputer::class_set_up_computer(void) 
+{
+    cutoff2 = 1.0e6;
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R15ClassComputer::class_set_up_computer(void) 
+{
+    cutoff2 = 1.0e6;
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
 void RadiusofGyrationClassComputer::class_set_up_computer(void) 
 {
     cutoff2 = 1.0e6;
@@ -456,6 +474,75 @@ void DihedralClassComputer::calculate_interactions(MATRIX_DATA* const mat, int t
             l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
             i = topo_data.dihedral_list->partners_[k][3 * kk];
             j = topo_data.dihedral_list->partners_[k][3 * kk + 1];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R13ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.angle_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from angle list (organization of angle_list described in topology files).
+        	// j is the "center" index while l and k are the "ends" of the angle.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.angle_list->partners_[k][2 * kk + 1];
+            j = topo_data.angle_list->partners_[k][2 * kk];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.dihedral_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
+            i = topo_data.dihedral_list->partners_[k][3 * kk];
+            j = topo_data.dihedral_list->partners_[k][3 * kk + 1];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.quint_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.quint_list->partners_[k][4 * kk + 2];
+            i = topo_data.quint_list->partners_[k][4 * kk];
+            j = topo_data.quint_list->partners_[k][4 * kk + 1];
+            h = topo_data.quint_list->partners_[k][4 * kk + 1];
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
     }

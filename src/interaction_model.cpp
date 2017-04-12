@@ -604,6 +604,11 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 		if( ((*iclass_iterator)->class_type == kDensity || (*iclass_iterator)->class_type == kRadiusofGyration) 
 		 && (*iclass_iterator)->class_subtype == 0) {
 			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);
+		} else if( (((*iclass_iterator)->class_type == kR13Bonded) ||
+				   	((*iclass_iterator)->class_type == kR14Bonded) ||
+				   	((*iclass_iterator)->class_type == kR15Bonded)) &&
+				   	((*iclass_iterator)->class_subtype == 0) ) {
+			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);	   	
 		} else {
 			(*iclass_iterator)->setup_for_defined_interactions(&cg->topo_data);
 		}
@@ -615,7 +620,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // Read normal range specifications.
     // Open the range files.
     std::ifstream nonbonded_range_in, bonded_range_in;
-    std::ifstream density_range_in, rg_range_in, one_body_range_in;
+    std::ifstream density_range_in, rg_range_in, one_body_range_in, dist_range_in;
     
    	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
 	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
@@ -623,6 +628,9 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(density_range_in, "rmin_den.in"); 
     if (cg->radius_of_gyration_interactions.class_subtype != 0) check_and_open_in_stream(rg_range_in, "rmin_rg.in");
     if (cg->one_body_interactions.class_subtype != 0) check_and_open_in_stream(one_body_range_in, "rmin_1.in");
+	if (cg->r13_interactions.class_subtype != 0 ||
+	    cg->r14_interactions.class_subtype != 0 ||
+	    cg->r15_interactions.class_subtype != 0 ) check_and_open_in_stream(dist_range_in, "rmin_r.in");
     
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -635,6 +643,10 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
         	(*iclass_iterator)->smart_read_interaction_class_ranges(rg_range_in, cg->radius_of_gyration_interactions.molecule_group_names);
         } else if((*iclass_iterator)->class_type == kOneBody) {
 			(*iclass_iterator)->smart_read_interaction_class_ranges(one_body_range_in, cg->name);
+		} else if((*iclass_iterator)->class_type == kR13Bonded ||
+				  (*iclass_iterator)->class_type == kR14Bonded ||
+				  (*iclass_iterator)->class_type == kR15Bonded ) {
+			(*iclass_iterator)->read_interaction_class_ranges(dist_range_in);
 		} else {
             (*iclass_iterator)->read_interaction_class_ranges(bonded_range_in);
         }
@@ -645,6 +657,10 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->density_interactions.class_subtype != 0) density_range_in.close();
 	if (cg->radius_of_gyration_interactions.class_subtype != 0) rg_range_in.close();
 	if (cg->one_body_interactions.class_subtype != 0) one_body_range_in.close();
+	if (cg->r13_interactions.class_subtype != 0 ||
+	    cg->r14_interactions.class_subtype != 0 ||
+	    cg->r15_interactions.class_subtype != 0 ) dist_range_in.close();
+    
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
@@ -678,7 +694,12 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
 			if (( (*iclass_iterator)->class_type == kOneBody || (*iclass_iterator)->class_type == kRadiusofGyration ) &&
 				( (*iclass_iterator)->class_subtype == 0 )) {
 				// do not read table line
-			} else {
+			} if (((*iclass_iterator)->class_type == kR13Bonded ||
+	    		   (*iclass_iterator)->class_type == kR14Bonded ||
+	    		   (*iclass_iterator)->class_type == kR15Bonded ) && 
+	    		   (*iclass_iterator)->class_subtype == 0 ) {
+	    		// do not read table line	   
+    		} else {
 				line = (*iclass_iterator)->read_table(external_spline_table, line, cg->n_cg_types);
 			}
 		}

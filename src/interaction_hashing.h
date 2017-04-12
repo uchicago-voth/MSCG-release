@@ -17,7 +17,10 @@ inline unsigned calc_n_distinct_pairs(const int n) {return (n * (n + 1) / 2);}
 inline unsigned calc_n_distinct_triples(const int n) {return (n * n * (n + 1) / 2);} 
 
 // Return total possible four body interaction types given a number of CG types
-inline unsigned calc_n_distinct_quadruples(const int n) {return (n * n * (n * n + 1)/2);}
+inline unsigned calc_n_distinct_quadruples(const int n) {return (n * n * n * (n + 1)/2);}
+
+// Return total possible four body interaction types given a number of CG types
+inline unsigned calc_n_distinct_quints(const int n) {return (n * n * n * n * (n + 1)/2);}
 
 // Calculate a hash number from a vector of types involved.
 int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types);
@@ -41,6 +44,9 @@ int calc_three_body_interaction_hash(int i, int j, int k, const int n_cg_types);
 
 // Calculate a four-body interaction hash number from the four types of site involved.
 int calc_four_body_interaction_hash(int i, int j, int k, int l, const int n_cg_types);
+
+// Calculate a four-body interaction hash number from the four types of site involved.
+int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int n_cg_types);
 
 // Search a sorted integer table to obtain the index of a desired value.
 int SearchIntTable(const std::vector<unsigned> &a, const unsigned m);
