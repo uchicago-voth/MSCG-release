@@ -146,7 +146,7 @@ int calc_three_body_interaction_hash(int i, int j, int k, const int n_cg_types)
 	assert(0 < j && j <= n_cg_types); 
 	assert(0 < k && k <= n_cg_types);
     if (j > k) swap_pair(j, k);
-    return (i - 1) * n_cg_types * (n_cg_types + 1) / 2 + (2 * n_cg_types - j + 2) * (j - 1) / 2 + k - j;
+    return (i - 1) * n_cg_types * (n_cg_types + 1) / 2 + (n_cg_types + 1) * (j - 1) - j * (j + 1) / 2 + k;
 }
 
 // Calculate a three-body interaction hash number from the three types of site involved.
@@ -206,13 +206,12 @@ int calc_four_body_interaction_hash(int i, int j, int k, int l, const int n_cg_t
         swap_pair(k, l);
     }
     n_ij = four_body_ij_hash(i, j, n_cg_types);
-    if (i != j) {
-        n_kl = (k - 1) * n_cg_types + l - 1;
-    } else {
+    n_kl = (k - 1) * n_cg_types + l - 1;
+    if (i == j) {
         if (k > l) {
         	swap_pair(k, l);
         }
-        n_kl = ((k - 1) * n_cg_types + l - 1) - k * (k - 1) / 2;
+        n_kl -= k * (k - 1) / 2;
     }
     return (n_ij + n_kl);
 }
@@ -272,11 +271,12 @@ int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int
     }
 
     int n_ij, n_klm;
-    n_ij = five_body_ij_hash(i, j, n_cg_types);
+    n_ij = four_body_ij_hash(i, j, n_cg_types) * n_cg_types;
     n_klm = calc_three_body_interaction_hash(k, l, m, n_cg_types);
     if (i == j) {
-        n_klm -= k * (k - 1) / 2; // This does not seem right.
+        n_klm += - n_cg_types * k * (k + 1) / 2 - n_cg_types + (k - 1) * n_cg_types * (n_cg_types - 1) / 2 + l + 1; // This does not seem right.
     }
+    printf("hash %d\n", n_ij + n_klm);
     return (n_ij + n_klm);
 }
 

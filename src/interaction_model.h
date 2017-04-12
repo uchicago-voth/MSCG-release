@@ -249,6 +249,7 @@ struct InteractionClassComputer {
 		index_among_symmetric_interactions = ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns];
 		index_among_tabulated_interactions = ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
 		index_among_symtab_interactions    = ispec->defined_to_symtab_intrxn_index_map[index_among_defined_intrxns];
+		if (ispec->class_type == kR15Bonded) printf("def_index %d, matched %d\n", index_among_defined_intrxns, index_among_matched_interactions);
 	};
 	
     // Spline computation objects for force matched and
@@ -503,7 +504,7 @@ struct R15ClassSpec: InteractionClassSpec {
 	}
 	
 	int get_n_body () const { return 5;}
-    inline std::string get_full_name(void) const {return "R15 distance";}
+    inline std::string get_full_name(void) const {return "r15 distance";}
     inline std::string get_short_name(void) const {return "r15";}
     inline std::string get_table_name(void) const {return "r15";}
     inline char get_char_id(void) const {return '5';}
@@ -795,7 +796,8 @@ struct R15ClassComputer : InteractionClassComputer {
 	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
 
     int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
-	    return calc_five_body_interaction_hash(cg_site_types[h], cg_site_types[i], cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
+		printf("R15 Class Computer calculate_hash_number\n");
+	    return calc_five_body_interaction_hash(cg_site_types[i], cg_site_types[i], cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
 	}
 };
 
@@ -908,7 +910,7 @@ struct CG_MODEL_DATA {
     DihedralClassSpec dihedral_interactions;
     R13ClassSpec r13_interactions;
     R14ClassSpec r14_interactions;
-    //R15ClassSpec r15_interactions;
+    R15ClassSpec r15_interactions;
     RadiusofGyrationClassSpec radius_of_gyration_interactions;
     ThreeBodyNonbondedClassSpec three_body_nonbonded_interactions;
 	DensityClassSpec density_interactions;
@@ -921,7 +923,7 @@ struct CG_MODEL_DATA {
     DihedralClassComputer dihedral_computer;
     R13ClassComputer r13_computer;
     R14ClassComputer r14_computer;
-    //R15ClassComputer r15_computer;
+    R15ClassComputer r15_computer;
     RadiusofGyrationClassComputer radius_of_gyration_computer;
     ThreeBodyNonbondedClassComputer three_body_nonbonded_computer;
 	DensityClassComputer density_computer;
@@ -956,7 +958,7 @@ struct CG_MODEL_DATA {
 		iclass_list.push_back(&dihedral_interactions);
 		iclass_list.push_back(&r13_interactions);
 		iclass_list.push_back(&r14_interactions);
-		//iclass_list.push_back(&r15_interactions);
+		iclass_list.push_back(&r15_interactions);
 		iclass_list.push_back(&radius_of_gyration_interactions);
 		iclass_list.push_back(&density_interactions);
 		
@@ -967,7 +969,7 @@ struct CG_MODEL_DATA {
 		icomp_list.push_back(&dihedral_computer);
 		icomp_list.push_back(&r13_computer);
 		icomp_list.push_back(&r14_computer);
-		//icomp_list.push_back(&r15_computer);
+		icomp_list.push_back(&r15_computer);
 		icomp_list.push_back(&radius_of_gyration_computer);
 		icomp_list.push_back(&density_computer);
 	}
