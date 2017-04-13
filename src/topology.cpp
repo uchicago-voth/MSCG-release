@@ -193,8 +193,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     }
     
     // Read the section of top.in defining radius of gyration interactions, if present.
-    if (cg->radius_of_gyration_interactions.class_subtype > 0 ||
-        cg->helical_interactions.class_subtype > 0) {
+    if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
     	line = read_molecule_groups(topo_data, cg, top_in, line, rg_lines);
     }
     
@@ -325,7 +324,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
 	setup_molecule_list(topo_data, topo_data->molecule_list, total_cg_molecules, max_mol_size);
 	
 	// Process the molecule group information now, if necessary.
-	if (cg->radius_of_gyration_interactions.class_subtype > 0) {
+	if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
     	process_molecule_groups(topo_data, rg_lines);
     }
 	

@@ -459,10 +459,9 @@ void HelicalClassSpec::rebuild_helical_list(TopoList* molecule_list, TopoList* d
 			int site_id = molecule_list->partners_[mol][site_num];
 			int n_dihedral_partners = dihedral_list->partner_numbers_[site_id];
 			for (int partner_num = 0; partner_num < n_dihedral_partners; partner_num++) {
-				int partner_id = dihedral_list->partners_[site_id][partner_num];
-				if (partner_id >= site_id) continue;
+				int partner_id = dihedral_list->partners_[site_id][3 * partner_num + 2];
 				// see if this partner is in the same molecule -- only if site > partner_id
-				if (topo_data_->molecule_ids[partner_id] == mol) {
+				if (partner_id < site_id && topo_data_->molecule_ids[partner_id] == mol) {
 					// Add this to this list with the first site having the larger index
 					helical_list->partners_[mol][num_mol_partners * 2    ] = site_id;
 					helical_list->partners_[mol][num_mol_partners * 2 + 1] = partner_id;

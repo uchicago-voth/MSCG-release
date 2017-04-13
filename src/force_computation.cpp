@@ -334,11 +334,11 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
     // Check if molecule_list should be updated.
     if (cg->molecule_flag == 1) {
     	update_molecule_list(&cg->topo_data, cg->topo_data.molecule_list);
-    	
-    	// Check if molecule list should be updated.
-  	  	if (cg->helical_interactions.class_subtype == 1) {
-    		cg->helical_interactions.rebuild_helical_list(cg->topo_data.molecule_list, cg->topo_data.dihedral_list);
-    	}
+    }
+    
+    // Check if molecule list should be updated.
+  	if (cg->helical_interactions.class_subtype == 1) {
+    	cg->helical_interactions.rebuild_helical_list(cg->topo_data.molecule_list, cg->topo_data.dihedral_list);
     }
     
     // Calculate matrix elements by looking through interaction (cell and topology) lists to find active (and non-excluded) interactions.
@@ -564,7 +564,8 @@ void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
 
 void HelicalClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
 {
-    if (ispec->n_defined == 0) return;
+    if (ispec->n_defined == 0 || ispec->class_subtype == 0) return;
+    
     trajectory_block_frame_index = traj_block_frame_index;
     current_frame_starting_row = curr_frame_starting_row;
     HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(ispec);

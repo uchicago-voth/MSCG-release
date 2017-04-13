@@ -186,9 +186,8 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 	if(iclass->output_parameter_distribution == 1){
 		if(iclass->class_type == kDensity) {
 			open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
- 		} else if (iclass->class_type == kRadiusofGyration) {
- 			RadiusofGyrationClassSpec* rg_class = static_cast<RadiusofGyrationClassSpec*>(iclass);
-			open_parameter_distribution_files_for_class(icomp, rg_class->molecule_group_names);
+ 		} else if (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) {
+ 			open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
 		} else {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
 		}
@@ -530,6 +529,9 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 		basename = iclass->get_interaction_name(iclass->density_group_names, index_among_defined, " ");
 	} else if (ispec->class_type == kRadiusofGyration) {
 		RadiusofGyrationClassSpec* iclass = static_cast<RadiusofGyrationClassSpec*>(ispec);
+		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
+	} else if (ispec->class_type == kHelical) {
+		HelicalClassSpec* iclass = static_cast<HelicalClassSpec*>(ispec);
 		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
 	} else {
 		basename = ispec->get_interaction_name(name, index_among_defined, " ");
