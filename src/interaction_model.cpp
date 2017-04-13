@@ -214,11 +214,15 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	
 	DensityClassSpec* dspec;
 	RadiusofGyrationClassSpec* rgspec;
+	HelicalClassSpec* hspec;
 	if (class_type == kDensity) {
 		dspec = static_cast<DensityClassSpec*>(this);
 	} 
 	if (class_type == kRadiusofGyration) {
 		rgspec = static_cast<RadiusofGyrationClassSpec*>(this);
+	}
+	if (class_type == kRadiusofGyration) {
+		hspec = static_cast<HelicalClassSpec*>(this);
 	}		
 
 	while( std::getline(range_in, line) != NULL) {
@@ -237,6 +241,9 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			read_types(get_n_body(), types, &elements[0], dspec->n_density_groups, name);
 			index_among_defined = calc_asymmetric_interaction_hash(types, dspec->n_density_groups);
 			printf("dg [%d, %d] = %d hash\n", types[0], types[1], index_among_defined);
+		} else if (class_type == kHelical) {
+			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
+			index_among_defined = calc_interaction_hash(types, hspec->n_molecule_groups);
 		} else if (class_type == kRadiusofGyration) {
 			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
 			index_among_defined = calc_interaction_hash(types, rgspec->n_molecule_groups);
@@ -329,6 +336,15 @@ void DensityClassSpec::read_rmin_class(std::string* &elements, const int positio
 	}
 }
 
+void HelicalClassSpec::read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode) 
+{
+	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
+	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
+	sprintf(mode, "%s", elements[position + 2].c_str());	
+	r0[index_among_defined] = atof(elements[position + 2].c_str());
+	sigma2[index_among_defined] = atof(elements[position + 3].c_str());
+}
+
 inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, char** molecule_group_names, const int n_molecule_groups, int &index_among_defined)
 {
 	// Read the base types and 
@@ -338,7 +354,7 @@ inline void extract_types_and_range(std::string* elements, const InteractionClas
 	if (type == kDensity) {
 		read_types(n_body, types, &elements[0], n_density_groups, density_group_names);
 		index_among_defined = calc_asymmetric_interaction_hash(types, n_density_groups);
-	} else if (type == kRadiusofGyration) {
+	} else if (type == kRadiusofGyration || type == kHelical) {
 		read_types(n_body, types, &elements[0], n_molecule_groups, molecule_group_names);
 		index_among_defined = calc_interaction_hash(types, n_molecule_groups);
 	} else {
@@ -418,6 +434,44 @@ void setup_site_to_density_group_index(DensityClassSpec* iclass)
 				}
 			}
 		}
+	}
+}
+
+void HelicalClassSpec::rebuild_helical_list(TopoList* molecule_list, TopoList* dihedral_list)
+{
+	// Free old list if previously allocated.
+	if (allocated == 1) {
+		delete helical_list;
+	}
+	
+	// Allocate new list.
+	allocated = 1;
+	int n_molecules = molecule_list->n_sites_;
+	int max_molecule_size = molecule_list->max_partners_;
+	helical_list = new TopoList(n_molecules, 2, max_molecule_size);
+
+	// Populate new list.
+	// For each site in a molecule, look for dihedral partners that are in that same molecule.
+	for (int mol = 0; mol < n_molecules; mol++) { // search each molecule
+		int num_mol_partners = 0;
+		for (unsigned site_num = 0; site_num < molecule_list->partner_numbers_[mol]; site_num++) { // using each site in the molecule
+			// look for dihedral partners
+			int site_id = molecule_list->partners_[mol][site_num];
+			int n_dihedral_partners = dihedral_list->partner_numbers_[site_id];
+			for (int partner_num = 0; partner_num < n_dihedral_partners; partner_num++) {
+				int partner_id = dihedral_list->partners_[site_id][partner_num];
+				if (partner_id >= site_id) continue;
+				// see if this partner is in the same molecule -- only if site > partner_id
+				if (topo_data_->molecule_ids[partner_id] == mol) {
+					// Add this to this list with the first site having the larger index
+					helical_list->partners_[mol][num_mol_partners * 2    ] = site_id;
+					helical_list->partners_[mol][num_mol_partners * 2 + 1] = partner_id;
+					num_mol_partners++;
+				}			
+			}
+			
+		}
+		helical_list->partner_numbers_[mol] = num_mol_partners;
 	}
 }
 
@@ -601,14 +655,10 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // The index array must be filled in from the range specifications in rmin.in and rmin_b.in.
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		if( ((*iclass_iterator)->class_type == kDensity || (*iclass_iterator)->class_type == kRadiusofGyration) 
-		 && (*iclass_iterator)->class_subtype == 0) {
+		if( ((*iclass_iterator)->class_type == kDensity || (*iclass_iterator)->class_type == kRadiusofGyration || (*iclass_iterator)->class_type == kHelical 
+		  || (*iclass_iterator)->class_type == kR13Bonded || (*iclass_iterator)->class_type == kR14Bonded || (*iclass_iterator)->class_type == kR15Bonded)
+		 && ((*iclass_iterator)->class_subtype == 0) ) {
 			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);
-		} else if( (((*iclass_iterator)->class_type == kR13Bonded) ||
-				   	((*iclass_iterator)->class_type == kR14Bonded) ||
-				   	((*iclass_iterator)->class_type == kR15Bonded)) &&
-				   	((*iclass_iterator)->class_subtype == 0) ) {
-			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);	   	
 		} else {
 			(*iclass_iterator)->setup_for_defined_interactions(&cg->topo_data);
 		}
@@ -620,7 +670,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // Read normal range specifications.
     // Open the range files.
     std::ifstream nonbonded_range_in, bonded_range_in;
-    std::ifstream density_range_in, rg_range_in, one_body_range_in, dist_range_in;
+    std::ifstream density_range_in, rg_range_in, one_body_range_in, dist_range_in, helical_range_in;
     
    	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
 	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
@@ -631,6 +681,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->r13_interactions.class_subtype != 0 ||
 	    cg->r14_interactions.class_subtype != 0 ||
 	    cg->r15_interactions.class_subtype != 0 ) check_and_open_in_stream(dist_range_in, "rmin_r.in");
+    if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
     
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -641,6 +692,8 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 			(*iclass_iterator)->smart_read_interaction_class_ranges(density_range_in, cg->density_interactions.density_group_names);
         } else if((*iclass_iterator)->class_type == kRadiusofGyration) {
         	(*iclass_iterator)->smart_read_interaction_class_ranges(rg_range_in, cg->radius_of_gyration_interactions.molecule_group_names);
+        } else if((*iclass_iterator)->class_type == kHelical) {
+        	(*iclass_iterator)->smart_read_interaction_class_ranges(helical_range_in, cg->helical_interactions.molecule_group_names);
         } else if((*iclass_iterator)->class_type == kOneBody) {
 			(*iclass_iterator)->smart_read_interaction_class_ranges(one_body_range_in, cg->name);
 		} else if((*iclass_iterator)->class_type == kR13Bonded ||
@@ -660,7 +713,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->r13_interactions.class_subtype != 0 ||
 	    cg->r14_interactions.class_subtype != 0 ||
 	    cg->r15_interactions.class_subtype != 0 ) dist_range_in.close();
-    
+    if (cg->radius_of_gyration_interactions.class_subtype != 0) helical_range_in.close();
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);

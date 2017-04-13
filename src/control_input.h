@@ -43,6 +43,7 @@ typedef struct ControlInputs {
     int r13_distance_flag;
     int r14_distance_flag;
     int r15_distance_flag;
+    int helical_flag;
     int radius_of_gyration_flag;
     int three_body_flag;
     int three_body_nonbonded_exclusion_flag;
@@ -63,6 +64,7 @@ typedef struct ControlInputs {
     double r13_fm_binwidth;
     double r14_fm_binwidth;
     double r15_fm_binwidth;
+    double helical_fm_binwidth;
     double radius_of_gyration_fm_binwidth;
     double three_body_fm_binwidth;
 	double density_fm_binwidth;
@@ -73,6 +75,7 @@ typedef struct ControlInputs {
     int r13_bspline_k;
     int r14_bspline_k;
     int r15_bspline_k;
+    int helical_bspline_k;
     int radius_of_gyration_bspline_k;		// B-spline k value for radius of gyration interations
     int three_body_bspline_k;               // B-spline k value for nonbonded three body interactions
 	int density_bspline_k;                  // B-spline k value for density interactions
@@ -93,6 +96,7 @@ typedef struct ControlInputs {
     double r13_output_binwidth;
     double r14_output_binwidth;
     double r15_output_binwidth;
+    double helical_output_binwidth;
     double radius_of_gyration_output_binwidth;
     double three_body_nonbonded_output_binwidth;
 	double density_output_binwidth;
@@ -107,6 +111,7 @@ typedef struct ControlInputs {
     int output_r13_parameter_distribution;
     int output_r14_parameter_distribution;
     int output_r15_parameter_distribution;
+    int output_helical_parameter_distribution;
     int output_radius_of_gyration_parameter_distribution;
 	int output_density_parameter_distribution;
     

@@ -44,6 +44,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("r13_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->r13_fm_binwidth);
     else if (strcmp("r14_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->r14_fm_binwidth);
     else if (strcmp("r15_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->r15_fm_binwidth);
+    else if (strcmp("helical_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->helical_fm_binwidth);
     else if (strcmp("radius_of_gyration_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->radius_of_gyration_fm_binwidth);
 	else if (strcmp("pair_nonbonded_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->nonbonded_bspline_k);
     else if (strcmp("pair_bond_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->pair_bond_bspline_k);
@@ -52,6 +53,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("r13_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->r13_bspline_k);
     else if (strcmp("r14_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->r14_bspline_k);
     else if (strcmp("r15_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->r15_bspline_k);
+    else if (strcmp("helical_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->helical_bspline_k);
     else if (strcmp("radius_of_gyration_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->radius_of_gyration_bspline_k);
     else if (strcmp("basis_type", parameter_name) == 0) sscanf(val, "%d", &control_input->basis_set_type);
     else if (strcmp("matrix_type", parameter_name) == 0) sscanf(val, "%d", &control_input->matrix_type);
@@ -62,6 +64,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("r13_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->r13_output_binwidth);
     else if (strcmp("r14_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->r14_output_binwidth);
     else if (strcmp("r15_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->r15_output_binwidth);
+    else if (strcmp("helical_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->helical_output_binwidth);
     else if (strcmp("radius_of_gyration_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->radius_of_gyration_output_binwidth);
     else if (strcmp("primary_output_style", parameter_name) == 0) sscanf(val, "%d", &control_input->output_style);
     else if (strcmp("itnlim", parameter_name) == 0) sscanf(val, "%d", &control_input->itnlim);
@@ -81,6 +84,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("r13_distance_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->r13_distance_flag);
     else if (strcmp("r14_distance_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->r14_distance_flag);
     else if (strcmp("r15_distance_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->r15_distance_flag);
+    else if (strcmp("helical_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->helical_flag);
     else if (strcmp("radius_of_gyration_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->radius_of_gyration_flag);
     else if (strcmp("three_body_nonbonded_style", parameter_name) == 0) sscanf(val, "%d", &control_input->three_body_flag);
     else if (strcmp("three_body_nonbonded_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->three_body_fm_binwidth);
@@ -108,6 +112,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("output_r13_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_r13_parameter_distribution);
     else if (strcmp("output_r14_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_r14_parameter_distribution);
     else if (strcmp("output_r15_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_r15_parameter_distribution);
+    else if (strcmp("output_helical_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_helical_parameter_distribution);
     else if (strcmp("output_radius_of_gyration_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_radius_of_gyration_parameter_distribution);
 	else if (strcmp("output_density_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_density_parameter_distribution);
     else if (strcmp("iterative_update_rate_coeff", parameter_name) == 0) sscanf(val, "%lf", &control_input->iterative_update_rate_coeff);
@@ -146,6 +151,7 @@ ControlInputs::ControlInputs(void)
     r13_fm_binwidth = 0.05;
     r14_fm_binwidth = 0.05;
     r15_fm_binwidth = 0.05;
+    helical_fm_binwidth = 0.05;
     radius_of_gyration_fm_binwidth = 1.0;
     nonbonded_bspline_k = 4;
     pair_bond_bspline_k = 4;
@@ -154,6 +160,7 @@ ControlInputs::ControlInputs(void)
     r13_bspline_k = 4;
     r14_bspline_k = 4;
     r15_bspline_k = 5;
+    helical_bspline_k = 4;
     radius_of_gyration_bspline_k = 4;
     basis_set_type = 0;
     matrix_type = 0;
@@ -164,6 +171,7 @@ ControlInputs::ControlInputs(void)
     r13_output_binwidth = 0.05;
     r14_output_binwidth = 0.05;
     r15_output_binwidth = 0.05;
+    helical_output_binwidth = 0.05;
     radius_of_gyration_output_binwidth = 1.0;
     output_style = 0;
     itnlim = 0;
@@ -183,6 +191,7 @@ ControlInputs::ControlInputs(void)
     r13_distance_flag = 0;
     r14_distance_flag = 0;
     r15_distance_flag = 0;
+    helical_flag = 0;
     radius_of_gyration_flag = 0;
     three_body_flag = 0;
     three_body_fm_binwidth = 1.0;
@@ -210,6 +219,7 @@ ControlInputs::ControlInputs(void)
     output_r13_parameter_distribution = 0;
     output_r14_parameter_distribution = 0;
     output_r15_parameter_distribution = 0;
+    output_helical_parameter_distribution = 0;
     output_radius_of_gyration_parameter_distribution = 0;
 	output_density_parameter_distribution = 0;
     iterative_update_rate_coeff = 1.0;

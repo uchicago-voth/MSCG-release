@@ -38,7 +38,7 @@ void free_interaction_data(CG_MODEL_DATA* cg);
 // Enumerated type definitions
 //-------------------------------------------------------------
 
-enum InteractionClassType {kOneBody, kPairNonbonded, kPairBonded, kAngularBonded, kDihedralBonded, kR13Bonded, kR14Bonded, kR15Bonded, kThreeBodyNonbonded, kRadiusofGyration, kDensity};
+enum InteractionClassType {kOneBody, kPairNonbonded, kPairBonded, kAngularBonded, kDihedralBonded, kR13Bonded, kR14Bonded, kR15Bonded, kHelical, kThreeBodyNonbonded, kRadiusofGyration, kDensity};
 // function pointer "type" used for polymorphism of matrix element calculation (for pair nonbonded types)
 typedef void (*calc_pair_matrix_elements)(InteractionClassComputer* const, std::array<double, DIMENSION>* const &, const real*, MATRIX_DATA* const);
 typedef void (*calc_interaction_matrix_elements)(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
@@ -510,10 +510,82 @@ struct R15ClassSpec: InteractionClassSpec {
     inline char get_char_id(void) const {return '5';}
 };
 
+struct HelicalClassSpec: InteractionClassSpec {
+
+	int rg_state;				// Used to avoid double free of molecule information
+	TopologyData* topo_data_;
+	int n_molecule_groups;		 // The number of molecule groups defined in top.in
+	char** molecule_group_names; //The names of each molecule group (used for output).
+	bool* molecule_groups;		 // Which CG site types belong to each density group.
+
+	int allocated;
+	TopoList* helical_list;		// The pairs of atoms in a molecule to look at in calculating the dihedral
+	double* r0;
+	double* sigma2;
+
+	inline HelicalClassSpec(ControlInputs* control_input) {
+		class_type = kHelical;
+		class_subtype = control_input->helical_flag;
+		cutoff = control_input->pair_nonbonded_cutoff;
+		basis_type = (BasisType) control_input->basis_set_type;
+		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+		fm_binwidth = control_input->helical_fm_binwidth;
+		bspline_k = control_input->helical_bspline_k;
+		output_binwidth = control_input->helical_output_binwidth;
+		output_parameter_distribution = control_input->output_helical_parameter_distribution;
+		rg_state = control_input->radius_of_gyration_flag;
+		allocated = 0;
+		n_defined = 0;
+        r0 = NULL;
+        sigma2 = NULL;
+	}
+
+	inline ~HelicalClassSpec() {
+		if ((class_subtype > 0) && (rg_state == 0)) { // avoid double free with RG
+		
+			for (int i = 0; i < n_molecule_groups; i++) {
+        		delete [] molecule_group_names[i];
+    		}
+			delete [] molecule_group_names;
+			delete [] molecule_groups;
+		}
+		if (allocated == 1) {
+			delete helical_list;
+		}
+		if (n_defined > 0) {
+			delete [] r0;
+			delete [] sigma2;
+		}
+	}
+		
+	void determine_defined_intrxns(TopologyData *topo_data) {
+		topo_data_ = topo_data;
+        n_molecule_groups = topo_data->n_molecule_groups;
+        molecule_group_names = topo_data->molecule_group_names;
+        molecule_groups = topo_data->molecule_groups;
+        n_defined = n_molecule_groups;
+        format = 0;
+        if(n_defined > 0) {
+			r0 = new double[n_defined];
+			for(int i=0; i<n_defined; i++) { r0[i] = 5.0;}
+			sigma2 = new double[n_defined];
+			for(int i=0; i<n_defined; i++) { sigma2[i] = 2.0;}
+		}
+	}
+	
+	void rebuild_helical_list(TopoList* molecule_list, TopoList* dihedral_list);
+	inline int get_n_body () const { return 1;}
+	void read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode);
+    inline std::string get_full_name(void) const {return "helical";}
+    inline std::string get_short_name(void) const {return "hel";}
+    inline std::string get_table_name(void) const {return "helical";}
+    inline char get_char_id(void) const {return 'h';}
+};
+
 struct RadiusofGyrationClassSpec: InteractionClassSpec {
 
 	TopologyData* topo_data_;
-	int n_molecule_groups;		 // The number of density groups defined in top.in
+	int n_molecule_groups;		 // The number of molecule groups defined in top.in
 	char** molecule_group_names; //The names of each molecule group (used for output).
 	bool* molecule_groups;		 // Which CG site types belong to each density group.
 	
@@ -801,6 +873,16 @@ struct R15ClassComputer : InteractionClassComputer {
 	}
 };
 
+struct HelicalClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+    	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(ispec);
+    	return h_spec->topo_data_->molecule_ids[k];
+	}
+};
+
 struct RadiusofGyrationClassComputer : InteractionClassComputer {
 	void class_set_up_computer(void);
 	//void class_set_up_range(void);
@@ -911,6 +993,7 @@ struct CG_MODEL_DATA {
     R13ClassSpec r13_interactions;
     R14ClassSpec r14_interactions;
     R15ClassSpec r15_interactions;
+    HelicalClassSpec helical_interactions;
     RadiusofGyrationClassSpec radius_of_gyration_interactions;
     ThreeBodyNonbondedClassSpec three_body_nonbonded_interactions;
 	DensityClassSpec density_interactions;
@@ -924,6 +1007,7 @@ struct CG_MODEL_DATA {
     R13ClassComputer r13_computer;
     R14ClassComputer r14_computer;
     R15ClassComputer r15_computer;
+    HelicalClassComputer helical_computer;
     RadiusofGyrationClassComputer radius_of_gyration_computer;
     ThreeBodyNonbondedClassComputer three_body_nonbonded_computer;
 	DensityClassComputer density_computer;
@@ -942,7 +1026,8 @@ struct CG_MODEL_DATA {
 		pair_nonbonded_interactions(control_input), pair_bonded_interactions(control_input),
 		angular_interactions(control_input), dihedral_interactions(control_input),
 		r13_interactions(control_input), r14_interactions(control_input), r15_interactions(control_input),
-		radius_of_gyration_interactions(control_input), three_body_nonbonded_interactions(control_input),
+		helical_interactions(control_input), radius_of_gyration_interactions(control_input),
+		three_body_nonbonded_interactions(control_input),
 		density_interactions(control_input),
 		output_spline_coeffs_flag(control_input->output_spline_coeffs_flag)
 {
@@ -959,6 +1044,7 @@ struct CG_MODEL_DATA {
 		iclass_list.push_back(&r13_interactions);
 		iclass_list.push_back(&r14_interactions);
 		iclass_list.push_back(&r15_interactions);
+		iclass_list.push_back(&helical_interactions);
 		iclass_list.push_back(&radius_of_gyration_interactions);
 		iclass_list.push_back(&density_interactions);
 		
@@ -970,6 +1056,7 @@ struct CG_MODEL_DATA {
 		icomp_list.push_back(&r13_computer);
 		icomp_list.push_back(&r14_computer);
 		icomp_list.push_back(&r15_computer);
+		icomp_list.push_back(&helical_computer);
 		icomp_list.push_back(&radius_of_gyration_computer);
 		icomp_list.push_back(&density_computer);
 	}

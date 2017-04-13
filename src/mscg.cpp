@@ -98,7 +98,10 @@ void* mscg_startup_part2(void* void_in)
         p_cg->dihedral_interactions.n_tabulated > 0 ||
         cg.r13_interactions.n_tabulated > 0 ||
         cg.r14_interactions.n_tabulated > 0 ||
-        cg.r15_interactions.n_tabulated > 0) {
+        cg.r15_interactions.n_tabulated > 0 ||
+        cg.helical_interactions.n_tabulated > 0 || 
+        cg.radius_of_gyration_interactions.n_tabulated > 0 ||
+		cg.density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(p_cg, p_cg->topo_data.n_cg_types);
     } 

@@ -72,6 +72,7 @@ int main(int argc, char* argv[])
         cg.r13_interactions.n_tabulated > 0 ||
         cg.r14_interactions.n_tabulated > 0 ||
         cg.r15_interactions.n_tabulated > 0 ||
+        cg.helical_interactions.n_tabulated > 0 || 
         cg.radius_of_gyration_interactions.n_tabulated > 0 ||
 		cg.density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
@@ -200,8 +201,8 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	for (int i = 0; i < frame_source->position_dimension; i++) {
 		ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
 	}
-    
-    // Begin the main building loops. This routine operates as a for loop
+	
+	// Begin the main building loops. This routine operates as a for loop
     // over frame blocks wrapped around a loop over frames within each block.
     // In the inner loop, frames are read every iteration and new matrix elements are computed.
     // In the outer loop, the blockwise matrix is incorporated into the total equations, 

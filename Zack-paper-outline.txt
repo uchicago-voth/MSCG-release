@@ -1,0 +1,21 @@
+Zack-representability
+
+I) Introduction
+	1) Examine common practices in CG modelling 
+	2) Discussion of common CG methods
+	3) Review of Representability and MS-CODE papers
+	4) Goal of this paper (apply representability ideas to observables and techniques used in MARTINI)
+	5) Organization of paper
+	
+II) Theory
+	1) Partition Coefficient
+	2) Pressure and Surface Tension
+	3) Undulation spectrum and bending modulus
+	
+III) Results
+	1) partition coefficient -- numerical (???)
+	2) pressure and surface tension -- numerical investigation (in-progress)
+	3) undulation spectrum/bending modulus --  numerical investigation (Zack's work)
+
+IV) Conclusions
+	

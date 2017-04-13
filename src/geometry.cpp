@@ -284,6 +284,67 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	param_val = rg2 / (double)(num_particles);	
 }
 
+void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+{
+	std::array<double, DIMENSION>* displacement = new std::array<double, DIMENSION>[1];
+	int sub_particle_ids[2];
+	double distance, diff, contribution, deriv_magnitude;
+	param_val = 0.0;
+	
+	for (int i = 0; i < n_helical_ids; i++) {
+		sub_particle_ids[0] = helical_ids[2 * i];
+		sub_particle_ids[1] = helical_ids[2 * i + 1];
+		conditionally_calc_distance_and_derivatives(sub_particle_ids, particle_positions, simulation_box_half_lengths, 1000000.0, distance, displacement);
+
+		diff = distance - r0;
+		contribution = exp( - diff * diff / sigma2);
+		param_val += contribution;
+
+		deriv_magnitude = 2 * diff * contribution / (sigma2 * distance * n_helical_ids);
+		
+		// Accumulate this derivative as long as the first index is not the last particle in particle_ids
+		if (sub_particle_ids[0] != particle_ids[n_ids - 1]) {
+			// find this index in particle_ids
+			int index = -1;
+			for (int j = 0; j < n_ids - 1; j++) {
+				if (particle_ids[j] == sub_particle_ids[0]) {
+					index = j;
+					break;
+				}	
+			}
+			if (index == -1) {
+				printf("Error in indices for helical calculation!\n");
+			} else {
+				for (int k = 0; k < DIMENSION; k++) {
+					derivatives[index][k] += displacement[0][k] * deriv_magnitude;
+				}
+			}
+		}
+
+		// Accumulate this derivative as long as the second index is not the last particle in particle_ids
+		if (sub_particle_ids[1] != particle_ids[n_ids - 1]) {
+			// find this index in particle_ids
+			int index = -1;
+			for (int j = 0; j < n_ids - 1; j++) {
+				if (particle_ids[j] == sub_particle_ids[1]) {
+					index = j;
+					break;
+				}	
+			}
+			if (index == -1) {
+				printf("Error in indices for helical calculation!\n");
+			} else {
+				for (int k = 0; k < DIMENSION; k++) {
+					derivatives[index][k] -= displacement[0][k] * deriv_magnitude;
+				}
+			}		
+		}
+		
+	}
+	param_val /= (double)(n_helical_ids);
+	delete [] displacement;
+}
+
 //------------------------------------------------------------
 // Without derivatives.
 //------------------------------------------------------------
@@ -400,6 +461,23 @@ void calc_radius_of_gyration(const int* particle_ids, const std::array<double, D
 	
 	// Include the scaling.
 	param_val = rg2 / (double)(num_particles);	
+}
+
+
+void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+{
+	int sub_particle_ids[2];
+	double distance, diff;
+	param_val = 0.0;
+	
+	for (int i = 0; i < n_helical_ids; i++) {
+		sub_particle_ids[0] = helical_ids[2 * i];
+		sub_particle_ids[1] = helical_ids[2 * i + 1];
+		calc_distance(sub_particle_ids, particle_positions, simulation_box_half_lengths, distance);
+		diff = distance - r0;
+		param_val += exp( - diff * diff / sigma2);
+	}
+	param_val /= (double)(n_helical_ids);
 }
 
 inline void check_sine(double &s)
