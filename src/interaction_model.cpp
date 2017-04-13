@@ -221,7 +221,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	if (class_type == kRadiusofGyration) {
 		rgspec = static_cast<RadiusofGyrationClassSpec*>(this);
 	}
-	if (class_type == kRadiusofGyration) {
+	if (class_type == kHelical) {
 		hspec = static_cast<HelicalClassSpec*>(this);
 	}		
 
@@ -242,7 +242,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			index_among_defined = calc_asymmetric_interaction_hash(types, dspec->n_density_groups);
 			printf("dg [%d, %d] = %d hash\n", types[0], types[1], index_among_defined);
 		} else if (class_type == kHelical) {
-			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
+			read_types(get_n_body(), types, &elements[0], hspec->n_molecule_groups, name);
 			index_among_defined = calc_interaction_hash(types, hspec->n_molecule_groups);
 		} else if (class_type == kRadiusofGyration) {
 			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
@@ -680,7 +680,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->r13_interactions.class_subtype != 0 ||
 	    cg->r14_interactions.class_subtype != 0 ||
 	    cg->r15_interactions.class_subtype != 0 ) check_and_open_in_stream(dist_range_in, "rmin_r.in");
-    if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
+    if (cg->helical_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
     
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -712,7 +712,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->r13_interactions.class_subtype != 0 ||
 	    cg->r14_interactions.class_subtype != 0 ||
 	    cg->r15_interactions.class_subtype != 0 ) dist_range_in.close();
-    if (cg->radius_of_gyration_interactions.class_subtype != 0) helical_range_in.close();
+    if (cg->helical_interactions.class_subtype != 0) helical_range_in.close();
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
