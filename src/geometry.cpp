@@ -291,6 +291,13 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 	double distance, diff, contribution, deriv_magnitude;
 	param_val = 0.0;
 	
+	// zero derivatives to start
+	for (int i = 0; i < n_ids - 1; i++) {
+		for (int k = 0; k < DIMENSION; k++) {
+			derivatives[i][k] = 0.0;
+		}
+	}
+	
 	for (int i = 0; i < n_helical_ids; i++) {
 		sub_particle_ids[0] = helical_ids[2 * i];
 		sub_particle_ids[1] = helical_ids[2 * i + 1];
