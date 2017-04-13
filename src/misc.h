@@ -42,6 +42,7 @@ void check_and_read_next_line(std::ifstream &in_stream, std::string &line, int &
 
 // Integrate function to calculate a potential from a force and distance vectors.
 void integrate_force(const std::vector<double> &axis_vals, const std::vector<double> &force_vals, std::vector<double> &potential_vals);
+void make_negative(std::vector<double> &force_vals);
 
 // Function to pad 2 vectors so that the first runs between low and high values with fpad
 void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad);

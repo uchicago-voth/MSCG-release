@@ -45,6 +45,13 @@ void integrate_force(const std::vector<double> &axis_vals, const std::vector<dou
     }
 }
 
+void make_negative(std::vector<double> &force_vals)
+{
+  for(int k = force_vals.size() - 1; k >= 0; k--)
+    {
+      force_vals[k] = -force_vals[k];
+    }
+}
 // Function to pad 2 vectors so that the first runs between low and high values with fpad
 
 void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)

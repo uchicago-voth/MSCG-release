@@ -50,11 +50,12 @@ std::vector<double> calculate_bootstrapping_standard_error(const std::vector<dou
 
 void write_fm_interaction_output_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 {
+
     // Write a binary copy of the solution vector if desired.
     if (mat->output_solution_flag == 1) {
     	write_output_solution(mat);
     }
-    
+
     // Write all interaction-by-interaction output files.
     write_interaction_data_to_file(cg, mat);
 }
@@ -78,7 +79,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             // If that interaction is being matched (includes forces and symmetric/DOOM),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      if(mat->matrix_type == kREM){
-		write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i);
+		write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i);	      
 		if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
                     write_one_param_bspline_file(*icomp_iterator, name, mat, i);
@@ -120,18 +121,19 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
                 	    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
-	                } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+		    } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                		   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
     	                write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
     	            } else {
             	        printf("Unrecognized basis type.\n");
                 	    exit(EXIT_FAILURE);
                 	}
-            	}
+				}
 	      }
 	    }
         }
-    }
+	}
+
         
     // Write three body nonbonded interaction data.
 	write_three_body_interaction_data(&cg->three_body_nonbonded_computer, mat, cg->name);
@@ -225,7 +227,6 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 // Write the tabular output for a single interaction.
 void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
 {
-
   std::vector<double> axis_vals, force_vals, potential_vals;
   if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
     {
@@ -233,7 +234,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     } else
     {
       icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
-      integrate_force(axis_vals, force_vals, potential_vals);
+      make_negative(force_vals);
     }
     // Determine base for output filenames.
     std::string basename;
@@ -258,7 +259,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
      }
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
-    write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
+    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
 
     if (icomp->ispec->get_char_id() == 'n')
       {
