@@ -264,6 +264,8 @@ int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int
 	assert(0 < l && l <= n_cg_types);
 	assert(0 < m && m <= n_cg_types);
 	
+	return calc_two_body_interaction_hash(i, m, n_cg_types);
+/*	
     // make sure that the first site has the lower type number
     if (i > m) {
     	swap_pair(i, m);
@@ -278,10 +280,13 @@ int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int
     }
     printf("hash %d\n", n_ij + n_klm);
     return (n_ij + n_klm);
+*/
 }
 
 void invert_five_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l, int &n)
 {
+	invert_two_body_interaction_hash(m, n_cg_types, i, n);
+	/*
 	int curr_max_i_hash = calc_five_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types);
     assert(0 <= m);
     assert(m <= curr_max_i_hash);
@@ -312,6 +317,7 @@ void invert_five_body_interaction_hash(const int m, const int n_cg_types, int &i
     j = curr_max_j;
     int remainder_hash = m - curr_max_ij_hash;
     invert_three_body_interaction_hash(remainder_hash, n_cg_types, k, l, n);
+    */
 }
 
 

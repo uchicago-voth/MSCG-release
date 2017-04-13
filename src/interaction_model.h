@@ -503,7 +503,7 @@ struct R15ClassSpec: InteractionClassSpec {
 		format = 0;
 	}
 	
-	int get_n_body () const { return 5;}
+	int get_n_body () const { return 2;}
     inline std::string get_full_name(void) const {return "r15 distance";}
     inline std::string get_short_name(void) const {return "r15";}
     inline std::string get_table_name(void) const {return "r15";}
@@ -870,7 +870,7 @@ struct R15ClassComputer : InteractionClassComputer {
 
     int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
 		printf("R15 Class Computer calculate_hash_number\n");
-	    return calc_five_body_interaction_hash(cg_site_types[i], cg_site_types[i], cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
+	    return calc_two_body_interaction_hash(cg_site_types[h], cg_site_types[l], n_cg_types);
 	}
 };
 

@@ -883,7 +883,12 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
 				mol->quint_list->partners_[i][4 * n_quints + 3] = mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1];
 				
 				// Set the activation flag for this site. 
-				hash = calc_five_body_interaction_hash(mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints]], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 1]], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 2]], mol->cg_site_types[i], mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 3]], topo_data->n_cg_types);
+				hash = calc_five_body_interaction_hash(mol->cg_site_types[i],
+													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints]], 
+													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 1]], 
+													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 2]], 
+													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 3]], 
+													   topo_data->n_cg_types);
 				topo_data->quint_type_activation_flags[hash] = 1;
 				n_quints++;
 			}

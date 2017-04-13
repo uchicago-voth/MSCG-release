@@ -185,9 +185,17 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 	
 	if(iclass->output_parameter_distribution == 1){
 		if(iclass->class_type == kDensity) {
-			open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
+			if (iclass->class_subtype > 0) {
+				open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
+ 			}
  		} else if (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) {
- 			open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
+ 			if (iclass->class_subtype > 0) {
+ 				open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
+			}
+		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
+					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
+					iclass->class_subtype == 0 ) {
+			// do nothing here
 		} else {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
 		}
@@ -323,9 +331,11 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
 	if (icomp->ispec->output_parameter_distribution == 1) {
-		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded ||
-			icomp->ispec->class_type == kR13Bonded || icomp->ispec->class_type == kR14Bonded || icomp->ispec->class_type == kR15Bonded) {
+		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
 			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		} else if ( (icomp->ispec->class_type == kR13Bonded || icomp->ispec->class_type == kR14Bonded || icomp->ispec->class_type == kR15Bonded) &&
+					icomp->ispec->class_subtype == 0) {
+			// do nothing
 		} else if (param < icomp->ispec->cutoff) {
 		 	fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 		}
@@ -501,12 +511,18 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
     }
 	
 	if (iclass->output_parameter_distribution == 1) {
-     	close_parameter_distribution_files_for_class(icomp);
-		if(iclass->class_type == kDensity) {
+     	if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
+			close_parameter_distribution_files_for_class(icomp);
 			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(iclass);
 			generate_parameter_distribution_histogram(icomp, ispec->density_group_names);
+		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
+					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
+					iclass->class_subtype == 0 ) {
+			// do nothing for these
+		} else {
+			close_parameter_distribution_files_for_class(icomp);
+			generate_parameter_distribution_histogram(icomp, name);
 		}
-		else generate_parameter_distribution_histogram(icomp, name);
 	}
 }
 

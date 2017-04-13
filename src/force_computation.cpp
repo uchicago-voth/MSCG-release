@@ -530,7 +530,6 @@ void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
             l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
             j = topo_data.dihedral_list->partners_[k][3 * kk];
             i = topo_data.dihedral_list->partners_[k][3 * kk + 1];
-            //printf("R15: k %d, i %d, j %d, l %d\n", k, i, j, l);
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
     }
@@ -553,10 +552,10 @@ void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
         	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
         	// To avoid double counting, the interaction is only counted if the ends are
         	// ordered such that k < l.
-            l = topo_data.quint_list->partners_[k][4 * kk + 2];
-            i = topo_data.quint_list->partners_[k][4 * kk + 3];
-            j = topo_data.quint_list->partners_[k][4 * kk];
-            h = topo_data.quint_list->partners_[k][4 * kk + 1];
+            l = topo_data.quint_list->partners_[k][4 * kk + 3];
+            h = topo_data.quint_list->partners_[k][4 * kk];
+            i = topo_data.quint_list->partners_[k][4 * kk + 1];
+            j = topo_data.quint_list->partners_[k][4 * kk + 2];
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
     }
