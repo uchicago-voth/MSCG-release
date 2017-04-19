@@ -82,6 +82,9 @@ combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
 
+scalarfm.o: scalarfm.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c scalarfm.cpp
+
 batch_fm_combination.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
 	$(CC) $(CFLAGS) -c batch_fm_combination.cpp
 
@@ -134,7 +137,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all:
-	make newfm.x; \
-	make rangefinder.x; \
-	make combinefm.x;
+all: newfm.x rangefinder.x combinefm.x libmscg.a

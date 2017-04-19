@@ -38,7 +38,7 @@ void* mscg_startup_part1(void* void_in)
     
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
     
-    if (mscg_struct->cg.r15_interactions.class_subtype == 1) {
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
     	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
 		exit(EXIT_FAILURE);
     }
@@ -96,12 +96,12 @@ void* mscg_startup_part2(void* void_in)
         p_cg->pair_bonded_interactions.n_tabulated > 0 ||
         p_cg->angular_interactions.n_tabulated > 0 ||
         p_cg->dihedral_interactions.n_tabulated > 0 ||
-        cg.r13_interactions.n_tabulated > 0 ||
-        cg.r14_interactions.n_tabulated > 0 ||
-        cg.r15_interactions.n_tabulated > 0 ||
-        cg.helical_interactions.n_tabulated > 0 || 
-        cg.radius_of_gyration_interactions.n_tabulated > 0 ||
-		cg.density_interactions.n_tabulated > 0) {
+        p_cg->r13_interactions.n_tabulated > 0 ||
+        p_cg->r14_interactions.n_tabulated > 0 ||
+        p_cg->r15_interactions.n_tabulated > 0 ||
+        p_cg->helical_interactions.n_tabulated > 0 || 
+        p_cg->radius_of_gyration_interactions.n_tabulated > 0 ||
+		p_cg->density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(p_cg, p_cg->topo_data.n_cg_types);
     } 

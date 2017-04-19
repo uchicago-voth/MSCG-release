@@ -1425,8 +1425,8 @@ void convert_dense_fm_equation_to_normal_form_and_bootstrap(MATRIX_DATA* const m
 	
 	// Add the matrix to the master 
 	double frame_weight = mat->get_frame_weight() * mat->normalization;
-	daxpy( &matrix_size, &frame_weight, temp_normal_matrix->values, &onei, mat->dense_fm_normal_matrix->values, &onei);	    
-	daxpy( &mat->fm_matrix_columns, &frame_weight, temp_normal_rhs_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
+	cblas_daxpy( &matrix_size, &frame_weight, temp_normal_matrix->values, &onei, mat->dense_fm_normal_matrix->values, &onei);	    
+	cblas_daxpy( &mat->fm_matrix_columns, &frame_weight, temp_normal_rhs_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
 	
 	// Add the matrix and vector to each of the bootstrap samples based on the weight for that frame for each bootstrap estimate.
 	for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
@@ -1437,9 +1437,9 @@ void convert_dense_fm_equation_to_normal_form_and_bootstrap(MATRIX_DATA* const m
 		if(frame_weight == 0.0) continue;
 		frame_weight *= mat->bootstrapping_normalization[i];
 
-	   daxpy( &matrix_size, &frame_weight, temp_normal_matrix->values, &onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, &onei);
+	   cblas_daxpy( &matrix_size, &frame_weight, temp_normal_matrix->values, &onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, &onei);
 
-	   daxpy( &mat->fm_matrix_columns, &frame_weight, temp_normal_rhs_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
+	   cblas_daxpy( &mat->fm_matrix_columns, &frame_weight, temp_normal_rhs_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
 	}
 	
 	delete temp_normal_matrix;
@@ -1457,7 +1457,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
     double frame_weight = mat->get_frame_weight();
 
     // Take normal form of the current frame's target vector and add to the existing normal form target vector.
-    dgemv_(&tchar, &mat->fm_matrix_rows, &mat->fm_matrix_columns, &frame_weight, mat->dense_fm_matrix->values, &mat->fm_matrix_rows, mat->dense_fm_rhs_vector, &onei, &oned, mat->dense_fm_normal_rhs_vector, &onei);
+    cblas_dgemv(&tchar, &mat->fm_matrix_rows, &mat->fm_matrix_columns, &frame_weight, mat->dense_fm_matrix->values, &mat->fm_matrix_rows, mat->dense_fm_rhs_vector, &onei, &oned, mat->dense_fm_normal_rhs_vector, &onei);
 }
 
 // Perform the accumulation operation (QR decomposition followed by composition) to combine the
@@ -1610,7 +1610,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA
    int onei = 1;	
    // Accumulate normal form right-hand size vector with previous/future vectors
    // Frame weight is applied to normal vector in this step
-   daxpy(&mat->fm_matrix_columns, &frame_weight,
+   cblas_daxpy(&mat->fm_matrix_columns, &frame_weight,
 		dense_rhs_normal_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
    #endif
 		
@@ -1668,7 +1668,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
 
        // Accumulate normal form right-hand size vector with previous/future vectors
        // Frame weight is applied to normal vector in this step
-	   daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
+	   cblas_daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
 	}
    
    // Accumulate for each bootstrapping estimate.
@@ -1684,7 +1684,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
 
        // Accumulate normal form right-hand size vector with previous/future vectors
        // Frame weight is applied to normal vector in this step
-	   daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
+	   cblas_daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
    }
    
    // CSR formatted FM and normal temp matrices are freed by destructor at end of function
@@ -1727,7 +1727,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
 
    // Accumulate normal form right-hand size vector with previous/future vectors
    // Frame weight is applied to normal vector in this step  
-   cblas_daxpy( mat->fm_matrix_columns, frame_weight,
+   cblas_cblas_daxpy( mat->fm_matrix_columns, frame_weight,
 		dense_rhs_normal_vector, 1, mat->dense_fm_normal_rhs_vector, 1);
    #endif
    
@@ -1750,7 +1750,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
 	  
 	  // Accumulate normal form matrix with previous/future normal form matrices
 	  // This operation also applies the frame weight
-	  cblas_daxpy( mat->fm_matrix_columns * mat->fm_matrix_columns, frame_weight,
+	  cblas_cblas_daxpy( mat->fm_matrix_columns * mat->fm_matrix_columns, frame_weight,
 	  	normal_matrix, 1, mat->dense_fm_normal_matrix->values, 1);
 	  #endif
 	    
@@ -1822,7 +1822,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
    
    // Accumulate for master.
    frame_weight = mat->get_frame_weight() * mat->normalization; 
-   daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
+   cblas_daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->dense_fm_normal_rhs_vector, &onei);
    
    // Accumulate normal form right-hand size vector with previous/future vectors.
    // Frame weight is applied to normal vector in this step.  
@@ -1830,7 +1830,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 		frame_weight = mat->bootstrapping_weights[i][mat->trajectory_block_index];
 		if(frame_weight == 0.0) continue;
 		frame_weight *= mat->bootstrapping_normalization[i];
-		daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
+		cblas_daxpy(&mat->fm_matrix_columns, &frame_weight, dense_rhs_normal_vector, &onei, mat->bootstrapping_dense_fm_normal_rhs_vectors[i], &onei);
 	}
 	// Free the intermediate normal form vector
 	delete [] dense_rhs_normal_vector;
@@ -1852,7 +1852,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 	  
 	  // Accumulate for master.
 	  frame_weight = mat->get_frame_weight() * mat->normalization; 
-	  daxpy(&num_elements, &frame_weight,	normal_matrix, &onei, mat->dense_fm_normal_matrix->values, &onei);
+	  cblas_daxpy(&num_elements, &frame_weight,	normal_matrix, &onei, mat->dense_fm_normal_matrix->values, &onei);
 	  
 	  // Accumulate normal form matrix with previous/future normal form matrices.
 	  // This operation also applies the frame weight.
@@ -1861,7 +1861,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 		if(frame_weight == 0.0) continue;
 		frame_weight *= mat->bootstrapping_normalization[i];
 
-	  	daxpy(&num_elements, &frame_weight,	normal_matrix, &onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, &onei);
+	  	cblas_daxpy(&num_elements, &frame_weight,	normal_matrix, &onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, &onei);
 	  }
 	    
 	  // Free the temp normal matrix
@@ -2316,9 +2316,9 @@ inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_
     int onei = 1;
     double oned = 1.0;    
     // Take normal form of the current frame's matrix and add to the existing normal form matrix.
-    dsyrk_(&uchar, &tchar, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
+    cblas_dsyrk(&uchar, &tchar, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
     // Take normal form of the current frame's target vector and add to the existing normal form target vector.
-    dgemv_(&tchar, &mat->fm_matrix_rows, &mat->fm_matrix_columns, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, dense_fm_rhs_vector, &onei, &oned, dense_fm_normal_rhs_vector, &onei);
+    cblas_dgemv(&tchar, &mat->fm_matrix_rows, &mat->fm_matrix_columns, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, dense_fm_rhs_vector, &onei, &oned, dense_fm_normal_rhs_vector, &onei);
 }
 
 // Calculate the residual for a dense matrix.
@@ -2338,17 +2338,17 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 	}
 	
 	// Calculate solution^T * normal_matrix * solution
-	dgemv_(&none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
+	cblas_dgemv(&none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
 			   dense_fm_normal_matrix->values, &mat->fm_matrix_columns, solution, &onei,
 			   &oned, intermediate, &onei);  
 				 	
-	normal_matrix = ddot_(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
+	normal_matrix = cblas_ddot(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
 		
 	// Calculate solution^T * normal_vector
-	vector_left = ddot_(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
+	vector_left = cblas_ddot(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
 	
 	// Calculate normal_vector^T * solution
-	vector_right = ddot_(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
+	vector_right = cblas_ddot(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
 	
 	// Combine all of these terms and scale by normalization (frames)
 	normal_matrix /= normalization;
@@ -2389,13 +2389,13 @@ inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* csr_
    		solution, intermediate);
    #endif  
 	
-	normal_matrix = ddot_(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
+	normal_matrix = cblas_ddot(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
 	
 	// Calculate solution^T * normal_vector
-	vector_left = ddot_(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
+	vector_left = cblas_ddot(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
 	
 	// Calculate normal_vector^T * solution
-	vector_right = ddot_(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
+	vector_right = cblas_ddot(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
 	
 	// Combine all of these terms and scale by normalization (frames)
 	normal_matrix /= normalization;
@@ -2457,13 +2457,13 @@ inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* csr_
    		solution, intermediate);
    #endif  
 	
-	normal_matrix = ddot_(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
+	normal_matrix = cblas_ddot(&mat->fm_matrix_columns, intermediate, &onei, solution, &onei);
 	
 	// Calculate solution^T * normal_vector
-	vector_left = ddot_(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
+	vector_left = cblas_ddot(&mat->fm_matrix_columns, solution, &onei, dense_fm_normal_rhs_vector, &onei);
 	
 	// Calculate normal_vector^T * solution
-	vector_right = ddot_(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
+	vector_right = cblas_ddot(&mat->fm_matrix_columns, dense_fm_normal_rhs_vector, &onei, solution, &onei);
 	
 	// Combine all of these terms and scale by normalization (frames)
 	normal_matrix /= mat->normalization;
@@ -2720,7 +2720,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
-	    double alpha = (double)(mat->fm_matrix_columns) / ddot_(&mat->fm_matrix_columns, solution, &onei, solution, &onei);
+	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(&mat->fm_matrix_columns, solution, &onei, solution, &onei);
 		double beta  = (double)(mat->size_per_vector) * n_cg_sites * n_frames / residual;
 		
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2784,7 +2784,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			for (int k = 0; k < mat->fm_matrix_columns; k++) {
 				alpha_solution[k] = alpha_vec[k] * solution[k];
 			}
-			double alpha_product = ddot_(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
+			double alpha_product = cblas_ddot(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
 			double extended_residual = beta * 0.5 * residual + 0.5 * alpha_product;
 			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
 			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
@@ -2823,7 +2823,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			char none = 'n';
 			double oned = 1.0;
-			dgemm_(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
+			cblas_dgemm(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
 					it_normal_matrix->values, &mat->fm_matrix_columns, backup_dense_matrix->values, &mat->fm_matrix_columns, &oned,
 					product_reg_normal_matrix_inv_normal_matrix->values, &mat->fm_matrix_columns);
 		
@@ -3076,7 +3076,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
-	    double alpha = (double)(mat->fm_matrix_columns) / ddot_(&mat->fm_matrix_columns, solution, &onei, solution, &onei);
+	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(&mat->fm_matrix_columns, solution, &onei, solution, &onei);
 		double beta  = (double)(mat->size_per_vector) * n_cg_sites * n_frames / residual;
 		
 		for (i = 0; i < mat->fm_matrix_columns; i++) {
@@ -3128,7 +3128,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			for (k = 0; k < mat->fm_matrix_columns; k++) {
 				alpha_solution[k] = alpha_vec[k] * solution[k];
 			}
-			double alpha_product = ddot_(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
+			double alpha_product = cblas_ddot(&mat->fm_matrix_columns, solution, &onei, alpha_solution, &onei);
 			double extended_residual = beta * 0.5 * residual + 0.5 * alpha_product;
 			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
 			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
@@ -3167,7 +3167,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			char none = 'n';
 			double oned = 1.0;
-			dgemm_(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
+			cblas_dgemm(&none, &none, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &mat->fm_matrix_columns, &oned,
 					it_dense_normal_matrix->values, &mat->fm_matrix_columns, backup_normal_matrix->values, &mat->fm_matrix_columns, &oned,
 					product_reg_normal_matrix_inv_normal_matrix->values, &mat->fm_matrix_columns);
 		
