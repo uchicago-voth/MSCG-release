@@ -14,7 +14,7 @@
 
 // Function prototypes for internal functions.
 void subtract_min_image_vectors(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement);
-void subtract_min_image_particles(const std::array<double, DIMENSION> const &particle_position1, const std::array<double, DIMENSION> const &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement);
+void subtract_min_image_particles(const std::array<double, DIMENSION> &particle_position1, const std::array<double, DIMENSION> &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement);
 void cross_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b, std::array<double, DIMENSION> &c);
 double dot_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b);
 double dot_product(const double* a, const double* b);
@@ -34,7 +34,7 @@ void subtract_min_image_vectors(const int* particle_ids, const std::array<double
     }
 }
 
-void subtract_min_image_particles(const std::array<double, DIMENSION> const &particle_position1, const std::array<double, DIMENSION> const &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement)
+void subtract_min_image_particles(const std::array<double, DIMENSION> &particle_position1, const std::array<double, DIMENSION> &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement)
 {
     for (int i = 0; i < DIMENSION; i++) {
         displacement[i] = particle_position2[i] - particle_position1[i];
