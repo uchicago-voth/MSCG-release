@@ -120,13 +120,14 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* sparse_fm_normal_matrix, double* const dense_fm_rhs_vector, std::vector<double> &fm_solution, double normalization);
 inline void calculate_and_apply_dense_preconditioning(MATRIX_DATA* mat, dense_matrix* dense_fm_normal_matrix, double* h);
 inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values);
-
+inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values);
 // After-full-trajectory routines
 
 void average_sparse_block_fm_solutions(MATRIX_DATA* const mat);
 void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
+void solve_BI_equation(MATRIX_DATA* const mat);
 
 // Bootstrapping routines
 
@@ -809,6 +810,24 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->set_fm_matrix_to_zero = set_dummy_matrix_to_zero;
 }
 
+void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
+{
+  determine_matrix_columns_and_rows(mat, cg, 1, 0);
+
+  determine_BI_matrix_rows(mat, cg);
+
+  //might need to free these first
+
+  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
+  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_row, mat->fm_matrix_columns);
+  mat->accumulate_matching_forces = accumulate_BI_elements;
+  mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
+  mat->finish_fm = solve_BI_equation;
+}
+
+  
+
 //--------------------------------------------------------------------
 // Bootstrapping helper routines
 //--------------------------------------------------------------------
@@ -1116,6 +1135,16 @@ void accumulate_tabulated_entropy(InteractionClassComputer* const info, const do
   exit(EXIT_FAILURE);
 }
 
+void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+{
+
+  int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+
+  for (unsigned k = 0; k < basis_fn_vals.size(), k++) {
+    insert_BI_matrix_element(particle_ids, (ref_column + k), basis_fn_vals[k], mat);
+  }
+}
+
 //---------------------------------------------------------------------
 // Scalar versions of the above functions (note symmetric and regular 
 // interactions are the same since the derivative is ignored).
@@ -1338,6 +1367,11 @@ inline void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* 
 {
   mat->dense_fm_matrix->add_scalar(0,i,x);
 }  
+
+inline void insert_BI_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
+{
+  mat->dense_fm_matrix->add_scalar(i,j,x);
+}
 
 // Add a scalar force element to a dense matrix.
 
@@ -2627,6 +2661,36 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, dense_m
 	delete [] iwork;
 }
 
+inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values)
+{
+	int space_factor = 2;
+	int onei = 1;
+	int lapack_setup_flag = -1;
+	int smlsiz = 25;
+	
+	double tx = fm_matrix_columns / (smlsiz + 1.0);
+	int nlvl = (int)(log10(tx) / log10(2)) + 1;
+	int irank_in, info_in;
+	int liwork = DIMENSION * fm_matrix_columns * nlvl + 11 * fm_matrix_columns;
+	liwork *= space_factor;
+	
+	int* iwork = new int[liwork];
+	double* lapack_temp_workspace = new double[1];
+
+	// The SVD routine works in two modes: first, the routine is run with a dummy workspace to
+	// determine the size of the needed workspace, then that workspace is allocated, then the
+	// routine is run again with a sufficient workspace to perform SVD.
+	dgelsd_(&fm_matrix_columns, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_columns, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	lapack_setup_flag = lapack_temp_workspace[0];
+	delete [] lapack_temp_workspace;
+	lapack_temp_workspace = new double[lapack_setup_flag];
+	dgelsd_(&fm_matrix_columns, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_columns, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+
+	// Clean up the heap-allocated temps.
+	delete [] lapack_temp_workspace;
+	delete [] iwork;
+}  
+
 //--------------------------------------------------------------------
 // End-of-trajectory routines
 //--------------------------------------------------------------------
@@ -3323,6 +3387,18 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     delete [] backup_rhs;
  	if(mat->matrix_type == 3) delete [] mat->dense_fm_normal_rhs_vector;
 }
+
+void solve_BI_equation(MATRIX_DATA* const mat)
+{
+  int i;
+  double* singular_values = new double[mat->fm_matrix_columns];
+  calculate_dense_svd(&mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
+  for (i = 0; i < mat->fm_matrix_columns; i++) {
+    mat->fm_solution[i] = mat->dense_fm_normal_rhs_vector[i];
+  }
+  delete [] singular_values;
+}
+  
 
 void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 {

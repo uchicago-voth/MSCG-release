@@ -16,6 +16,7 @@
 #include "range_finding.h"
 #include "misc.h"
 #include "trajectory_input.h"
+#include "fm_output.h"
 
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const frame_source);
 
@@ -63,6 +64,16 @@ int main(int argc, char* argv[])
     
     printf("Writing final output.\n");
     write_range_files(&cg, &mat);
+
+    //This is part of the BI routine
+
+    read_all_interaction_ranges(&cg);
+
+    set_up_force_computers(&cg);
+    
+    calculate_BI(&cg,&mat);
+
+    write_fm_interaction_output_files(&cg,&mat);
 
     //print cpu time used
     double end_cputime = clock();

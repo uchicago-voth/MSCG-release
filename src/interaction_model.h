@@ -19,6 +19,7 @@
 #include "topology.h"
 #include "misc.h"
 #include "control_input.h"
+#include "gsl/gsl_multifit.h"
 
 #ifndef DIMENSION
 #define DIMENSION 3

@@ -814,3 +814,5 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     axis_vals.resize(counter);
     force_vals.resize(counter);
 }
+
+  
