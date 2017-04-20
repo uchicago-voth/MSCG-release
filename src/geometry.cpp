@@ -304,10 +304,10 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 		conditionally_calc_distance_and_derivatives(sub_particle_ids, particle_positions, simulation_box_half_lengths, 1000000.0, distance, displacement);
 
 		diff = distance - r0;
-		contribution = exp( - diff * diff / sigma2);
+		contribution = exp( - 0.5 * diff * diff / sigma2);
 		param_val += contribution;
 
-		deriv_magnitude = 2 * diff * contribution / (sigma2 * distance * n_helical_ids);
+		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
 		
 		// Accumulate this derivative as long as the first index is not the last particle in particle_ids
 		if (sub_particle_ids[0] != particle_ids[n_ids - 1]) {
@@ -482,7 +482,7 @@ void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION
 		sub_particle_ids[1] = helical_ids[2 * i + 1];
 		calc_distance(sub_particle_ids, particle_positions, simulation_box_half_lengths, distance);
 		diff = distance - r0;
-		param_val += exp( - diff * diff / sigma2);
+		param_val += exp( - 0.5 * diff * diff / sigma2);
 	}
 	param_val /= (double)(n_helical_ids);
 }
