@@ -82,9 +82,6 @@ combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
 
-scalarfm.o: scalarfm.cpp $(COMMON_SOURCE)
-	$(CC) $(CFLAGS) -c scalarfm.cpp
-
 batch_fm_combination.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
 	$(CC) $(CFLAGS) -c batch_fm_combination.cpp
 

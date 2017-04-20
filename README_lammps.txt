@@ -13,6 +13,7 @@ You must perform the following steps yourself.
 
 2.  compile MS-CG from within its home directory using your makefile choice
     % make -f Makefile."name" lib_mscg.a
+    It is recommended that you start from Makefile.g++_simple or Makefile.intel_simple
 
 3.  There is no need to install MS-CG if you only wish
     to use it from LAMMPS. 

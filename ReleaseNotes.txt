@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 1.7.2 (April 20, 2017)
+	* Added a simple makefile for library and no Gromacs (only GSL and LAPACK dependencies)
+	* Simplify makefiles to choose from
+	* Changes for GNU compiler compatability
+	* Switch some linear algebra to CBLAS
+
 Version 1.7.1 (April 9, 2017)
 	* Added version of Gromacs XTC files used when that part of the code was designed.
 	* Fixed typos in Manual.
