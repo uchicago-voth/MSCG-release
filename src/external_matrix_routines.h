@@ -25,25 +25,6 @@ extern double cblas_ddot(const int n, const double* dx, const int incx, const do
 	
 # if _mkl_flag == 0
 // Exclude these function definitions when compiling with MKL
-/*
-extern void dsyrk(char uplo, char trans, int n, int k,
-                 double alpha, double* a, int lda, double beta,
-                   double* c, int ldc);
-
-extern void cblas_dgemv(const int layout, const int trans, const int m, const int n, const double alpha,
-                   const double* a, const int lda, const double* x, const int incx,
-                   const double beta, double* y, const int incy);
-
-extern void cblas_dgemm(const int layout, const int transa, const int transb, const int l, const int n, const int m,
-					const double alpha, const double* a, const int lda, const double* b, const int ldb, 
-					const double beta, double* c, const int ldc);
-								
-extern void cblas_dsyrk(const int layout, const int uplo, const int trans, const int n, const int k,
-                   const double alpha, const double* a, const int lda, const double beta,
-                   double* c, const int ldc);
-
-extern void cblas_daxpy( const int lda, const double a, const double *beta, const int ldb, const double* b, const int ldc);
-*/
 
 extern void dgesvd_(char* jobu, char* jobvt, int* m, int* n, double* a, int* lda,
                     double* s, double* u, int* ldu, double* vt, int* ldvt, double* lapack_temp_workspace,
