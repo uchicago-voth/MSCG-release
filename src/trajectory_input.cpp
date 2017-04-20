@@ -95,7 +95,7 @@ inline void set_random_number_seed(const uint_fast32_t random_num_seed);
 
 void report_usage_error(const char *exe_name)
 {
-    printf("Usage: %s -f file.trr OR %s -f file.xtc -f1 file1.xtc\n", exe_name, exe_name);
+    printf("Usage: %s -f file.trr OR %s -f file.xtc -f1 file1.xtc OR %s -l file.lammpstrj\n", exe_name, exe_name, exe_name);
     exit(EXIT_SUCCESS);
 }
 

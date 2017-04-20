@@ -9,3 +9,7 @@ code was designed using is included in this distribution. The Gromacs features c
 optionally excluded using the "no_gro" targets in the make file. Nonetheless, all 
 non-standard libraries available for download free of charge and are easy to find with an 
 internet search by name.
+
+If you wish to use the library form and/or you do not need GROMACS support, consider
+starting from the Makefile.g++_simple (for GNU compiliers and libraries) or 
+Makefile.intel_simple (for Intel compilers and libraries).

@@ -151,7 +151,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
     std::string line;
     char mode[10];
 	
-	while( std::getline(range_in, line) != NULL) {
+	std::getline(range_in, line);
+	while(range_in.good() == 1) {
 	
 		// Check that this line has enough fields.
 		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) {	//allow for trailing white space
@@ -186,7 +187,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			// Increment the running total of the tabulated interactions.
 			total_tabulated++;
 			defined_to_tabulated_intrxn_index_map[index_among_defined] = total_tabulated;
-		}			
+		}
+		std::getline(range_in, line);			
     }
 
     n_to_force_match = total_to_fm;
