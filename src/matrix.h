@@ -12,9 +12,6 @@
 
 #include "external_matrix_routines.h"
 
-#if _mkl_flag == 1
-#include "mkl.h"
-#endif
 
 #ifndef DIMENSION
 #define DIMENSION 3
@@ -192,7 +189,7 @@ struct dense_matrix {
 	}
 	
     inline ~dense_matrix() {
-        delete [] values;
+    	delete [] values;
 	}
 };
 
@@ -359,8 +356,8 @@ struct MATRIX_DATA {
 		
 		// Update the appropriate fm_matrix based on type.
 		if (matrix_type == kDense) {
-		    delete dense_fm_matrix;
-		    dense_fm_matrix = new dense_matrix(fm_matrix_rows, fm_matrix_columns);
+			delete dense_fm_matrix;
+			dense_fm_matrix = new dense_matrix(fm_matrix_rows, fm_matrix_columns);
 		} else if ( (matrix_type == kSparse) || (matrix_type == kSparseNormal) || (matrix_type == kSparseSparse) ) {
 			if (sparse_matrix != NULL) {
 				int max_entries = sparse_matrix->max_entries;

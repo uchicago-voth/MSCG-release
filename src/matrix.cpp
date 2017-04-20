@@ -378,7 +378,7 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 		}
     }
-	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     // Initialized the matrix and vector to zero.
     printf("Initialized a dense FM matrix.\n");
@@ -1456,7 +1456,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
     double frame_weight = mat->get_frame_weight();
 
     // Take normal form of the current frame's target vector and add to the existing normal form target vector.
-	cblas_dgemv(CblasRowMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, mat->dense_fm_matrix->values, mat->fm_matrix_rows, mat->dense_fm_rhs_vector, onei, oned, mat->dense_fm_normal_rhs_vector, onei);
+	cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, mat->dense_fm_matrix->values, mat->fm_matrix_rows, mat->dense_fm_rhs_vector, onei, oned, mat->dense_fm_normal_rhs_vector, onei);
 }
 
 // Perform the accumulation operation (QR decomposition followed by composition) to combine the
@@ -2310,12 +2310,17 @@ inline void create_sparse_normal_form_matrix(MATRIX_DATA* const mat, const int n
 
 inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_weight, dense_matrix* const dense_fm_matrix, dense_matrix* normal_matrix, double* const dense_fm_rhs_vector, double* dense_fm_normal_rhs_vector)
 {	
-    int onei = 1;
-    double oned = 1.0;    
-	// Take normal form of the current frame's matrix and add to the existing normal form matrix.
-	cblas_dsyrk(CblasRowMajor, CblasUpper, CblasTrans, mat->fm_matrix_columns, mat->fm_matrix_rows, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, oned, normal_matrix->values, mat->fm_matrix_columns);
+    // Take normal form of the current frame's matrix and add to the existing normal form matrix.
+	double oned = 1.0;
+	#if _mkl_flag == 1
+	char upper = 'u';
+	char trans = 't';
+	dsyrk_(&upper, &trans, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
+	#else
+	cblas_dsyrk(CblasColMajor, CblasUpper, CblasTrans, mat->fm_matrix_columns, mat->fm_matrix_rows, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, oned, normal_matrix->values, mat->fm_matrix_columns);
+	#endif
 	// Take normal form of the current frame's target vector and add to the existing normal form target vector.
-	cblas_dgemv(CblasRowMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, dense_fm_rhs_vector, onei, oned, dense_fm_normal_rhs_vector, onei);
+	cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, dense_fm_rhs_vector, 1, 1.0, dense_fm_normal_rhs_vector, 1);
 }
 
 // Calculate the residual for a dense matrix.
@@ -2334,7 +2339,7 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 	}
 	
 	// Calculate solution^T * normal_matrix * solution
-	cblas_dgemv(CblasRowMajor, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
+	cblas_dgemv(CblasColMajor, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
 		   dense_fm_normal_matrix->values, mat->fm_matrix_columns, solution, onei,
 		   oned, intermediate, onei);  
 	
@@ -2822,7 +2827,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
 
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
+			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
 				it_normal_matrix->values, mat->fm_matrix_columns, backup_dense_matrix->values, mat->fm_matrix_columns, oned,
 				product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
 			
@@ -3166,7 +3171,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
 
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
+			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
 				it_dense_normal_matrix->values, mat->fm_matrix_columns, backup_normal_matrix->values, mat->fm_matrix_columns, oned,
 				product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
 
