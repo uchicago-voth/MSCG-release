@@ -136,8 +136,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all:
-	make newfm.x; \
-	make rangefinder.x; \
-	make combinefm.x; \
-	make newrem.x;
+all: newfm.x rangefinder.x combinefm.x newrem.x libmscg.a

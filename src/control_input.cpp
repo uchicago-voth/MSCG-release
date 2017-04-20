@@ -203,10 +203,12 @@ ControlInputs::ControlInputs(void)
     //control_in = open_file("control.in", "r");
     
     int line_num = 1;
-    while (std::getline(control_in, line) != NULL) {
+    std::getline(control_in, line);
+    while (control_in.good() == 1) {
         sscanf(line.c_str(), "%s%s", left, right);
         set_control_parameter(left, right, this, line_num);
         line_num++;
+        std::getline(control_in, line);
     }
     control_in.close();
 }

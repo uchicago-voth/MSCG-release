@@ -12,9 +12,6 @@
 
 #include "external_matrix_routines.h"
 
-#if _mkl_flag == 1
-#include "mkl.h"
-#endif
 
 #ifndef DIMENSION
 #define DIMENSION 3
