@@ -26,14 +26,11 @@ You must perform the following steps yourself.
 4.  There is no need to install MS-CG if you only wish 
     to use it from LAMMPS.
 
-5.  Create two soft links in this dir (lib/mscg) to the MS-CG src
-    directory.  E.g if you built MS-CG in this dir:
+5.  A soft link in this dir (lib/mscg) to the MS-CG src
+    directory.  E.g if you built MS-CG in the src dir:
       % ln -s src includelink
-      % ln -s src liblink
-    These links could instead be set to the include and lib
-    directories created by a MS-CG install, e.g.
-      % ln -s /usr/local/include includelink
-      % ln -s /usr/local/lib liblink
+
+6.  Modify your LAMMPS Makefile to include -std=c++11 on the CCFLAGS line
 
 -----------------
 
@@ -41,11 +38,11 @@ When these steps are complete you can build LAMMPS with the MS-CG
 package installed:
 
 % cd lammps/src
-% make yes-USER-MSCG
+% make yes-MSCG
 % make g++ (or whatever target you wish)
 
 Note that if you download and unpack a new LAMMPS tarball, the
-"includelink" and "liblink" files will be lost and you will need to
+"includelink" files will be lost and you will need to
 re-create them (step 4).  If you built MS-CG in this directory (as
 opposed to somewhere else on your system) and did not install it
 somewhere else, you will also need to repeat steps 1,2,3.
