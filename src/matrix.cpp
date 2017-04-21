@@ -70,7 +70,7 @@ void insert_sparse_matrix_element(const int i, const int j, double* const x, MAT
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* const mat);
-inline void insert_BI_matrix_element(const int i, double const x, MATRIX_DATA* const mat);
+inline void insert_BI_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 
 void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
@@ -84,6 +84,7 @@ void insert_accumulation_matrix_virial_element(const int m, const int n, const d
 
 void accumulate_force_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
 void accumulate_force_into_accumulation_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
+void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
 
 void accumulate_constraint_into_dense_target_vector(MATRIX_DATA *mat, int frame_index, double constraint_element);
 void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA *mat, int frame_index, double constraint_element);
@@ -817,21 +818,20 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
 {
   determine_matrix_columns_and_rows(mat, cg, 1, 0);
-
   determine_BI_matrix_rows(mat, cg);
-  //might need to free these first
+
+  printf("matrix rows = %d\n",mat->fm_matrix_rows);fflush(stdout);
 
   delete [] mat->dense_fm_rhs_vector;
   delete [] mat->dense_fm_normal_rhs_vector;
   mat->fm_solution.resize(mat->fm_matrix_columns);
-
-  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+  
   mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
   mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
   mat->accumulate_matching_forces = accumulate_BI_elements;
-  mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
+  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
   mat->finish_fm = solve_BI_equation;
 }
 
@@ -1150,7 +1150,7 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
 
   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-    insert_BI_matrix_element(ref_column + k, basis_fn_vals[k], mat);
+    insert_BI_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
   }
 }
 
@@ -1377,9 +1377,9 @@ inline void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* 
   mat->dense_fm_matrix->add_scalar(0,i,x);
 }  
 
-inline void insert_BI_matrix_element(const int i, double const x, MATRIX_DATA* const mat)
+inline void insert_BI_matrix_element(const int i, const int j,double const x, MATRIX_DATA* const mat)
 {
-  mat->dense_fm_matrix->add_scalar(0,i,x);
+  mat->dense_fm_matrix->add_scalar(i,j,x);
 }
 
 // Add a scalar force element to a dense matrix.
@@ -1516,6 +1516,11 @@ void accumulate_constraint_into_dense_target_vector(MATRIX_DATA* mat, int frame_
 void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA* mat, int frame_index, double constraint_element)
 {
 	mat->dense_fm_matrix->add_scalar(DIMENSION * mat->rows_less_virial_constraint_rows + frame_index, mat->accumulation_matrix_rows, constraint_element); 
+}
+
+void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element)
+{
+  mat->dense_fm_rhs_vector[particle_index] = *force_element;
 }
 
 //--------------------------------------------------------------------

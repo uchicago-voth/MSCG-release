@@ -215,7 +215,6 @@ int match_type(std::string &source, char** name, const int n_types)
 {
 	char unknown[10];
 	sprintf(unknown, "%s", source.c_str());
-	
 	// Check if this type is a name.
 	for (int i = 0; i < n_types; i++) {
 		if( strcmp(unknown, name[i]) == 0 ) {

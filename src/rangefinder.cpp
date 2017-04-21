@@ -70,10 +70,16 @@ int main(int argc, char* argv[])
     read_all_interaction_ranges(&cg);
 
     set_up_force_computers(&cg);
+
+    printf("hello after force computers\n");fflush(stdout);
     
     calculate_BI(&cg,&mat);
 
+    printf("hello after calculate BI\n");fflush(stdout);
+    
     write_fm_interaction_output_files(&cg,&mat);
+
+    free_name(&cg);
 
     //print cpu time used
     double end_cputime = clock();

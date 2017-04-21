@@ -42,7 +42,7 @@ void calc_radius_of_gyration_interaction_sampling_range(InteractionClassComputer
 void evaluate_density_sampling_range(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
@@ -388,7 +388,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
     if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
-    write_interaction_range_data_to_file_and_free_it(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
+    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
     
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
@@ -399,7 +399,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) fclose(radius_of_gyration_interaction_output_file_handle);
 }
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -416,11 +416,6 @@ void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, M
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, bonded_spline_output_filep);
         }
     }
-
-    // Free data after output.
-    printf("Done with output.\n"); fflush(stdout);
-    for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
-    delete [] cg->name;
 }
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file) 
@@ -646,18 +641,27 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat)
   
   initialize_BI_matrix(mat, cg);
 
+  printf("hello after init BI\n");fflush(stdout);
+
   read_interaction_file_and_build_matrix(mat, cg);
 
+    printf("hello after read interaction file\n");fflush(stdout);
+  
   mat->finish_fm(mat);
+
+    printf("hello after solving least squares\n");fflush(stdout);
 }
 
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
 {
   int counter = 0;
-  
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction,
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
+      {continue;}
+    printf("%s %d\n",(*icomp_iterator)->ispec->get_table_name().c_str(),(*icomp_iterator)->ispec->get_bspline_k());fflush(stdout);
+    (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
       read_one_param_dist_file((*icomp_iterator), cg->name, mat, i, counter);
     }
@@ -681,20 +685,25 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
   int i, counts;
+  int *junk;
   double PI = 3.1415926;
   double r;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->output_binwidth);
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+  char buffer[100];
+  fgets(buffer,100,curr_dist_input_file); 
   for(i = 0; i < num_entries; i++)
     {
       if (icomp->ispec->get_char_id() == 'n')
 	{
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = counts / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
+      double normalized_counts = (double)(counts) / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
       normalized_counts *= mat->normalization;
-      icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
+      printf("before spline computer r = %lf\n",r);fflush(stdout);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+      printf("after spline computer\n");fflush(stdout);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
       counter++;
 	}
@@ -702,15 +711,20 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
 	{
           int first_nonzero_basis_index;
           fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-	  double normalized_counts = counts*mat->normalization;
-          icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-          mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
+	  double normalized_counts = (double)(counts)*mat->normalization;
+          icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+          mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
           mat->accumulate_target_force_element(mat, counter, &normalized_counts);
           counter++;
 	}
     }
+  printf("hello after read loop\n");fflush(stdout);
 }
   
-  
-
-    
+void free_name(CG_MODEL_DATA* const cg)
+{
+    // Free data after output.
+    printf("Done with output.\n"); fflush(stdout);
+    for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
+    delete [] cg->name;
+}

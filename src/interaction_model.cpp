@@ -219,11 +219,10 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	} 
 	if (class_type == kRadiusofGyration) {
 		rgspec = static_cast<RadiusofGyrationClassSpec*>(this);
-	}		
+	}
 
 	std::getline(range_in, line);
-	while(range_in.good() == 1) {
-	
+	while(range_in.good() == 1) {	
 		// Check that this line has enough fields.
 		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) {	//allow for trailing white space
 			if(total_intrxns == 0) report_fields_error(get_full_name(), n_expected, n_fields);
@@ -241,11 +240,10 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 		} else if (class_type == kRadiusofGyration) {
 			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
 			index_among_defined = calc_interaction_hash(types, rgspec->n_molecule_groups);
-		} else {
+		} else {		
 			read_types(get_n_body(), types, &elements[0], n_cg_types, name);
 			index_among_defined = calc_interaction_hash(types, n_cg_types);
 		}	
-	
 		// Read the low and high parameter values;
 		read_rmin_class(elements, get_n_body(), index_among_defined, mode);
 		check_mode(mode);
@@ -291,7 +289,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			total_symmetric_tabulated++;
 			defined_to_symtab_intrxn_index_map[index_among_defined] = total_symmetric_tabulated;
 		}
-	std::getline(range_in, line);		
+	std::getline(range_in, line);
     }
     n_to_force_match = total_to_fm;
     n_force = total_to_fm - total_symmetric;
@@ -355,8 +353,10 @@ inline void extract_types_and_range(std::string* elements, const InteractionClas
 		
 inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name)
 {
-	for (int j = 0; j < n_body; j++) {
+  printf("nbody = %d\n",n_body);fflush(stdout);
+    for (int j = 0; j < n_body; j++) {
     	types[j] = match_type(elements[j], name, n_types);
+	printf("types[j] = %d\n",types[j]);fflush(stdout);
         if( types[j] == -1) {
         	fprintf(stderr, "Unrecognized type %s!\n", elements[j].c_str());
         	fflush(stderr);
@@ -619,7 +619,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     std::ifstream nonbonded_range_in, bonded_range_in;
     std::ifstream density_range_in, rg_range_in, one_body_range_in;
     
-   	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
+   	check_and_open_in_stream(nonbonded_range_in, "rmin.in");
 	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
 
     if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(density_range_in, "rmin_den.in"); 
