@@ -11,10 +11,10 @@ GMXPATH = $(HOME)/local/lib
 GMXINC = $(HOME)/local/include
 OPT = -O2 -std=c++11
 
-LIBS         = -lm -lgsl -lxdrfile -llapack -lcblas
+LIBS         = -lm -lgsl -lxdrfile -llapack -lgslcblas
 LDFLAGS      = $(OPT) -L$(GMXPATH) -L$(GSLPATH) -L$(LAPACKPATH)
 CFLAGS	     = $(OPT) -I$(GSLINC) -I$(GMXINC) -I$(LAPACKINC)
-NO_GRO_LIBS  = -lm -lgsl -llapack -lcblas
+NO_GRO_LIBS  = -lm -lgsl -llapack -lgslcblas
 NO_GRO_LDFLAGS = $(OPT) -L$(GSLPATH) -L$(LAPACKPATH)
 NO_GRO_CFLAGS  = $(OPT) -I$(GSLINC) -I$(LAPACKINC)
 CC           = icc
