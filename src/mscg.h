@@ -69,3 +69,6 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in);
 
 // Prototype function definition for functions called internal to this file
 void finish_fix_reading(FrameSource *const frame_source);
+
+int get_n_frames(void* void_in);
+int get_block_size(void* void_in);
