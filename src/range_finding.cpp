@@ -692,7 +692,7 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       double normalized_counts = counts / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
-      normalized_counts /= control_input->n_frmaes;
+      //      normalized_counts /= control_input->n_frmaes;
       icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
@@ -702,6 +702,7 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
 	{
           int first_nonzero_basis_index;
           fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+	  double normalized_counts = counts;
           icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
           mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
           mat->accumulate_target_force_element(mat, counter, &normalized_counts);

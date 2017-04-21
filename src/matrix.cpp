@@ -36,6 +36,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 void determine_matrix_columns_and_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg, int const frames_per_traj_block, int const pressure_constraint_flag);
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void log_n_basis_functions(InteractionClassSpec &ispec);
+void determine_BI_matrix_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 
 // Matrix reset routines
 
@@ -820,9 +821,9 @@ void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   determine_BI_matrix_rows(mat, cg);
   //might need to free these first
 
-  delete [] dense_fm_rhs_vector;
-  delete [] dense_fm_normal_rhs_vector;
-  delete [] fm_solution;
+  delete [] mat->dense_fm_rhs_vector;
+  delete [] mat->dense_fm_normal_rhs_vector;
+  mat->fm_solution.resize(mat->fm_matrix_columns);
 
   mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
   mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
@@ -4052,14 +4053,14 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 }
 
 
-void determine_BI_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
+void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
 {
   int num_entries = 0;
     std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction,
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->output_binwidth);
+      num_entries += (int)(((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->output_binwidth);
     }
   }
   mat->fm_matrix_rows = num_entries;
