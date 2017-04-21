@@ -222,7 +222,7 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	}		
 
 	std::getline(range_in, line);
-	while(range_in.good == 1) {
+	while(range_in.good() == 1) {
 	
 		// Check that this line has enough fields.
 		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) {	//allow for trailing white space

@@ -22,6 +22,7 @@ struct ControlInputs;
 
 typedef void (*accumulate_forces)(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 
 //-------------------------------------------------------------
 // Matrix-equation-related type definitions

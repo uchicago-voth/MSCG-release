@@ -49,6 +49,8 @@ void write_one_body_iclass_range_specifications(InteractionClassComputer* const 
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
 
 void read_density_parameter_file(DensityClassSpec* const ispec);
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg);
+void read_one_param_dist_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter);
 
 // Output parameter distribution functions
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
@@ -640,14 +642,12 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 }
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat)
-{
-  
-  initialize_BI_matrix(&mat,&cg);
+{  
+  initialize_BI_matrix(mat, cg);
 
-  read_interaction_file_and_build_matrix(&mat,&cg,&counter);
+  read_interaction_file_and_build_matrix(mat, cg);
 
-  finish_fm(&mat);
-
+  mat->finish_fm(mat);
 }
 
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
@@ -658,42 +658,41 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction,
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      read_one_param_dist_file(icomp, mat, i, &counter);
+      read_one_param_dist_file((*icomp_iterator), cg->name, mat, i, counter);
     }
-  }
-
-  
+  }  
 }
 
-
-void read_one_param_dist_file(InteractionClassComputer* const icomp, MATRIX_DATA* mat, const int index_among_defined_intrxns, int * counter)
+void read_one_param_dist_file(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter)
 {
   std::string basename;
-  if(icomp-ispec->clss_type == kDensity)
+  if(icomp->ispec->class_type == kDensity)
     {
       DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-      basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+      basename = ispec->get_interaction_name(ispec->density_group_names, index_among_defined_intrxns, "_");
     }
   else
     {
       basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
     }
 
-  std::string filename = interaction_name + ".hist";
+  std::string filename = basename + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
-  int i;
+  int i, counts;
   double PI = 3.1415926;
   double r;
-  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[i];
-  for(i = 0;i < (int)((upper_cutoff - low_cutoff)/output_binwidth); i++)
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->output_binwidth);
+  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+  for(i = 0; i < num_entries; i++)
     {
-      fscanf(curr_dist_input_file,"%lf %lf\n",r,counts);
-      normalized_counts = counts / (4.0*PI*(r*r*r - (r-output_binwidth)*(r-output_binwidth)*(r-output_binwidth))/3.0);
+      int first_nonzero_basis_index;
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      double normalized_counts = counts / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
       icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-      accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, counter, derivatives, &mat);
-      accumulate_target_force_element(&mat, counter, normalized_counts)
-      counter += 1;
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
+      mat->accumulate_target_force_element(mat, counter, &normalized_counts);
+      counter++;
     }
 }
   
