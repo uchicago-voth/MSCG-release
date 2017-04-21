@@ -101,4 +101,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: newfm_no_gro.x rangefinder_no_gro.x combinefm_no_gro.x libmscg.a
+all: libmscg.a newfm_no_gro.x rangefinder_no_gro.x combinefm_no_gro.x
