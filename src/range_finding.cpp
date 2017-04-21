@@ -642,7 +642,8 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 }
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat)
-{  
+{
+  
   initialize_BI_matrix(mat, cg);
 
   read_interaction_file_and_build_matrix(mat, cg);
@@ -686,13 +687,26 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   for(i = 0; i < num_entries; i++)
     {
+      if (icomp->ispec->get_char_id() == 'n')
+	{
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       double normalized_counts = counts / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
+      normalized_counts /= control_input->n_frmaes;
       icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
       counter++;
+	}
+      else
+	{
+          int first_nonzero_basis_index;
+          fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+          icomp->table_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+          mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, 0, &counter, derivatives, mat);
+          mat->accumulate_target_force_element(mat, counter, &normalized_counts);
+          counter++;
+	}
     }
 }
   
