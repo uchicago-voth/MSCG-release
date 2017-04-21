@@ -6,7 +6,47 @@
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
 
+// This file provides the library interface to the multi-scale coarse-graining (MS-CG)
+// code, which is also referred to as the force matching (FM) code. 
+// The order in which functions are intended to be called for FM is the following:
+// mscg_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// mscg_startup_part2
+// mscg_process_frame for each frame
+// mscg_solve_and output.
+// Additional functions are provided for updating or modifying certain information
+// after the data is initially set using one of the functions before or during 
+// mscg_startup_part2.
+
+// The order in which functions are intended to be called for range finding is the following:
+// rangefinder_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// rangefinder_startup_part2
+// rangefinder_process_frame for each frame
+// rangefinder_solve_and output.
+
 #include "mscg.h"
+
+// Prototype function definition for functions called internal to this file
+void finish_fix_reading(FrameSource *const frame_source);
+
+// Data structure holding all MSCG information.
+// It is passed to the driver function (LAMMPS fix) as an opaque pointer.
+struct MSCG_struct {
+	int curr_frame;
+	int nblocks;
+	int trajectory_block_frame_index;
+	int traj_frame_num;
+	double start_cputime;
+	FrameSource *frame_source;      // Trajectory frame data
+    CG_MODEL_DATA *cg;  			// CG model parameters and data
+    ControlInputs *control_input;	// Input settings read from control.in
+    MATRIX_DATA *mat;				// Matrix storage structure
+};
 
 // This function starts the MSCG process by allocating memory for the mscg_struct
 // and reading information from the control.in file.
@@ -1024,3 +1064,16 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
 	return (void*)(mscg_struct);
 }
 
+// Returns the n_frames parameter
+int get_n_frames(void* void_in)
+{
+  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+  return mscg_struct->control_input->n_frames;
+}
+
+// Returns the block_size parameter
+int get_block_size(void* void_in)
+{
+  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+  return mscg_struct->control_input->frames_per_traj_block;
+}
