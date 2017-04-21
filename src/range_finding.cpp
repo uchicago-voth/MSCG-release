@@ -333,11 +333,11 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
 	if (icomp->ispec->output_parameter_distribution == 1) {
 		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
 			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
-		} else if ( (icomp->ispec->class_type == kR13Bonded || icomp->ispec->class_type == kR14Bonded || icomp->ispec->class_type == kR15Bonded) &&
-					icomp->ispec->class_subtype == 0) {
-			// do nothing
-		} else if (param < icomp->ispec->cutoff) {
+		} else if( (icomp->ispec->class_type == kPairNonbonded) && (param < icomp->ispec->cutoff)) {
 		 	fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		} else if( (icomp->ispec->class_type == kR13Bonded || icomp->ispec->class_type == kR14Bonded || icomp->ispec->class_type == kR15Bonded) &&
+					icomp->ispec->class_subtype == 1) {
+			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 		}
 	}
 }
