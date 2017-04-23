@@ -247,7 +247,7 @@ void* mscg_startup_part2(void* void_in)
 void* rangefinder_startup_part2(void* void_in)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	int total_frame_samples = mscg_struct->control_input->n_frames;
+    int total_frame_samples = mscg_struct->control_input->n_frames;
 	int n_blocks = 0;
 
     // Read the range files rmin.in and rmax.in to determine which
@@ -603,13 +603,10 @@ void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_type
 	assert(n_cg_sites > 0);	
 	
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	FrameSource *p_frame_source = mscg_struct->frame_source;
-
-	FrameConfig* p_frame_config = new FrameConfig(n_cg_sites);
-	p_frame_source->frame_config = p_frame_config;
+	mscg_struct->frame_source->frame_config = new FrameConfig(n_cg_sites);
 	
 	// Set number of sites types.
-	p_frame_source->frame_config->cg_site_types = cg_site_types;
+	mscg_struct->frame_source->frame_config->cg_site_types = cg_site_types;
 	
 	// Set box size.
 	for (int i = 0; i < 3; i++) mscg_struct->frame_source->frame_config->simulation_box_half_lengths[i] = (real)(box_half_lengths[i]);
@@ -769,7 +766,7 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 		delete [] tb_k;
 	}
 	
-    void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
+	void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
 	mscg_struct = (MSCG_struct*)(void_in);
 	mscg_struct->cg->topo_data.cg_site_types = mscg_struct->frame_source->frame_config->cg_site_types;
 
