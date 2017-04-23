@@ -12,15 +12,6 @@ dihedral_style  none
 
 pair_coeff * *
 
-fix 1 all mscg 1 range on name MeOH
+fix 1 all mscg 1 name MeMe
 
 rerun MeOH_example.dat first 0 last 2000000 every 1 dump x y z box yes
-
-
-
-
-
-
-
-
-

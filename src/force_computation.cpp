@@ -530,7 +530,8 @@ void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
             l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
             j = topo_data.dihedral_list->partners_[k][3 * kk];
             i = topo_data.dihedral_list->partners_[k][3 * kk + 1];
-            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            printf("R14: k %d, l %d\n", k, l); fflush(stdout);
+            if ((k < l) && (l <= 3)) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
     }
 }
