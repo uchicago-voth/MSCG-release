@@ -58,9 +58,7 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->start_cputime = clock();	
 	
 	mscg_struct->frame_source = new FrameSource;
-    
     FrameSource *p_frame_source = mscg_struct->frame_source;
-    ControlInputs *p_control_input = mscg_struct->control_input;
     
     //----------------------------------------------------------------
     // Set up the force matching procedure
@@ -74,10 +72,11 @@ void* mscg_startup_part1(void* void_in)
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     mscg_struct->control_input = new ControlInputs;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
-    
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
-    
+	    
     if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
     	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
 		exit(EXIT_FAILURE);
@@ -98,8 +97,10 @@ void* rangefinder_startup_part1(void* void_in)
         printf("Rangefinder does not support three body nonbonded interaction ranges.\n");
         exit(EXIT_FAILURE);
     }
+
     mscg_struct->control_input->bootstrapping_flag = 0;
     mscg_struct->frame_source->bootstrapping_flag = 0;
+
     return void_in;
 }
 
