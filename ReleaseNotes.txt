@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 1.6.3 (April 23, 2017)
+	* Simplify and update makefiles (g++ and intel compiliers)
+	* Update README_lammps.txt
+	* Rearrange code in mscg.cpp for fix mscg
+	* Create fix_lammps_fm example for use of the fix mscg feaure in LAMMPS
+	
 Version 1.6.2 (April 20, 2017)
 	* Added a simple makefile for library and no Gromacs (only GSL and LAPACK dependencies)
 	* Update "all" option for makefiles

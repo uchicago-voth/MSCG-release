@@ -58,9 +58,7 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->start_cputime = clock();	
 	
 	mscg_struct->frame_source = new FrameSource;
-    
     FrameSource *p_frame_source = mscg_struct->frame_source;
-    ControlInputs *p_control_input = mscg_struct->control_input;
     
     //----------------------------------------------------------------
     // Set up the force matching procedure
@@ -74,10 +72,11 @@ void* mscg_startup_part1(void* void_in)
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     mscg_struct->control_input = new ControlInputs;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
-    
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
-    
+	    
 	return (void*)(mscg_struct);
 }
     
@@ -93,8 +92,10 @@ void* rangefinder_startup_part1(void* void_in)
         printf("Rangefinder does not support three body nonbonded interaction ranges.\n");
         exit(EXIT_FAILURE);
     }
+
     mscg_struct->control_input->bootstrapping_flag = 0;
     mscg_struct->frame_source->bootstrapping_flag = 0;
+
     return void_in;
 }
 
@@ -235,7 +236,7 @@ void* mscg_startup_part2(void* void_in)
 void* rangefinder_startup_part2(void* void_in)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	int total_frame_samples = mscg_struct->control_input->n_frames;
+    int total_frame_samples = mscg_struct->control_input->n_frames;
 	int n_blocks = 0;
 
     // Read the range files rmin.in and rmax.in to determine which
@@ -299,7 +300,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
-    
+
 	// Convert 1D x and f arrays into rvec array
 	FrameConfig* p_frame_config = p_frame_source->frame_config;
 	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
@@ -321,7 +322,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
         }
         three_body_cell_list.init(max_cutoff, p_frame_source);
     }
-    
+
     // The trajectory_block_frame_index is incremented for each frame-sample processed.
     // When this index reaches the block size (frames_per_traj_block),
     // The end-of-frame-block routines are called.
@@ -381,7 +382,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
 	p_frame_source->current_frame_n++;
 	mscg_struct->traj_frame_num = traj_frame_num;
 	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
-	
+    
 	return (void*)(mscg_struct);
 }
 
@@ -394,7 +395,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
-    
+
 	// Convert 1D x and f arrays into rvec array
 	FrameConfig* p_frame_config = p_frame_source->frame_config;
 	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
@@ -475,7 +476,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 	p_frame_source->current_frame_n++;
 	mscg_struct->traj_frame_num = traj_frame_num;
 	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
-	
+    
 	return (void*)(mscg_struct);
 }
 
@@ -562,6 +563,7 @@ void* rangefinder_solve_and_output(void* void_in)
      // Free the space used to build the force-matching matrix that is
     // not necessary for the interaction range outputs.
   	printf("Ending range finding.\n");
+    
     printf("Writing final output.\n");
     write_range_files(mscg_struct->cg, mscg_struct->mat);
   	if (mscg_struct->frame_source->bootstrapping_flag == 1) {
@@ -590,13 +592,10 @@ void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_type
 	assert(n_cg_sites > 0);	
 	
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	FrameSource *p_frame_source = mscg_struct->frame_source;
-
-	FrameConfig* p_frame_config = new FrameConfig(n_cg_sites);
-	p_frame_source->frame_config = p_frame_config;
+	mscg_struct->frame_source->frame_config = new FrameConfig(n_cg_sites);
 	
 	// Set number of sites types.
-	p_frame_source->frame_config->cg_site_types = cg_site_types;
+	mscg_struct->frame_source->frame_config->cg_site_types = cg_site_types;
 	
 	// Set box size.
 	for (int i = 0; i < 3; i++) mscg_struct->frame_source->frame_config->simulation_box_half_lengths[i] = (real)(box_half_lengths[i]);
@@ -697,8 +696,10 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
     
     // Process three-body nonbonded interaction information, if appropriate.
     if (p_cg->three_body_nonbonded_interactions.class_subtype > 0) {
-    	FILE* top_in = fopen("top.fix", "r");
-		char buff[100], parameter_name[50];
+    	std::ifstream top_in;
+    	check_and_open_in_stream(top_in, "top.in");
+		std::string buff;
+		char parameter_name[50];
 		int line = 0;
 		unsigned tbtype, i;
 		int* tb_i;
@@ -706,9 +707,8 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 		int* tb_k;
 
 		// Check that label matches three body flag.
-		fgets(buff, 100, top_in);
-		line++;
-		sscanf(buff, "%s%d", parameter_name, &tbtype);
+		check_and_read_next_line(top_in, buff, line);
+		sscanf(buff.c_str(), "%s%d", parameter_name, &tbtype);
 		if (strcmp(parameter_name, "threebody") != 0) {
 			printf("Error: Expected threebody label instead of %s on line %d of top.fix file.\n", parameter_name, line);
 			exit(EXIT_FAILURE);
@@ -724,9 +724,8 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 	
 		// Read interaction specifications.
 		for (i = 0; i < tbtype; i++) {
-			fgets(buff, 100, top_in);
-			line++;
-			sscanf(buff, "%d%d%d%lf%lf", tb_i + i, tb_j + i, tb_k + i, p_cg->three_body_nonbonded_interactions.stillinger_weber_angle_parameters_by_type + i, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs + i);
+			check_and_read_next_line(top_in, buff, line);
+			sscanf(buff.c_str(), "%d%d%d%lf%lf", tb_i + i, tb_j + i, tb_k + i, p_cg->three_body_nonbonded_interactions.stillinger_weber_angle_parameters_by_type + i, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs + i);
 			tb_i[i]--;
 			tb_j[i]--;
 			tb_k[i]--;
@@ -756,7 +755,7 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 		delete [] tb_k;
 	}
 	
-    void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
+	void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
 	mscg_struct = (MSCG_struct*)(void_in);
 	mscg_struct->cg->topo_data.cg_site_types = mscg_struct->frame_source->frame_config->cg_site_types;
 
