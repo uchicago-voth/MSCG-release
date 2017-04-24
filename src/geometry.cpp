@@ -409,7 +409,6 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
 {
     // Find the relevant displacements for defining the angle.
     std::array<double, DIMENSION> disp03, disp23, disp12;
-    printf("dihedral ids %d, %d, %d, %d\n", particle_ids[0], particle_ids[1], particle_ids[2], particle_ids[3]); fflush(stdout);
     int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
     int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
     int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
