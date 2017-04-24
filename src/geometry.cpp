@@ -202,19 +202,19 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
 bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, DIMENSION> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    int particle_ids_03[2] = {particle_ids[0], particle_ids[3]};
     int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    int particle_ids_12[2] = {particle_ids[1], particle_ids[2]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
     // Calculate the angle, which requires many intermediates.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    cross_product(disp03, disp23, pb);
+    cross_product(disp12, disp23, pc);
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -224,20 +224,20 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     
     double pbpc = dot_product(pb, pc);
     double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+    //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
+	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
     check_sine(s);
     param_val = atan2(s, c) * DEGREES_PER_RADIAN;
     
     // Calculate the derivatives
-    double dot02_23 = dot_product(disp02, disp23);
-    double dot13_23 = dot_product(disp13, disp23);
+    double dot03_23 = dot_product(disp03, disp23);
+    double dot12_23 = dot_product(disp12, disp23);
     
 	for (unsigned i = 0; i < DIMENSION; i++) {
 		derivatives[0][i] = - pb[i] * rrbc / pb2;
 		derivatives[1][i] =   pc[i] * rrbc / pc2;
-		derivatives[2][i] =  (pb[i] * dot02_23 * rrbc / pb2) \
-						   - (pc[i] * dot13_23 * rrbc / pc2) \
+		derivatives[2][i] =  (pb[i] * dot03_23 * rrbc / pb2) \
+						   - (pc[i] * dot12_23 * rrbc / pc2) \
 						   - derivatives[0][i];
 	}
     return true;
@@ -408,19 +408,20 @@ void calc_angle(const int* particle_ids, const std::array<double, DIMENSION>* co
 void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, DIMENSION> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    printf("dihedral ids %d, %d, %d, %d\n", particle_ids[0], particle_ids[1], particle_ids[2], particle_ids[3]); fflush(stdout);
+    int particle_ids_03[2] = {particle_ids[0], particle_ids[3]};
     int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    int particle_ids_12[2] = {particle_ids[1], particle_ids[2]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
     // Calculate the angle, which requires many intermediates.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    cross_product(disp03, disp23, pb);
+    cross_product(disp12, disp23, pc);
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -430,8 +431,8 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     
     double pbpc = dot_product(pb, pc);
     double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+    //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
+	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
 	check_sine(s);
     param_val = atan2(s, c) * DEGREES_PER_RADIAN;
 }
