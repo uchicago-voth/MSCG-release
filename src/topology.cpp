@@ -894,7 +894,7 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
 			}
 		}
 		// set actual number of quints for this site
-		mol->dihedral_list->partner_numbers_[i] = n_quints;
+		mol->quint_list->partner_numbers_[i] = n_quints;
     }
 }
 
