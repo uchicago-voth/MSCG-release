@@ -240,10 +240,9 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 	    
     // Calculate the derivatives
     double dot03_23 = dot_product(disp03, disp23);
-    double dot03_12 = dot_product(disp03, disp12);
+    //double dot03_12 = dot_product(disp03, disp12);
     double dot12_23 = dot_product(disp12, disp23);
     double r23_2    = dot_product(disp23, disp23);
-    double r23		= sqrt(r23_2);
     
     std::array<double, DIMENSION> bond1_not_proj_bond2;
     std::array<double, DIMENSION> bond3_not_proj_bond2;
@@ -251,25 +250,22 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		bond1_not_proj_bond2[i] = disp03[i] - disp23[i] * dot03_23 / r23_2;
 		bond3_not_proj_bond2[i] = disp12[i] - disp23[i] * dot12_23 / r23_2;
 	}
-	
+		
 	std::array<double, DIMENSION> dtf,dtg,dth; 
     // derivative with respect to the first particle
-	for (unsigned i = 0; i < DIMENSION; i++) {
-		double first = pb[i] * bond1_not_proj_bond2[i];
-		double last  = pc[i] * bond3_not_proj_bond2[i];
-		derivatives[0][i] = first; // first normal times projection of bond onto it
-		derivatives[1][i] = last; //second normal times projection of bond onto it
-		derivatives[2][i] = (disp23[i] / r23) * (dot03_23 / r23_2) * first
-						                + (1.0 + dot12_23 / r23_2) * last;
-
-		dtf[i] = - pb[i] * rrbc / pb2;
-		dtg[i] = - dtf[i] * (pb[i] - pc[i]);
-		dth[i] = pc[i] * rrbc / pc2;
+	for (unsigned i = 0; i < DIMENSION; i++) {		
+		dtf[i] = pb[i] / (rrbc * pb2);				                
+		dtg[i] = dtf[i] * (pb[i] - pc[i]);
+		dth[i] = - pc[i] / (rrbc * pc2);
+		
+		derivatives[0][i] = dtf[i]; // first normal times projection of bond onto it
+		derivatives[1][i] = dth[i]; //second normal times projection of bond onto it
+		derivatives[2][i] = - dtg[i] - dth[i];
 	}
 	
-	//derivatives[0][i] = dtf;	     // This is LAMMPS dtf (first particle)
-	//derivatives[1][i] = dth;	     // This is LAMMPS dth (last particle)
-	//derivatives[2][i] = - dtg - dth; // The derivative of the 3rd particle is - dtg - dth = - s2 - f4 in LAMMPS
+	for (unsigned j = 0; j < 3; j++) {
+		printf("%d: %lf, %lf, %lf\n", particle_ids[j], derivatives[j][0], derivatives[j][1], derivatives[j][2]);
+	}
 
     return true;
 }
