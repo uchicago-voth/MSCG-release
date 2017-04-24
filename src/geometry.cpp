@@ -210,7 +210,9 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
     subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
     cross_product(disp03, disp23, pb);
@@ -416,7 +418,9 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
     subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
     cross_product(disp03, disp23, pb);
