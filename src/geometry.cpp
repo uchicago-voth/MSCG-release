@@ -226,13 +226,13 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    check_cos(c);
-    double theta = acos(c);
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta);
     
 	// This variable is only used to determine the sign of the angle
-	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	if (s > 0.0) { 
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
 		param_val = - theta;
 	} else {
 		param_val = theta;
@@ -240,7 +240,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 	    
     // Calculate the derivatives
     double dot03_23 = dot_product(disp03, disp23);
-    //double dot03_12 = dot_product(disp03, disp12);
+    double dot03_12 = dot_product(disp03, disp12);
     double dot12_23 = dot_product(disp12, disp23);
     double r23_2    = dot_product(disp23, disp23);
     double r23		= sqrt(r23_2);
@@ -252,6 +252,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		bond3_not_proj_bond2[i] = disp12[i] - disp23[i] * dot12_23 / r23_2;
 	}
 	
+	std::array<double, DIMENSION> dtf,dtg,dth; 
     // derivative with respect to the first particle
 	for (unsigned i = 0; i < DIMENSION; i++) {
 		double first = pb[i] * bond1_not_proj_bond2[i];
@@ -260,14 +261,16 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		derivatives[1][i] = last; //second normal times projection of bond onto it
 		derivatives[2][i] = (disp23[i] / r23) * (dot03_23 / r23_2) * first
 						                + (1.0 + dot12_23 / r23_2) * last;
-							
-		//double dtf = - pb[i] * rrbc / pb2;
-		//double dtg = - dtf * (pb[i] - pc[i]);
-		//double dth = pc[i] * rrbc / pc2;
-		//derivatives[0][i] = dtf;	     // This is LAMMPS dtf (first particle)
-		//derivatives[1][i] = dth;	     // This is LAMMPS dth (last particle)
-		//derivatives[2][i] = - dtg - dth; // The derivative of the 3rd particle is - dtg - dth = - s2 - f4 in LAMMPS
+
+		dtf[i] = - pb[i] * rrbc / pb2;
+		dtg[i] = - dtf[i] * (pb[i] - pc[i]);
+		dth[i] = pc[i] * rrbc / pc2;
 	}
+	
+	//derivatives[0][i] = dtf;	     // This is LAMMPS dtf (first particle)
+	//derivatives[1][i] = dth;	     // This is LAMMPS dth (last particle)
+	//derivatives[2][i] = - dtg - dth; // The derivative of the 3rd particle is - dtg - dth = - s2 - f4 in LAMMPS
+
     return true;
 }
 
@@ -460,13 +463,13 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    check_cos(c);
-	double theta = acos(c) * DEGREES_PER_RADIAN;
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta);
     
 	// This variable is only used to determine the sign of the angle
-	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	if (s > 0.0) { 
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
 		param_val = - theta;
 	} else {
 		param_val = theta;
