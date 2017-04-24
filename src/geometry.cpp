@@ -215,8 +215,8 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp03, disp23, pb);
-    cross_product(disp12, disp23, pc);
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -226,11 +226,17 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     
     double pbpc = dot_product(pb, pc);
     double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-    check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    check_cos(c);
+    double theta = acos(c);
     
+	// This variable is only used to determine the sign of the angle
+	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (s > 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}
+	    
     // Calculate the derivatives
     double dot03_23 = dot_product(disp03, disp23);
     double dot12_23 = dot_product(disp12, disp23);
@@ -423,8 +429,8 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp03, disp23, pb);
-    cross_product(disp12, disp23, pc);
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -434,10 +440,17 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     
     double pbpc = dot_product(pb, pc);
     double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    check_cos(c);
+	double theta = acos(c) * DEGREES_PER_RADIAN;
+    
+	// This variable is only used to determine the sign of the angle
+	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (s > 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}
+    	
 }
 
 void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val)
