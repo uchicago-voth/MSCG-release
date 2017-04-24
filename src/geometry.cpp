@@ -192,19 +192,21 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, const r
 bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, 3>* &derivatives)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, 3> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
-    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
+    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
-    std::array<double, 3> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    std::array<double, DIMENSION> pb, pc, cross_bc;
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -213,22 +215,32 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-    check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta);
     
+	// This variable is only used to determine the sign of the angle
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}
+	    
     // Calculate the derivatives
-    double dot02_23 = dot_product(disp02, disp23);
-    double dot13_23 = dot_product(disp13, disp23);
-    
-	for (unsigned i = 0; i < 3; i++) {
-		derivatives[0][i] = - pb[i] * rrbc / pb2;
-		derivatives[1][i] =   pc[i] * rrbc / pc2;
-		derivatives[2][i] =  (pb[i] * dot02_23 * rrbc / pb2) \
-						   - (pc[i] * dot13_23 * rrbc / pc2) \
-						   - derivatives[0][i];
+    double dot03_23 = dot_product(disp03, disp23);
+    double dot12_23 = dot_product(disp12, disp23);
+    double r23_2    = dot_product(disp23, disp23);
+    double fcoef = dot03_23 / r23_2;
+	double hcoef = 1.0 + dot12_23 / r23_2; 
+	double dtf,dth;
+	for (unsigned i = 0; i < DIMENSION; i++) {		
+		dtf = pb[i] / (rrbc * pb2);				                
+		dth = - pc[i] / (rrbc * pc2);
+		
+		derivatives[0][i] = dtf; // first normal times projection of bond onto it
+		derivatives[1][i] = dth; //second normal times projection of bond onto it
+		derivatives[2][i] = - dtf * fcoef - dth * hcoef;
 	}
     return true;
 }
@@ -289,19 +301,21 @@ void calc_angle(const int* particle_ids, const rvec* &particle_positions, const 
 void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, 3> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
-    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
+    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
-    std::array<double, 3> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    std::array<double, DIMENSION> pb, pc, cross_bc;
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -311,10 +325,16 @@ void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, con
     
     double pbpc = dot_product(pb, pc);
     double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    check_cos(c);
+	double theta = acos(c) * DEGREES_PER_RADIAN;
+    
+	// This variable is only used to determine the sign of the angle
+	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (s > 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}
 }
 
 inline void check_sine(double &s)

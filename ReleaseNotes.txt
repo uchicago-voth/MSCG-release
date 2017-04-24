@@ -1,6 +1,9 @@
 Release Notes
 =============
 
+Version 1.6.4 (April 24, 2017)
+	* Rewrite dihedral calculations
+	
 Version 1.6.3 (April 23, 2017)
 	* Simplify and update makefiles (g++ and intel compiliers)
 	* Update README_lammps.txt
