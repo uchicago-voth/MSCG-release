@@ -227,7 +227,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
 	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
     check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    param_val = acos(c) * DEGREES_PER_RADIAN;
     
     // Calculate the derivatives
     double dot03_23 = dot_product(disp03, disp23);
@@ -434,7 +434,7 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     //double s = dot_product( disp03, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
 	double s = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
 	check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    param_val = acos(c) * DEGREES_PER_RADIAN;
 }
 
 void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val)
