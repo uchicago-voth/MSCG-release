@@ -242,11 +242,12 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double dot12_23 = dot_product(disp12, disp23);
     
 	for (unsigned i = 0; i < DIMENSION; i++) {
-		derivatives[0][i] = - pb[i] * rrbc / pb2;
-		derivatives[1][i] =   pc[i] * rrbc / pc2;
-		derivatives[2][i] =  (pb[i] * dot03_23 * rrbc / pb2) \
-						   - (pc[i] * dot12_23 * rrbc / pc2) \
-						   - derivatives[0][i];
+		double dtf = - pb[i] * rrbc / pb2;
+		double dtg = - dtf * (pb[i] - pc[i]);
+		double dth = pc[i] * rrbc / pc2;
+		derivatives[0][i] = dtf;	     // This is LAMMPS dtf (first particle)
+		derivatives[1][i] = dth;	     // This is LAMMPS dth (last particle)
+		derivatives[2][i] = - dtg - dth; // The derivative of the 3rd particle is - dtg - dth = - s2 - f4 in LAMMPS
 	}
     return true;
 }
