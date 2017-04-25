@@ -488,7 +488,7 @@ void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
         }
         // Now, round down the lower cutoff so that there is an integer number of a bin.
         lower_cutoffs[i] = upper_cutoffs[i] - floor( ((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 0.5 ) * fm_binwidth;
-        if (lower_cutoffs[i] < 0.0) lower_cutoffs[i] = 0.0;
+        if ((class_type != kDihedralBonded) && (lower_cutoffs[i] < 0.0)) lower_cutoffs[i] = 0.0;
     } else if (basis_type == kDelta) {
     	// Nothing to be done here.
     }
