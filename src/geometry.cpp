@@ -228,7 +228,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double pbpc = dot_product(pb, pc);
     double cos_theta = pbpc * rpb1 * rpc1;
     check_cos(cos_theta);
-    double theta = acos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
     
 	// This variable is only used to determine the sign of the angle
 	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
@@ -447,7 +447,7 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     double pbpc = dot_product(pb, pc);
     double cos_theta = pbpc * rpb1 * rpc1;
     check_cos(cos_theta);
-    double theta = acos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
     
 	// This variable is only used to determine the sign of the angle
 	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
@@ -455,8 +455,7 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
 		param_val = - theta;
 	} else {
 		param_val = theta;
-	}
-    	
+	}    	
 }
 
 void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val)
