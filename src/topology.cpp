@@ -861,33 +861,39 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     
     // Set-up quint list by connecting angles with angles that do not go "back" on themselves
     // Loop over CG sites in the molecule
+    int cg_site5;
     for (i = 0; i < mol->n_cg_sites; i++) {
+    	cg_site1 = i; // i is the first particle
     	int n_quints = 0;
     	int hash;
         // Loop over angles involving that CG site.
         for (j = 0; j < mol->angle_list->partner_numbers_[i]; j++) {
-        	// Then look at angles involving that site (j).
+        	// Then look at angles involving that partner (j).
+        	cg_site2 = mol->angle_list->partners_[i][2 * j    ]; // The sites in this angle are mol->angle_list->partner_[i][2 * j] 
+        	cg_site3 = mol->angle_list->partners_[i][2 * j + 1]; //                         and mol->angle_list->partner_[i][2 * j + 1].
 			for (unsigned k = 0; k < mol->angle_list->partner_numbers_[mol->angle_list->partners_[i][2 * j + 1]]; k++) {
 				// Make sure that this angle is not folding back on the first angle
+				cg_site4 = mol->angle_list->partners_[cg_site3][2 * k];
+				cg_site5 = mol->angle_list->partners_[cg_site3][2 * k + 1]; 
 				// // The end of the 2nd angle can not match a site in the 1st angle.
-				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1] == i) continue;
-				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1] == mol->angle_list->partners_[i][2 * j]) continue;
+				if (cg_site5 == cg_site1) continue;
+				if (cg_site5 == cg_site2) continue;
 				// // The middle of the 2nd angle can not match a site in the 1st angle.
-				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j]][2 * k] == i) continue;
-				if (mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j]][2 * k] == mol->angle_list->partners_[i][2 * j]) continue;
+				if (cg_site4 == cg_site1) continue;
+				if (cg_site4 == cg_site2) continue;
 				
 				// Add this quint to this partner list
-				mol->quint_list->partners_[i][4 * n_quints] = mol->angle_list->partners_[i][2 * j];
-				mol->quint_list->partners_[i][4 * n_quints + 1] = mol->angle_list->partners_[i][2 * j + 1];
-				mol->quint_list->partners_[i][4 * n_quints + 2] = mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k];
-				mol->quint_list->partners_[i][4 * n_quints + 3] = mol->angle_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][2 * k + 1];
+				mol->quint_list->partners_[i][4 * n_quints    ] = cg_site2;
+				mol->quint_list->partners_[i][4 * n_quints + 1] = cg_site3;
+				mol->quint_list->partners_[i][4 * n_quints + 2] = cg_site4;
+				mol->quint_list->partners_[i][4 * n_quints + 3] = cg_site5;
 				
 				// Set the activation flag for this site. 
-				hash = calc_five_body_interaction_hash(mol->cg_site_types[i],
-													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints]], 
-													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 1]], 
-													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 2]], 
-													   mol->cg_site_types[mol->quint_list->partners_[i][4 * n_quints + 3]], 
+				hash = calc_five_body_interaction_hash(mol->cg_site_types[cg_site1],
+													   mol->cg_site_types[cg_site2], 
+													   mol->cg_site_types[cg_site3], 
+													   mol->cg_site_types[cg_site4], 
+													   mol->cg_site_types[cg_site5], 
 													   topo_data->n_cg_types);
 				topo_data->quint_type_activation_flags[hash] = 1;
 				n_quints++;
