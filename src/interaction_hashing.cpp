@@ -74,7 +74,7 @@ void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int>
     } else if (types.size() == 4) {
         invert_four_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2], types[3]);
     } else if (types.size() == 5) {
-        invert_five_body_interaction_hash(m, n_cg_types, types[0], types[1], types[2], types[3], types[4]);
+        invert_five_body_interaction_hash(m, n_cg_types, types[2], types[3], types[4], types[0], types[1]);
     } else {
         assert(false);
     }
@@ -177,6 +177,7 @@ int four_body_ij_hash(int i, int j, const int n_cg_types) {
     }
 }
 
+// This function is currently not used.
 // Helper function for hashing the first two types of a five type interaction.
 int five_body_ij_hash(int i, int j, const int n_cg_types) {
     assert(0 < i && i <= n_cg_types); 
@@ -264,7 +265,7 @@ int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int
 	assert(0 < l && l <= n_cg_types);
 	assert(0 < m && m <= n_cg_types);
 	
-	return calc_two_body_interaction_hash(i, m, n_cg_types);
+	return calc_two_body_interaction_hash(l, m, n_cg_types);
 /*	
     // make sure that the first site has the lower type number
     if (i > m) {
@@ -285,7 +286,10 @@ int calc_five_body_interaction_hash(int i, int j, int k, int l, int m, const int
 
 void invert_five_body_interaction_hash(const int m, const int n_cg_types, int &i, int &j, int &k, int &l, int &n)
 {
-	invert_two_body_interaction_hash(m, n_cg_types, i, n);
+	invert_two_body_interaction_hash(m, n_cg_types, l, n);
+	i = 0;
+	j = 0;
+	k = 0;
 	/*
 	int curr_max_i_hash = calc_five_body_interaction_hash(n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types, n_cg_types);
     assert(0 <= m);

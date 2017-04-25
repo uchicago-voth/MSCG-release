@@ -111,6 +111,7 @@ void InteractionClassComputer::set_up_computer(InteractionClassSpec* const ispec
 
 	process_interaction_matrix_elements = process_normal_interaction_matrix_elements;
     // Define the interaction class's geometric definition.
+    cutoff2 = ispec->cutoff * ispec->cutoff;
     class_set_up_computer();
 }
 
@@ -123,64 +124,54 @@ void OneBodyClassComputer::class_set_up_computer(void)
 
 void PairNonbondedClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = ispec->cutoff * ispec->cutoff;
-    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+	calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void PairBondedClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void AngularClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     if (ispec->class_subtype == 1) calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
     else calculate_fm_matrix_elements = calc_angular_three_body_fm_matrix_elements;
 }
 
 void DihedralClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     if (ispec->class_subtype == 1) calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
     else calculate_fm_matrix_elements = calc_dihedral_four_body_fm_matrix_elements;
 }
 
 void R13ClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void R14ClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void R15ClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void HelicalClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_helical_fm_matrix_elements;
 }
 
 void RadiusofGyrationClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_radius_of_gyration_fm_matrix_elements;
 }
 
 void DensityClassComputer::class_set_up_computer(void) 
 {
 	DensityClassSpec* iclass = static_cast<DensityClassSpec*>(ispec);
-	cutoff2 = iclass->cutoff * iclass->cutoff;
 	process_interaction_matrix_elements = process_density_matrix_elements;
 	
 	if(iclass->class_subtype == 0) return;
@@ -215,6 +206,11 @@ void DensityClassComputer::class_set_up_computer(void)
 	u_cutoff = new double[iclass->get_n_defined()];
 	f_cutoff = new double[iclass->get_n_defined()];
 	
+	for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
+		u_cutoff[ii] = 0.0;
+		f_cutoff[ii] =  0.0;
+	}
+	
 	if(iclass->class_subtype == 1) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			if (iclass->density_sigma[ii] < VERYSMALL_F) {
@@ -240,8 +236,6 @@ void DensityClassComputer::class_set_up_computer(void)
 	} else if (iclass->class_subtype == 3) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			denomenator[ii] = pow(iclass->cutoff, 4.0);
-			u_cutoff[ii] = 0.0;
-			f_cutoff[ii] =  0.0;
 		} 
 	} else if (iclass->class_subtype == 4) {
 		c0 = new double[iclass->get_n_defined()]();
@@ -252,8 +246,6 @@ void DensityClassComputer::class_set_up_computer(void)
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			double x = iclass->density_sigma[ii] * iclass->density_sigma[ii] / (iclass->cutoff * iclass->cutoff);
 			denomenator[ii] = (1 - x)*(1 - x)*(1 - x);
-			u_cutoff[ii] = 0.0;
-			f_cutoff[ii] =  0.0;
 			
 			c0[ii] = (1.0 - 3.0 * x)/ denomenator[ii];
 			c2[ii] = 6.0 * x / (cutsq * denomenator[ii]);
@@ -265,7 +257,6 @@ void DensityClassComputer::class_set_up_computer(void)
 		fflush(stdout);
 		exit(EXIT_FAILURE);
 	}
-
 }
 
 void DensityClassComputer::reset_density_array(void) 

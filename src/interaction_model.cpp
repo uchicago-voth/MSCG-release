@@ -77,6 +77,8 @@ std::string DensityClassSpec::get_interaction_name(char **type_names, const int 
 {
 	std::vector<int> types = get_interaction_types(intrxn_index_among_defined);
 	std::string namestring = std::string(type_names[types[0] - 1]);
+	unsigned size = types.size();
+	if (size == 5) size = 2; // work around for R15 quints
     for(unsigned i = 1; i < types.size(); i++) {
         namestring += delimiter + type_names[types[i] - 1];
     }
