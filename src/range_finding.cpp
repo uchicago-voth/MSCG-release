@@ -194,10 +194,10 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 			}
 		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
 					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
-					iclass->class_subtype == 0 ) {
-			// do nothing here
-		} else {
+					iclass->class_subtype == 1) {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		} else {
+			// do nothing here
 		}
 	}
 }
