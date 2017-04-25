@@ -805,8 +805,8 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
                     cg_type3 = mol->cg_site_types[cg_site3];
                     if (unsigned(cg_site3) == cg_site1) continue;
                     
-                    mol->angle_list->partners_[i][2 * n_angles]     = cg_site2;
-                    mol->angle_list->partners_[i][2 * n_angles + 1] = cg_site3;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles]     = cg_site2;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles + 1] = cg_site3;
                     n_angles++;
                     
                     hash_val = calc_three_body_interaction_hash(cg_type2, cg_type1, cg_type3, topo_data->n_cg_types);
@@ -904,7 +904,7 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
 			}
 		}
 		// set actual number of quints for this site
-		mol->quint_list->partner_numbers_[i] = n_quints;
+		mol->quint_list->partner_numbers_[cg_site1] = n_quints;
     }
 }
 
