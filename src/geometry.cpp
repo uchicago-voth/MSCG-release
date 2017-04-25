@@ -329,8 +329,8 @@ void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, con
 	double theta = acos(c) * DEGREES_PER_RADIAN;
     
 	// This variable is only used to determine the sign of the angle
-	double s = dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	if (s > 0.0) { 
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
 		param_val = - theta;
 	} else {
 		param_val = theta;
