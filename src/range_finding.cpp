@@ -638,18 +638,12 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat)
 {
-  
   initialize_BI_matrix(mat, cg);
 
-  printf("hello after init BI\n");fflush(stdout);
-
   read_interaction_file_and_build_matrix(mat, cg);
-
-    printf("hello after read interaction file\n");fflush(stdout);
-  
+  printf("going into BI solve routine\n");
   mat->finish_fm(mat);
-
-    printf("hello after solving least squares\n");fflush(stdout);
+  printf("leaving BI solve routine\n");
 }
 
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
@@ -657,10 +651,9 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
   int counter = 0;
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-    // For every defined interaction,
+    // For every defined interaction, 
     if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
       {continue;}
-    printf("%s %d\n",(*icomp_iterator)->ispec->get_table_name().c_str(),(*icomp_iterator)->ispec->get_bspline_k());fflush(stdout);
     (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
       read_one_param_dist_file((*icomp_iterator), cg->name, mat, i, counter);
@@ -670,6 +663,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
 
 void read_one_param_dist_file(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter)
 {
+  printf("index among defined = %d\n",index_among_defined_intrxns);fflush(stdout);
   std::string basename;
   if(icomp->ispec->class_type == kDensity)
     {
@@ -688,7 +682,7 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
   int *junk;
   double PI = 3.1415926;
   double r;
-  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->output_binwidth);
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
@@ -698,11 +692,9 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
 	{
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts) / (4.0*PI*(r*r*r - (r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth)*(r-icomp->ispec->output_binwidth))/3.0);
+      double normalized_counts = (double)(counts) / (4.0*PI*(r*r*r - (r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth()))/3.0);
       normalized_counts *= mat->normalization;
-      printf("before spline computer r = %lf\n",r);fflush(stdout);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-      printf("after spline computer\n");fflush(stdout);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
       counter++;
@@ -718,13 +710,11 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
           counter++;
 	}
     }
-  printf("hello after read loop\n");fflush(stdout);
 }
   
 void free_name(CG_MODEL_DATA* const cg)
 {
     // Free data after output.
-    printf("Done with output.\n"); fflush(stdout);
     for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
     delete [] cg->name;
 }

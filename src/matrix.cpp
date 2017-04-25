@@ -2698,11 +2698,11 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_
 	// The SVD routine works in two modes: first, the routine is run with a dummy workspace to
 	// determine the size of the needed workspace, then that workspace is allocated, then the
 	// routine is run again with a sufficient workspace to perform SVD.
-	dgelsd_(&fm_matrix_columns, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_columns, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 	lapack_setup_flag = lapack_temp_workspace[0];
 	delete [] lapack_temp_workspace;
 	lapack_temp_workspace = new double[lapack_setup_flag];
-	dgelsd_(&fm_matrix_columns, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_columns, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 
 	// Clean up the heap-allocated temps.
 	delete [] lapack_temp_workspace;
@@ -3407,7 +3407,26 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 void solve_BI_equation(MATRIX_DATA* const mat)
 {
   int i;
+  int j;
   double* singular_values = new double[mat->fm_matrix_columns];
+  FILE* BI_matrix;
+  FILE* BI_vector;
+  BI_matrix = fopen("BI_matrix.dat","w");
+  BI_vector = fopen("BI_vector.dat","w");
+  printf("going into matrix print routine\n");
+  for(i = 0; i < mat->fm_matrix_rows; i++){
+    for(j = 0; j < mat->fm_matrix_columns; j++){
+      //      printf("%lf ",mat->dense_fm_matrix->get_scalar(i,j));
+      fprintf(BI_matrix,"%lf ",mat->dense_fm_matrix->get_scalar(i,j));
+    }
+    fprintf(BI_matrix,"\n");
+  }
+  for(i = 0;i < mat->fm_matrix_columns;i++)
+    {
+      fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
+    }
+  
+  printf("hello\n");
   calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
   for (i = 0; i < mat->fm_matrix_columns; i++) {
     mat->fm_solution[i] = mat->dense_fm_normal_rhs_vector[i];
@@ -4065,7 +4084,7 @@ void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction,
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)(((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->output_binwidth);
+      num_entries += (int)(((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->get_fm_binwidth());
     }
   }
   mat->fm_matrix_rows = num_entries;
