@@ -217,7 +217,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double pbpc = dot_product(pb, pc);
     double cos_theta = pbpc * rpb1 * rpc1;
     check_cos(cos_theta);
-    double theta = acos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
     
 	// This variable is only used to determine the sign of the angle
 	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
