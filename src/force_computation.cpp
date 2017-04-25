@@ -530,8 +530,7 @@ void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
             l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
             j = topo_data.dihedral_list->partners_[k][3 * kk];
             i = topo_data.dihedral_list->partners_[k][3 * kk + 1];
-            printf("R14: k %d, l %d\n", k, l); fflush(stdout);
-            if ((k < l) && (l <= 3)) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
     }
 }
@@ -557,7 +556,11 @@ void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_b
             h = topo_data.quint_list->partners_[k][4 * kk];
             i = topo_data.quint_list->partners_[k][4 * kk + 1];
             j = topo_data.quint_list->partners_[k][4 * kk + 2];
-            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            printf("R15: k %d, l %d\n", k, l); fflush(stdout);
+            if (k < l) {
+            	order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            	printf("\tR15: k %d, l %d\n", k, l); fflush(stdout);
+            }
         }
     }
 }
