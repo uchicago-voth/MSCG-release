@@ -196,6 +196,9 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
 					iclass->class_subtype == 1) {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
+		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
+		    open_parameter_distribution_files_for_class(icomp, topo_data->name);
 		} else {
 			// do nothing here
 		}
@@ -517,11 +520,15 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 			generate_parameter_distribution_histogram(icomp, ispec->density_group_names);
 		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
 					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
-					iclass->class_subtype == 0 ) {
-			// do nothing for these
-		} else {
+					iclass->class_subtype == 1 ) {
+			close_parameter_distribution_files_for_class(icomp);
+			generate_parameter_distribution_histogram(icomp, name);			
+		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
+		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
 			close_parameter_distribution_files_for_class(icomp);
 			generate_parameter_distribution_histogram(icomp, name);
+		} else {
+			// do nothing for these
 		}
 	}
 }
