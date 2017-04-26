@@ -580,6 +580,10 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 		if(dspec->class_subtype == 1 || dspec->class_subtype == 4) fprintf(solution_spline_output_file, " %lf", dspec->density_sigma[index_among_defined]);
 		if(dspec->class_subtype == 2) fprintf(solution_spline_output_file, " %lf %lf", dspec->density_sigma[index_among_defined], dspec->density_switch[index_among_defined]);
 	}
+	HelicalClassSpec* hspec = dynamic_cast<HelicalClassSpec*>(ispec);
+	if(hspec != NULL) {
+		fprintf(solution_spline_output_file, " %lf %lf", hspec->r0[index_among_defined], hspec->sigma2[index_among_defined]);
+	}
 	fprintf(solution_spline_output_file, "\n");
 }
 
