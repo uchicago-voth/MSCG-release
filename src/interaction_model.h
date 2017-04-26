@@ -561,7 +561,6 @@ struct HelicalClassSpec: InteractionClassSpec {
 	}
 		
 	void determine_defined_intrxns(TopologyData *topo_data) {
-		printf("determine defined intrxns for helical interactions!\n"); fflush(stdout);
 		topo_data_ = topo_data;
         n_molecule_groups = topo_data->n_molecule_groups;
         molecule_group_names = topo_data->molecule_group_names;
