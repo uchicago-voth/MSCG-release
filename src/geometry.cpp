@@ -297,7 +297,7 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	param_val = rg2 / (double)(num_particles);	
 }
 
-void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
 {
 	std::array<double, DIMENSION>* displacement = new std::array<double, DIMENSION>[1];
 	int sub_particle_ids[2];
@@ -311,6 +311,7 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 		}
 	}
 	
+	// calculate fraction helical content and its derivative
 	for (int i = 0; i < n_helical_ids; i++) {
 		sub_particle_ids[0] = helical_ids[2 * i];
 		sub_particle_ids[1] = helical_ids[2 * i + 1];
@@ -319,10 +320,9 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 		diff = distance - r0;
 		contribution = exp( - 0.5 * diff * diff / sigma2);
 		param_val += contribution;
-
-		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
 		
-		// Accumulate this derivative as long as the first index is not the last particle in particle_ids
+		// Accumulate the derivative as long as the first index is not the last particle in particle_ids
+		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
 		if (sub_particle_ids[0] != particle_ids[n_ids - 1]) {
 			// find this index in particle_ids
 			int index = -1;
@@ -359,9 +359,9 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 				}
 			}		
 		}
-		
 	}
 	param_val /= (double)(n_helical_ids);
+
 	delete [] displacement;
 }
 
@@ -493,7 +493,7 @@ void calc_radius_of_gyration(const int* particle_ids, const std::array<double, D
 }
 
 
-void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
 {
 	int sub_particle_ids[2];
 	double distance, diff;

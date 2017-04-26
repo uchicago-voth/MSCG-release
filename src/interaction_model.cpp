@@ -122,6 +122,12 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
     
     int n_fields;
     int n_expected = 3 + get_n_body();
+    if (class_type == kOneBody) {
+    	n_expected = 1 + get_n_body();
+    } else if (class_type == kHelical) {
+    	n_expected += 2;
+    }
+    
 	std::vector<int> types(get_n_body());
 	std::string* elements = new std::string[n_expected + 1];
  	std::string line;
@@ -207,6 +213,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
     int n_expected = 3 + get_n_body();
     if (class_type == kOneBody) {
     	n_expected = 1 + get_n_body();
+    } else if (class_type == kHelical) {
+    	n_expected += 2;
     }
     
     std::vector<int> types(get_n_body());
@@ -345,8 +353,8 @@ void HelicalClassSpec::read_rmin_class(std::string* &elements, const int positio
 	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
 	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
 	sprintf(mode, "%s", elements[position + 2].c_str());	
-	r0[index_among_defined] = atof(elements[position + 2].c_str());
-	sigma2[index_among_defined] = atof(elements[position + 3].c_str());
+	r0[index_among_defined] = atof(elements[position + 3].c_str());
+	sigma2[index_among_defined] = atof(elements[position + 4].c_str());
 }
 
 inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, char** molecule_group_names, const int n_molecule_groups, int &index_among_defined)
