@@ -115,6 +115,9 @@ typedef struct ControlInputs {
     int output_radius_of_gyration_parameter_distribution;
 	int output_density_parameter_distribution;
     
+    // Newfm  only output specifications
+    int output_raw_splines;
+    int output_raw_frame_blocks;
     // Matrix specifications
     int matrix_type;
     int itnlim;

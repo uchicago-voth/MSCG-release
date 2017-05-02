@@ -231,6 +231,13 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     output_residual                 = control_input->output_residual;
     force_sq_total					= 0.0;
  
+ 	// Copy and  initialize output matrix options.
+ 	output_raw_frame_blocks			= control_input->output_raw_frame_blocks;
+ 	output_raw_splines				= control_input->output_raw_splines;
+ 	if  (output_raw_frame_blocks == 1) {
+ 		frame_block_fh = fopen("matrix.csr", "w");
+ 	}
+    
     // Set blockwise composition weighting factors
     frames_per_traj_block 			= control_input->frames_per_traj_block;
 	current_frame_weight 			= 1.0;
@@ -1408,6 +1415,7 @@ void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA* mat, int
 
 void convert_dense_fm_equation_to_normal_form_and_accumulate(MATRIX_DATA* const mat)
 {
+	if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
     double frame_weight = mat->get_frame_weight() * mat->normalization;
  	create_dense_normal_form(mat, frame_weight, mat->dense_fm_matrix,mat->dense_fm_normal_matrix, mat->dense_fm_rhs_vector, mat->dense_fm_normal_rhs_vector);
 }
@@ -1416,7 +1424,8 @@ void convert_dense_fm_equation_to_normal_form_and_bootstrap(MATRIX_DATA* const m
 {
 	int onei = 1.0;
 	int matrix_size = mat->fm_matrix_columns * mat->fm_matrix_columns;
-	
+	if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+
 	// Create temp normal matrix and rhs vector.
 	dense_matrix* temp_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	double* temp_normal_rhs_vector = new double[mat->fm_matrix_columns]();
@@ -1465,7 +1474,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
 void accumulate_accumulation_matrices(MATRIX_DATA* const mat)
 {
     int info_in;
-    
+    if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
         mat->lapack_temp_workspace = new double[1];
@@ -1487,7 +1496,8 @@ void accumulate_accumulation_matrices_for_bootstrap(MATRIX_DATA* const mat)
 	exit(EXIT_FAILURE);
 	
     int info_in;
-    
+    if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
         mat->lapack_temp_workspace = new double[1];
@@ -1507,7 +1517,7 @@ void accumulate_accumulation_matrices_for_bootstrap(MATRIX_DATA* const mat)
 // is recorded to allow averaging of all the solutions after the entire trajectory is read.
 
 void solve_sparse_matrix(MATRIX_DATA* const mat)
-{
+{	
    double frame_weight = mat->get_frame_weight();
    solve_this_sparse_matrix(mat);
    
@@ -1576,6 +1586,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+    if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1626,6 +1637,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1705,7 +1717,8 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -1799,6 +1812,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -2211,6 +2225,7 @@ void solve_this_sparse_matrix(MATRIX_DATA* const mat)
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
 	csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
