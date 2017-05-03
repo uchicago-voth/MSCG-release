@@ -813,6 +813,9 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->fm_solution = std::vector<double>(1);
     mat->do_end_of_frameblock_matrix_manipulations = do_nothing_to_fm_matrix;
     mat->set_fm_matrix_to_zero = set_dummy_matrix_to_zero;
+    mat->temperature = control_input->temperature;
+    mat->boltzmann = control_input->boltzmann;
+
 }
 
 void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)

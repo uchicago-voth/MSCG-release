@@ -353,10 +353,8 @@ inline void extract_types_and_range(std::string* elements, const InteractionClas
 		
 inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name)
 {
-  printf("nbody = %d\n",n_body);fflush(stdout);
     for (int j = 0; j < n_body; j++) {
     	types[j] = match_type(elements[j], name, n_types);
-	printf("types[j] = %d\n",types[j]);fflush(stdout);
         if( types[j] == -1) {
         	fprintf(stderr, "Unrecognized type %s!\n", elements[j].c_str());
         	fflush(stderr);

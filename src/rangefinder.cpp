@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     double start_cputime = clock();
 
     FrameSource fs;
-    
+
     printf("Parsing command line arguments.\n");
     parse_command_line_arguments(argc, argv, &fs);
     printf("Reading high level control parameters.\n");
@@ -66,20 +66,18 @@ int main(int argc, char* argv[])
     write_range_files(&cg, &mat);
 
     //This is part of the BI routine
-
+    
     read_all_interaction_ranges(&cg);
 
     set_up_force_computers(&cg);
 
     printf("hello after force computers\n");fflush(stdout);
     
-    calculate_BI(&cg,&mat);
+    calculate_BI(&cg,&mat,&fs);
 
     printf("hello after calculate BI\n");fflush(stdout);
     
     write_fm_interaction_output_files(&cg,&mat);
-
-    free_name(&cg);
 
     //print cpu time used
     double end_cputime = clock();

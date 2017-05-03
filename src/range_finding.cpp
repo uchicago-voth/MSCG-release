@@ -49,8 +49,11 @@ void write_one_body_iclass_range_specifications(InteractionClassComputer* const 
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
 
 void read_density_parameter_file(DensityClassSpec* const ispec);
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg);
-void read_one_param_dist_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter);
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume);
+void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
+void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
+double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns);
+double calculate_volume(const matrix simulation_box_lengths);
 
 // Output parameter distribution functions
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
@@ -636,44 +639,74 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	}
 }
 
-void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat)
+void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
 {
+  double volume;
+  
   initialize_BI_matrix(mat, cg);
 
-  read_interaction_file_and_build_matrix(mat, cg);
+  volume = calculate_volume(fs->simulation_box_limits);
+  
+  read_interaction_file_and_build_matrix(mat, cg, volume);
   printf("going into BI solve routine\n");
   mat->finish_fm(mat);
   printf("leaving BI solve routine\n");
 }
 
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
+double calculate_volume(const matrix simulation_box_lengths)
 {
+  double volume = 1.0;
+  int i;
+  for(i = 0;i < DIMENSION; i++)
+    {
+      volume *= simulation_box_lengths[i][i];
+    }
+  return volume;
+}
+  
+
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume)
+{ 
   int counter = 0;
+  int* sitecounter;
+  sitecounter = new int[cg->n_cg_types]();
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(unsigned j = 0; j < cg->n_cg_sites; j++){
+    int type = cg->topo_data.cg_site_types[j];
+    sitecounter[type-1]++;
+  }
+
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction, 
     if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
       {continue;}
     (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      read_one_param_dist_file((*icomp_iterator), cg->name, mat, i, counter);
+      if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ){
+	std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
+	double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	if( type_vector[0] == type_vector[1]){
+	  num_pairs -= sitecounter[type_vector[0]-1];
+	}
+        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
+      } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
+	double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
+      } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
+        DensityClassSpec* dspec = static_cast<DensityClassSpec*>((*icomp_iterator)->ispec);
+	read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
+      } else{
+	double num_angles = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	read_one_param_dist_file_other((*icomp_iterator), cg->name, mat, i, counter, num_angles);
+      }
     }
   }  
 }
 
-void read_one_param_dist_file(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter)
+void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
   printf("index among defined = %d\n",index_among_defined_intrxns);fflush(stdout);
-  std::string basename;
-  if(icomp->ispec->class_type == kDensity)
-    {
-      DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-      basename = ispec->get_interaction_name(ispec->density_group_names, index_among_defined_intrxns, "_");
-    }
-  else
-    {
-      basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-    }
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
 
   std::string filename = basename + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
@@ -682,36 +715,79 @@ void read_one_param_dist_file(InteractionClassComputer* const icomp, char** cons
   int *junk;
   double PI = 3.1415926;
   double r;
+  double potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
   for(i = 0; i < num_entries; i++)
     {
-      if (icomp->ispec->get_char_id() == 'n')
-	{
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       double normalized_counts = (double)(counts) / (4.0*PI*(r*r*r - (r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth()))/3.0);
       normalized_counts *= mat->normalization;
+      normalized_counts *= 2.0;
+      normalized_counts *= (1.0/num_of_pairs);
+      normalized_counts *= volume;
+      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
+      mat->accumulate_target_force_element(mat, counter, &potential);
+      counter++;
+    }
+}
+
+void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
+{
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  std::string filename = basename + ".hist";
+  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+
+  int i, counts;
+  int *junk;
+  double r;
+  double potential;
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+  char buffer[100];
+    fgets(buffer,100,curr_dist_input_file); 
+  for(i = 0; i < num_entries; i++)
+    {
+      int first_nonzero_basis_index;
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      double normalized_counts = (double)(counts)*mat->normalization;
+      normalized_counts *= 2.0;
+      normalized_counts *= (1.0/num_of_pairs);
+      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
       counter++;
-	}
-      else
-	{
-          int first_nonzero_basis_index;
-          fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-	  double normalized_counts = (double)(counts)*mat->normalization;
-          icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-          mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
-          mat->accumulate_target_force_element(mat, counter, &normalized_counts);
-          counter++;
-	}
     }
 }
-  
+
+double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
+{
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  std::string filename = basename + ".hist";
+  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+
+  int i, counts;
+  int count_summ = 0;
+  double r;
+  char buffer[100];
+  fgets(buffer,100,curr_dist_input_file);
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  for(i = 0; i< num_entries; i++)
+    {
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      count_summ += counts;
+    }
+  int num_bonds = (double)( count_summ * mat->normalization );
+
+  return num_bonds;
+}
+
 void free_name(CG_MODEL_DATA* const cg)
 {
     // Free data after output.
