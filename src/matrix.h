@@ -151,7 +151,7 @@ struct dense_matrix {
     }
 
 	inline void print_matrix(FILE* fh) {
-		printf(fh, "Rows: %d\nColumns: %d\n", n_rows,  n_cols);
+		fprintf(fh, "Rows: %d\nColumns: %d\n", n_rows,  n_cols);
 		for (int i = 0; i < n_rows; i++) {
 			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
@@ -166,8 +166,8 @@ struct dense_matrix {
 		//Allocate this CSR
 		int nnz = get_nnz();
 		int counter = 0;
-		double column_indices[nnz];
-		double row_sizes[n_rows + 1];
+		int column_indices[nnz];
+		int row_sizes[n_rows + 1];
 		row_sizes[0] = 0;
 		
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, nnz);
@@ -198,7 +198,7 @@ struct dense_matrix {
 	}
 	
 	inline int get_nnz() {
-		int nnz = 0;'
+		int nnz = 0;
 		for (int i = 0; i < n_rows; i++) {
 			for (int j = 0; j < n_cols; j++) {
 				if (fabs(values[j*n_rows + i]) > VERYSMALL) nnz++;

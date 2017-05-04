@@ -1586,7 +1586,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-    if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+    if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1637,7 +1637,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1717,7 +1717,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1812,7 +1812,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -2225,7 +2225,7 @@ void solve_this_sparse_matrix(MATRIX_DATA* const mat)
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
 	csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix->print_matrix_csr(mat->frame_block_fh);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
