@@ -362,7 +362,8 @@ struct AngularClassSpec: InteractionClassSpec {
     	bspline_k = control_input->angle_bspline_k;
     	output_binwidth = control_input->angle_output_binwidth;
 		output_parameter_distribution = control_input->output_angle_parameter_distribution;
-
+		cutoff = 1000.0;
+		
 		if (class_subtype == 1) {
 			printf("The use of distance based angles (angle_type = 1) is now deprecated.\n");
 			printf("Consider using r13_distance_flag and associated options for this feature.\n");
@@ -397,7 +398,8 @@ struct DihedralClassSpec: InteractionClassSpec {
 		bspline_k = control_input->dihedral_bspline_k;
 		output_binwidth = control_input->dihedral_output_binwidth;
 		output_parameter_distribution = control_input->output_dihedral_parameter_distribution;
-
+		cutoff = 1000.0;
+		
 		if (class_subtype == 1) {
 			printf("The use of distance based dihedrals (dihedral_type = 1) is now deprecated.\n");
 			printf("Consider using r14_distance_flag and associated options for this feature.\n");
