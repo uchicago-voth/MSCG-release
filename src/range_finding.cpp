@@ -676,11 +676,17 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
 
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction, 
+    // if that interaction has a parameter distribution
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+    
+    // These interactions do not generate parameter distributions
     if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
       {continue;}
+    
+    // Otherwise, process the data
     (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      if( (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
+      if( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
       if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ){
 	    std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
 	    double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];

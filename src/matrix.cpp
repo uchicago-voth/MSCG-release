@@ -833,15 +833,15 @@ void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   // However, the svd solver puts the solution vector into this array,
   // and  the solution vetor is of size mat->fm_matrix_columns.
   if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
-	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
-  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
+	//mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
+  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
   
   } else {
-  	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
-  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns];
+  	//mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
+  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
   }
   
-  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  //mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->accumulate_matching_forces = accumulate_BI_elements;
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
@@ -2692,7 +2692,7 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, dense_m
 	delete [] iwork;
 }
 
-inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values)
+inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_rhs_vector, double* singular_values)
 {
 	int space_factor = 2;
 	int onei = 1;
@@ -2711,11 +2711,11 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_
 	// The SVD routine works in two modes: first, the routine is run with a dummy workspace to
 	// determine the size of the needed workspace, then that workspace is allocated, then the
 	// routine is run again with a sufficient workspace to perform SVD.
-	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 	lapack_setup_flag = lapack_temp_workspace[0];
 	delete [] lapack_temp_workspace;
 	lapack_temp_workspace = new double[lapack_setup_flag];
-	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_normal_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 
 	// Clean up the heap-allocated temps.
 	delete [] lapack_temp_workspace;
@@ -3446,6 +3446,7 @@ void solve_BI_equation(MATRIX_DATA* const mat)
     mat->fm_solution[i] = mat->dense_fm_normal_rhs_vector[i];
   }
   delete [] singular_values;
+  delete [] mat->dense_fm_matrix;
 }
   
 
