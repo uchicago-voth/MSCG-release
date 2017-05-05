@@ -711,9 +711,11 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
 
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
-  printf("index among defined = %d\n",index_among_defined_intrxns);fflush(stdout);
   std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }
   std::string filename = basename + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
@@ -747,6 +749,11 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
 {
   std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  // Append the class's short name with an underscore if one exists.
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }
   std::string filename = basename + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
@@ -776,6 +783,11 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
 double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
 {
   std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  // Append the class's short name with an underscore if one exists.
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }  
   std::string filename = basename + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
