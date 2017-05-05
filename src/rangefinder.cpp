@@ -19,6 +19,7 @@
 #include "fm_output.h"
 
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const frame_source);
+inline bool any_active_parameter_distributions(CG_MODEL_DATA* const cg);
 
 int main(int argc, char* argv[])
 {
@@ -66,19 +67,25 @@ int main(int argc, char* argv[])
     write_range_files(&cg, &mat);
 
     //This is part of the BI routine
-    
-    read_all_interaction_ranges(&cg);
+    //Only calculate if at least one parameter distribution exists
+	if (any_active_parameter_distributions(&cg) == true) {
 
-    set_up_force_computers(&cg);
+		read_all_interaction_ranges(&cg);
 
-    printf("hello after force computers\n");fflush(stdout);
-    
-    calculate_BI(&cg,&mat,&fs);
+		set_up_force_computers(&cg);
 
-    printf("hello after calculate BI\n");fflush(stdout);
-    
-    write_fm_interaction_output_files(&cg,&mat);
+		printf("hello after force computers\n");fflush(stdout);
+	
+		calculate_BI(&cg,&mat,&fs);
 
+		printf("hello after calculate BI\n");fflush(stdout);
+	
+		write_fm_interaction_output_files(&cg,&mat);
+	} else {
+		// Clean-up allocated memory
+		free_name(&cg);
+	}
+	
     //print cpu time used
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
@@ -246,4 +253,14 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     frame_source->cleanup(frame_source);
     delete [] ref_box_half_lengths;
     
+}
+
+inline bool any_active_parameter_distributions(CG_MODEL_DATA* const cg) {
+	std::list<InteractionClassSpec*>::iterator iclass_iterator;
+	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+        if((*iclass_iterator)->output_parameter_distribution == 1) {
+        	return true;
+        }
+    }
+    return false;
 }

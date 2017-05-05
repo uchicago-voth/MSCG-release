@@ -671,7 +671,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
   int* sitecounter;
   sitecounter = new int[cg->n_cg_types]();
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
-  for(unsigned j = 0; j < cg->n_cg_sites; j++){
+  for(int j = 0; j < cg->n_cg_sites; j++){
     int type = cg->topo_data.cg_site_types[j];
     sitecounter[type-1]++;
   }
