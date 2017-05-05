@@ -859,6 +859,10 @@ struct CG_MODEL_DATA {
 // Read interaction ranges and assign the interactions to be force matched, tabulated, or null.
 void read_all_interaction_ranges(CG_MODEL_DATA* const cg);
 
+
+// Reset upper and lower cutoffs for BI calculation
+void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg);
+
 // Read tabulated interaction data from file
 void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types);
 

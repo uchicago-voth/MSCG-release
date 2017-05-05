@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
     //Only calculate if at least one parameter distribution exists
 	if (any_active_parameter_distributions(&cg) == true) {
 
+		reset_interaction_cutoff_arrays(&cg);
 		read_all_interaction_ranges(&cg);
 
 		set_up_force_computers(&cg);

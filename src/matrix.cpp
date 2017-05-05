@@ -833,11 +833,11 @@ void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   // However, the svd solver puts the solution vector into this array,
   // and  the solution vetor is of size mat->fm_matrix_columns.
   if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
-	//mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
+	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
   	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
   
   } else {
-  	//mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
+  	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
   	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
   }
   
@@ -3443,10 +3443,10 @@ void solve_BI_equation(MATRIX_DATA* const mat)
   printf("hello\n");
   calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
   for (i = 0; i < mat->fm_matrix_columns; i++) {
-    mat->fm_solution[i] = mat->dense_fm_normal_rhs_vector[i];
+    mat->fm_solution[i] = mat->dense_fm_rhs_vector[i];
   }
   delete [] singular_values;
-  delete [] mat->dense_fm_matrix;
+  delete mat->dense_fm_matrix;
 }
   
 
