@@ -84,12 +84,12 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
                     write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	        } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
-	                		   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
-    	                write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
-    	        } else {
-            	        printf("Unrecognized basis type.\n");
-                	    exit(EXIT_FAILURE);
-		}
+					   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
+				write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
+			} else {
+				printf("Unrecognized basis type.\n");
+				exit(EXIT_FAILURE);
+			}
 	      } else {
             	 // Select the correct type name array for the interaction.
                  if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
