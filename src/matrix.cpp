@@ -829,10 +829,20 @@ void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   delete [] mat->dense_fm_normal_rhs_vector;
   mat->fm_solution.resize(mat->fm_matrix_columns);
   
-  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
+  // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
+  // However, the svd solver puts the solution vector into this array,
+  // and  the solution vetor is of size mat->fm_matrix_columns.
+  if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
+	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows];
+  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
+  
+  } else {
+  	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
+  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns];
+  }
+  
   mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
-  mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
   mat->accumulate_matching_forces = accumulate_BI_elements;
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
   mat->finish_fm = solve_BI_equation;
@@ -3424,7 +3434,8 @@ void solve_BI_equation(MATRIX_DATA* const mat)
     }
     fprintf(BI_matrix,"\n");
   }
-  for(i = 0;i < mat->fm_matrix_columns;i++)
+  printf("BI rows %d\tBI cols %d\n", mat->fm_matrix_rows, mat->fm_matrix_columns); fflush(stdout);
+  for(i = 0;i < mat->fm_matrix_rows;i++)
     {
       fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
     }
@@ -4085,9 +4096,11 @@ void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
   int num_entries = 0;
     std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+  	// Skip if it does not have a parameter distribution to use
+  	if ((*icomp_iterator)->ispec->output_parameter_distribution !=  1) continue;
     // For every defined interaction,
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)(((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->get_fm_binwidth());
+      num_entries += (int)(0.5 + ((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->get_fm_binwidth());
     }
   }
   mat->fm_matrix_rows = num_entries;

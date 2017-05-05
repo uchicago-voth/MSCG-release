@@ -641,11 +641,9 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
 {
-  double volume;
-  
   initialize_BI_matrix(mat, cg);
 
-  volume = calculate_volume(fs->simulation_box_limits);
+  double volume = calculate_volume(fs->simulation_box_limits);
   
   read_interaction_file_and_build_matrix(mat, cg, volume);
   printf("going into BI solve routine\n");
@@ -682,22 +680,23 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
       {continue;}
     (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      if( (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
       if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ){
-	std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
-	double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
-	if( type_vector[0] == type_vector[1]){
-	  num_pairs -= sitecounter[type_vector[0]-1];
-	}
+	    std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
+	    double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	    if( type_vector[0] == type_vector[1]){
+	      num_pairs -= sitecounter[type_vector[0]-1];
+	    }
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
       } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
-	double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
       } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
         DensityClassSpec* dspec = static_cast<DensityClassSpec*>((*icomp_iterator)->ispec);
-	read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
+	    read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
       } else{
-	double num_angles = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
-	read_one_param_dist_file_other((*icomp_iterator), cg->name, mat, i, counter, num_angles);
+	    double num_angles = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    read_one_param_dist_file_other((*icomp_iterator), cg->name, mat, i, counter, num_angles);
       }
     }
   }  
