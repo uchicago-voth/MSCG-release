@@ -3426,7 +3426,6 @@ void solve_BI_equation(MATRIX_DATA* const mat)
   FILE* BI_vector;
   BI_matrix = fopen("BI_matrix.dat","w");
   BI_vector = fopen("BI_vector.dat","w");
-  printf("going into matrix print routine\n");
   for(i = 0; i < mat->fm_matrix_rows; i++){
     for(j = 0; j < mat->fm_matrix_columns; j++){
       //      printf("%lf ",mat->dense_fm_matrix->get_scalar(i,j));
@@ -3434,13 +3433,12 @@ void solve_BI_equation(MATRIX_DATA* const mat)
     }
     fprintf(BI_matrix,"\n");
   }
-  printf("BI rows %d\tBI cols %d\n", mat->fm_matrix_rows, mat->fm_matrix_columns); fflush(stdout);
+  
   for(i = 0;i < mat->fm_matrix_rows;i++)
     {
       fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
     }
   
-  printf("hello\n");
   calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
   for (i = 0; i < mat->fm_matrix_columns; i++) {
     mat->fm_solution[i] = mat->dense_fm_rhs_vector[i];

@@ -75,12 +75,8 @@ int main(int argc, char* argv[])
 
 		set_up_force_computers(&cg);
 
-		printf("hello after force computers\n");fflush(stdout);
-	
 		calculate_BI(&cg,&mat,&fs);
 
-		printf("hello after calculate BI\n");fflush(stdout);
-	
 		write_fm_interaction_output_files(&cg,&mat);
 	} else {
 		// Clean-up allocated memory
