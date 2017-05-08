@@ -383,7 +383,7 @@ inline void check_bspline_size(const int control_points, const int order)
 
 inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart)
 {
-	if(first_nonzero_basis_index != (int)(istart)) {
+	if( abs(first_nonzero_basis_index - (int)(istart)) > 1) {
     	fprintf(stderr, "Internal failure! first_nonnero_basis_index %d != gsl_bspline_eval_nonzero %d!\n", first_nonzero_basis_index, (int)(istart));
     }
 }
