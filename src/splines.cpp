@@ -72,6 +72,11 @@ BSplineComputer::BSplineComputer(InteractionClassSpec* ispec) : SplineComputer(i
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
 
+    if (n_coef < 2) {
+    	printf("Spline order for BSplineAndDeriv must be at least 2!\n");
+		exit(EXIT_FAILURE);
+    }
+
     printf("Allocating b-spline temporaries for %d interactions.\n", n_to_force_match);
     bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
     bspline_vectors = gsl_vector_alloc(n_coef);
@@ -143,6 +148,11 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
     class_subtype = ispec_->class_subtype;
     n_defined = ispec_->get_n_defined();
     binwidth = ispec_->get_fm_binwidth();
+    
+    if (n_coef < 3) {
+    	printf("Spline order for BSplineAndDeriv must be at least 3!\n");
+		exit(EXIT_FAILURE);
+    }
     
     if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2) || (ispec_->class_subtype == 3) ) {
         printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
@@ -373,7 +383,7 @@ inline void check_bspline_size(const int control_points, const int order)
 
 inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart)
 {
-	if(first_nonzero_basis_index != (int)(istart)) {
+	if( abs(first_nonzero_basis_index - (int)(istart)) > 1) {
     	fprintf(stderr, "Internal failure! first_nonnero_basis_index %d != gsl_bspline_eval_nonzero %d!\n", first_nonzero_basis_index, (int)(istart));
     }
 }

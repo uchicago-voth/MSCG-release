@@ -22,12 +22,13 @@ struct ControlInputs;
 
 typedef void (*accumulate_forces)(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 
 //-------------------------------------------------------------
 // Matrix-equation-related type definitions
 //-------------------------------------------------------------
 
-enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kDummy = -1};
+enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kREM = 5, kDummy = -1};
 
 // Linked-list-based sparse row matrix element struct. x,y,z components are stored together.
 
@@ -239,7 +240,7 @@ struct dense_matrix {
 	}
 	
     inline ~dense_matrix() {
-    	delete [] values;
+        delete [] values;
 	}
 };
 
@@ -280,6 +281,12 @@ struct MATRIX_DATA {
     double* fm_solution_normalization_factors;      // Weighted number of times each unknown has been found nonzero in the solution vectors of all blocks
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
+	// REM variables
+	std::vector<double> previous_rem_solution;        // Previous splie coeffs to be used in REM iteration
+    double temperature;
+    double rem_chi;
+    double boltzmann;
+    
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times a frame is resampled. This is 1 unless dynamic_state_sampling is 1.
@@ -340,10 +347,11 @@ struct MATRIX_DATA {
     int output_style;                       // 0 to output only tables; 2 to output tables and binary block equations; 3 to output only binary block equations
     int output_normal_equations_rhs_flag;   // 1 to output the final right hand side vector of the MS-CG normal equations as well as force tables; 0 otherwise
     int output_solution_flag;               // 0 to not output the solution vector; 1 to output the solution vector in x.out
-   	int output_raw_splines;					// 1 to output spline contributions for each interaction processed; 0 otherwise  (default)
+    int output_raw_splines;					// 1 to output spline contributions for each interaction processed; 0 otherwise  (default)
    	int output_raw_frame_blocks;			// 1 to output the pre-normal form fm_matrix  at the end of each frame block; 0 otherwise (default)
    	FILE* frame_block_fh;
    	
+
 	// Constructors and destructors
 	MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg);
 	
@@ -381,8 +389,10 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kDummy) {
 		    delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
-		}
-		if  (output_raw_frame_blocks == 1) {
+		} else if (matrix_type == kREM) {
+	    	delete dense_fm_matrix;
+	 	}
+	 	if  (output_raw_frame_blocks == 1) {
  			fclose(frame_block_fh);
  		}
 	}
@@ -412,8 +422,8 @@ struct MATRIX_DATA {
 		
 		// Update the appropriate fm_matrix based on type.
 		if (matrix_type == kDense) {
-			delete dense_fm_matrix;
-			dense_fm_matrix = new dense_matrix(fm_matrix_rows, fm_matrix_columns);
+		    delete dense_fm_matrix;
+		    dense_fm_matrix = new dense_matrix(fm_matrix_rows, fm_matrix_columns);
 		} else if ( (matrix_type == kSparse) || (matrix_type == kSparseNormal) || (matrix_type == kSparseSparse) ) {
 			if (sparse_matrix != NULL) {
 				int max_entries = sparse_matrix->max_entries;

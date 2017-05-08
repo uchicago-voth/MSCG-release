@@ -70,7 +70,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 	DensityClassSpec* dspec;
 	RadiusofGyrationClassSpec* rg_spec;
 	HelicalClassSpec* h_spec;
-	
+
     // For each class of interactions, perform output for the active 
     // interactions in that class. For one-parameter interactions right now.
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -79,7 +79,21 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
             // If that interaction is being matched (includes forces and symmetric/DOOM),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
-            	 // Select the correct type name array for the interaction.
+	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
+	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+		     write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i);	      
+		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
+            	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+                write_one_param_bspline_file(*icomp_iterator, name, mat, i);
+	         } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+					   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
+				write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
+			 } else {
+				printf("Unrecognized basis type.\n");
+				exit(EXIT_FAILURE);
+			 }
+	      } else {
+            	// Select the correct type name array for the interaction.
                  if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
 					name = dspec->density_group_names;
 				 } else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
@@ -121,13 +135,15 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 				}
 	      }
 	    }
+        }
 	}
 
+        
     // Write three body nonbonded interaction data.
 	write_three_body_interaction_data(&cg->three_body_nonbonded_computer, mat, cg->name);
 	
 	// Free data after output.
-    if (mat->matrix_type == kDense || mat->matrix_type == kSparseNormal) delete [] mat->dense_fm_normal_rhs_vector;
+    if (mat->matrix_type == kDense || mat->matrix_type == kSparseNormal || mat->matrix_type == kREM ) delete [] mat->dense_fm_normal_rhs_vector;
     printf("Done with output.\n"); fflush(stdout);
 
     for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
@@ -251,18 +267,18 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
 
     if (icomp->ispec->get_char_id() == 'n')
       {
-	std::vector<double> padded_potential_vals;
-	pad_values_front_with_fix(axis_vals,force_vals);
-	integrate_force(axis_vals, force_vals, padded_potential_vals);
-	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
+	   std::vector<double> padded_potential_vals;
+	   pad_values_front_with_fix(axis_vals,force_vals);
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (icomp->ispec->get_char_id() == 'b')
       {
-	std::vector<double> padded_potential_vals;
-	pad_values_front_with_fix(axis_vals,force_vals);
-	pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
-	integrate_force(axis_vals, force_vals, padded_potential_vals);
-	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
+	   std::vector<double> padded_potential_vals;
+	   pad_values_front_with_fix(axis_vals,force_vals);
+	   pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (icomp->ispec->get_char_id() == 'a')
       {
@@ -278,11 +294,11 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     	std::vector<double> rg_potential_vals;
     	std::vector<double> sqrt_axis_vals(size);
     	for (int i = 0; i < size; i++)
-	  {
+	       {
     		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
     		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
     		write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, rg_potential_vals, force_vals);
-	  }
+	       }
       }
     else {
     	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, potential_vals, force_vals);   
@@ -330,18 +346,18 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 
     if (icomp->ispec->get_char_id() == 'n')
       {
-	std::vector<double> padded_potential_vals;
-	pad_values_front_with_fix(axis_vals,force_vals);
-	integrate_force(axis_vals, force_vals, padded_potential_vals);
-	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
+	    std::vector<double> padded_potential_vals;
+	    pad_values_front_with_fix(axis_vals,force_vals);
+	    integrate_force(axis_vals, force_vals, padded_potential_vals);
+	    write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (icomp->ispec->get_char_id() == 'b')
       {
-	std::vector<double> padded_potential_vals;
-	pad_values_front_with_fix(axis_vals,force_vals);
-	pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
-	integrate_force(axis_vals, force_vals, padded_potential_vals);
-	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
+	    std::vector<double> padded_potential_vals;
+	    pad_values_front_with_fix(axis_vals,force_vals);
+	    pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	    integrate_force(axis_vals, force_vals, padded_potential_vals);
+	    write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (icomp->ispec->get_char_id() == 'a')
       {
@@ -357,11 +373,11 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     	std::vector<double> rg_potential_vals;
     	std::vector<double> sqrt_axis_vals(size);
     	for (int i = 0; i < size; i++)
-	  {
+	       {
     		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
     		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
     		write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, rg_potential_vals, force_vals);
-	  }
+	       }
       }
     else {
     	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, potential_vals, force_vals);   

@@ -767,4 +767,3 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		delete [] bin_centers;
 		delete [] bin_counts;
 	}
-}

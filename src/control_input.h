@@ -118,6 +118,12 @@ typedef struct ControlInputs {
     // Newfm  only output specifications
     int output_raw_splines;
     int output_raw_frame_blocks;
+    
+    //REM specification
+  	double REM_iteration_step_size;
+  	double temperature;
+  	double boltzmann;
+
     // Matrix specifications
     int matrix_type;
     int itnlim;

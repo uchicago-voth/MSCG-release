@@ -146,6 +146,10 @@ struct InteractionClassSpec {
 		n_defined = n;
 	};
 	
+	inline void set_basis_type(BasisType type) {
+		basis_type = type;
+	};
+		
 	// Accessor (getter) functions.
 	inline int get_num_basis_func(void) const {
 		return interaction_column_indices[n_to_force_match];
@@ -1096,5 +1100,9 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg);
 
 // Read tabulated interaction data from file
 void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types);
+
+
+// Reset upper and lower cutoffs for BI calculation
+void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg);
 
 #endif

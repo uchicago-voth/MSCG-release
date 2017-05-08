@@ -220,6 +220,76 @@ void parse_command_line_arguments(const int num_arg, char** arg, FrameSource* co
     frame_source->move_to_start_frame = default_move_to_starting_frame;
 }
 
+void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref)
+{
+  int checker_cg = 0;
+  int checker_ref = 0;
+  if (num_arg != 5) report_usage_error(arg[0]);
+  else if (num_arg == 5) {
+    parse_command_line_set(arg[1],arg[2],frame_source_cg,frame_source_ref,checker_cg,checker_ref);
+    parse_command_line_set(arg[3],arg[4],frame_source_cg,frame_source_ref,checker_cg,checker_ref);
+  } 
+  if (frame_source_cg->trajectory_filename == frame_source_ref->trajectory_filename){
+	printf("CG and reference trajectory are the same file!");fflush(stdout);
+	exit(EXIT_FAILURE);
+      }
+  if( checker_cg == 0){
+    printf("CG trajectory is not set. Please set this using -l_cg or -f_cg\n");fflush(stdout);
+    exit(EXIT_FAILURE);
+  }
+  if( checker_ref == 0){
+    printf("Reference trajectory is not set. Please set this using -l_ref or -f_ref\n");fflush(stdout);
+    exit(EXIT_FAILURE);
+  }
+    frame_source_cg->move_to_start_frame = default_move_to_starting_frame;
+    frame_source_ref->move_to_start_frame = default_move_to_starting_frame;
+}
+
+void parse_command_line_set(char* arg1, char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref)
+{
+    if (strcmp(arg1, "-f_cg") == 0) {
+      checker_cg = 1;
+      sscanf(arg2, "%s", frame_source_cg->trajectory_filename);
+      check_file_extension(arg2, "trr");
+      frame_source_cg->trajectory_type = kGromacsTRR;
+      frame_source_cg->get_first_frame = read_initial_trr_frame;
+      frame_source_cg->get_next_frame = read_next_trr_frame;
+      frame_source_cg->cleanup = finish_trr_reading;
+      #if _exclude_gromacs == 1
+      printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");fflush(stdout);
+      exit(EXIT_FAILURE);
+      #endif
+    } else if (strcmp(arg1, "-f_ref") ==0){
+      checker_ref = 1;
+      sscanf(arg2, "%s", frame_source_ref->trajectory_filename);
+      check_file_extension(arg2, "trr");
+      frame_source_ref->trajectory_type = kGromacsTRR;
+      frame_source_ref->get_first_frame = read_initial_trr_frame;
+      frame_source_ref->get_next_frame = read_next_trr_frame;
+      frame_source_ref->cleanup = finish_trr_reading;
+      #if _exclude_gromacs == 1
+      printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");fflush(stdout);
+      exit(EXIT_FAILURE);
+      #endif
+    } else if (strcmp(arg1, "-l_cg") == 0) {
+      checker_cg = 1;
+      sscanf(arg2, "%s", frame_source_cg->trajectory_filename);
+      frame_source_cg->trajectory_type = kLAMMPSDump;
+      frame_source_cg->get_first_frame = read_initial_lammps_frame;
+      frame_source_cg->get_next_frame = read_next_lammps_frame;
+      frame_source_cg->cleanup = finish_lammps_reading;
+    } else if (strcmp(arg1, "-l_ref") == 0) {
+      checker_ref = 1;
+      sscanf(arg2, "%s", frame_source_ref->trajectory_filename);
+      frame_source_ref->trajectory_type = kLAMMPSDump;
+      frame_source_ref->get_first_frame = read_initial_lammps_frame;
+      frame_source_ref->get_next_frame = read_next_lammps_frame;
+      frame_source_ref->cleanup = finish_lammps_reading;
+    } else {
+      exit(EXIT_FAILURE);
+    }
+}
+  
 void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource* const frame_source)
 {
     frame_source->use_statistical_reweighting = control_input->use_statistical_reweighting;

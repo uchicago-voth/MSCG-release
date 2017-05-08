@@ -98,30 +98,41 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
 {
   std::vector<double>::iterator axis_it;
   std::vector<double>::iterator force_it;
-
+  int last = axis_vals.size() - 1;
+  
   
   double spacing = axis_vals[1] - axis_vals[0];
   int i = 0;
+  
+  // Find a positive value
   while(force_vals[i] < 0)
     {
-      i = i + 1;
+      i++;
+      if (i  >= last) break;
     }
+    
+  // Keep going until it is non-decreasing
   while(force_vals[i]<force_vals[i+1])
     {
-      i = i + 1;
+      i++;
+      if (i  >= last) break;
     }
+
+  // Now, pad interaction
+  // first filling in the existing spaces
   while(i > 0)
     {
       force_vals[i-1]=2*force_vals[i]-force_vals[i+1];
-      i = i - 1;
+      i--;
     }
+  // And then adding new ones
   while(axis_vals[0] - spacing > spacing)
     {
       axis_it = axis_vals.begin();
       force_it = force_vals.begin();
 
       axis_vals.insert(axis_it, axis_vals[0] - spacing);
-      force_vals.insert(force_it, 2*force_vals[i]-force_vals[i+1]);
+      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
     }
 }
 
@@ -130,23 +141,31 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   double spacing = axis_vals[2] - axis_vals[1];
   int last = axis_vals.size() - 1;
   int i = last;
+  
+  // Find a negative value
   while(force_vals[i]>0)
     {
-      i = i - 1;
+      i--;
+      if (i <= 0) break;
     }
+  // Keep going until it is non-increasing
   while(force_vals[i]>force_vals[i-1])
     {
-      i = i - 1;
+      i--;
+      if (i <= 0) break;
     }
+  // Now, pad interaction
+  // first filling in the existing spaces
   while(i<last)
     {
-      force_vals[i]=2*force_vals[i-1]-force_vals[i-2];
-      i = i + 1;
+      force_vals[i+1]= 2.0*force_vals[i] -  force_vals[i-1];
+      i++;
     }
+  // And then adding new ones
   while (axis_vals[last] + spacing < high)
     {
       axis_vals.push_back(axis_vals[last] + spacing);
-      force_vals.push_back(2*force_vals[i-1]-force_vals[i-2]);
+      force_vals.push_back(2.0*force_vals[last]  - force_vals[last-1]);
       last++;
     }
 }
@@ -215,7 +234,6 @@ int match_type(std::string &source, char** name, const int n_types)
 {
 	char unknown[10];
 	sprintf(unknown, "%s", source.c_str());
-	
 	// Check if this type is a name.
 	for (int i = 0; i < n_types; i++) {
 		if( strcmp(unknown, name[i]) == 0 ) {
