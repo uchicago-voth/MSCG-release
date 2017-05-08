@@ -43,7 +43,7 @@ void calc_helical_interaction_sampling_range(InteractionClassComputer* const ico
 void evaluate_density_sampling_range(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_interaction_output_file_handle, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
@@ -464,7 +464,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
-    write_interaction_range_data_to_file_and_free_it(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
+    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
     
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
@@ -479,7 +479,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) fclose(radius_of_gyration_interaction_output_file_handle);
 }
 
-void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;

@@ -659,6 +659,18 @@ void report_fields_error(const std::string &full_name, const int n_expected, con
 	exit(EXIT_FAILURE);	
 }
 
+void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg)
+{
+	// Reset upper and lower cutoffs for all interactions before starting BI calculation
+	std::list<InteractionClassSpec*>::iterator iclass_iterator;
+	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+		delete [] (*iclass_iterator)->upper_cutoffs;
+		delete [] (*iclass_iterator)->lower_cutoffs;
+	}
+	delete [] cg->three_body_nonbonded_interactions.upper_cutoffs;
+	delete [] cg->three_body_nonbonded_interactions.lower_cutoffs;
+}
+
 void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 {
     // Determine the number of interactions that are actually present in the model for each class of interactions, 
