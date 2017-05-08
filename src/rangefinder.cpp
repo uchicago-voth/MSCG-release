@@ -272,6 +272,8 @@ inline void screen_interactions_by_distribution(CG_MODEL_DATA* const cg) {
         	(*iclass_iterator)->n_to_force_match = 0;
         	(*iclass_iterator)->n_tabulated = 0;
         	(*iclass_iterator)->interaction_column_indices[0] = 0;
+        } else {
+        	(*iclass_iterator)->set_basis_type(kBSplineAndDeriv);
         }
     }
 }

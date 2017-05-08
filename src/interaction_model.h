@@ -146,7 +146,10 @@ struct InteractionClassSpec {
 	inline void set_n_defined(int n) {
 		n_defined = n;
 	};
-	
+	inline void set_basis_type(BasisType type) {
+		basis_type = type;
+	};
+		
 	// Accessor (getter) functions.
 	inline int get_num_basis_func(void) const {
 		return interaction_column_indices[n_to_force_match];
