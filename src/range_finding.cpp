@@ -825,7 +825,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
 	    }
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
       } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
-	    double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    //double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
 	    //read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, 2.0, 1.0);
       } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
