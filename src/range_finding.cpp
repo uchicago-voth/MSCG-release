@@ -774,6 +774,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       mat->accumulate_target_force_element(mat, counter, &normalized_counts);
       counter++;
     }
+  delete [] derivatives;
 }
 
 double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
