@@ -34,6 +34,12 @@ newfm.x: newfm.o $(COMMON_OBJECTS)
 newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
 	$(CC) $(NO_GRO_LDFLAGS) -o $@ newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
+newrem.x: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) $(LIBS)
+
+newrem_no_gro.x: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
 rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
 
@@ -53,6 +59,9 @@ mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
 
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
 
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
@@ -107,4 +116,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm.x rangefinder.x combinefm.x
+all: libmscg.a newfm.x rangefinder.x combinefm.x newrem.x

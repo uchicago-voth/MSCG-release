@@ -72,6 +72,12 @@ newfm.o: newfm.cpp $(COMMON_SOURCE)
 newfm_mkl.o: newfm.cpp $(COMMON_SOURCE) 
 	$(CC) $(MKL_CFLAGS) -c newfm.cpp -D"_mkl_flag=1" -o newfm_mkl.o
 
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
+newrem_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newrem.cpp -D"_mkl_flag=1" -o newrem_mkl.o
+
 combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c combinefm.cpp
 
@@ -130,4 +136,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm.x rangefinder.x combinefm.x
+all: libmscg.a newfm.x rangefinder.x combinefm.x newrem.x

@@ -43,13 +43,19 @@ void calc_helical_interaction_sampling_range(InteractionClassComputer* const ico
 void evaluate_density_sampling_range(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_output_filep, FILE* const radius_of_gyration_output_filep);
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
+
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
 
 void read_helical_parameter_file(InteractionClassSpec* const ispec);
 void read_density_parameter_file(DensityClassSpec* const ispec);
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume);
+void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
+void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
+double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns);
+double calculate_volume(const matrix simulation_box_lengths);
 
 // Output parameter distribution functions
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
@@ -115,7 +121,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 		} else {
 			report_unrecognized_class_subtype(iclass);
 		}
-	 } else if (iclass->class_type == kDihedralBonded) {
+    } else if (iclass->class_type == kDihedralBonded) {
         if (iclass->class_subtype == 0) { //Angle based dihedral interactions
 			icomp->calculate_fm_matrix_elements = calc_dihedral_four_body_interaction_sampling_range;
         } else if (iclass->class_subtype == 1) { // Distance based dihedral interactions
@@ -134,7 +140,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
         else {
         	report_unrecognized_class_subtype(iclass);
         }
-   } else if (iclass->class_type == kRadiusofGyration) {
+	} else if (iclass->class_type == kRadiusofGyration) {
 		if (iclass->class_subtype == 1) { 
 			icomp->calculate_fm_matrix_elements = calc_radius_of_gyration_interaction_sampling_range;
 		} else if (iclass->class_subtype == 0) { // Do nothing
@@ -449,7 +455,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
     FILE* bonded_interaction_output_file_handle = open_file("rmin_b.in", "w");
     FILE* distance_interaction_output_file_handle;
     FILE* helical_interaction_output_file_handle;
-    FILE* density_interaction_output_file_handle;
+	FILE* density_interaction_output_file_handle;
     FILE* radius_of_gyration_interaction_output_file_handle;
     if (cg->r13_interactions.class_subtype > 0 ||
         cg->r14_interactions.class_subtype > 0 ||
@@ -459,6 +465,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
     write_interaction_range_data_to_file_and_free_it(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
+    
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
  	}
@@ -472,7 +479,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) fclose(radius_of_gyration_interaction_output_file_handle);
 }
 
-void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -488,7 +495,7 @@ void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, M
         	write_iclass_range_specifications(*icomp_iterator, cg->name, mat, distance_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kHelical) {
 			write_iclass_range_specifications(*icomp_iterator, cg->helical_interactions.molecule_group_names, mat, helical_interaction_output_filep);
-		} else if ((*iclass_iterator)->class_type == kRadiusofGyration) {
+        } else if ((*iclass_iterator)->class_type == kRadiusofGyration) {
 			write_iclass_range_specifications(*icomp_iterator, cg->radius_of_gyration_interactions.molecule_group_names, mat, radius_of_gyration_interaction_output_filep);
 		} else if ((*iclass_iterator)->class_type == kDensity) {
 			write_iclass_range_specifications(*icomp_iterator, cg->density_interactions.density_group_names, mat, density_interaction_output_filep);
@@ -496,11 +503,6 @@ void write_interaction_range_data_to_file_and_free_it(CG_MODEL_DATA* const cg, M
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, bonded_spline_output_filep);
         }
     }
-
-    // Free data after output.
-    printf("Done with output.\n"); fflush(stdout);
-    for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
-    delete [] cg->name;
 }
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file) 
@@ -514,7 +516,7 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
     }
 	
 	if (iclass->output_parameter_distribution == 1) {
-     	if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
+		if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
 			close_parameter_distribution_files_for_class(icomp);
 			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(iclass);
 			generate_parameter_distribution_histogram(icomp, ispec->density_group_names);
@@ -767,3 +769,176 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		delete [] bin_centers;
 		delete [] bin_counts;
 	}
+}
+
+void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
+{
+  initialize_BI_matrix(mat, cg);
+
+  double volume = calculate_volume(fs->simulation_box_limits);
+  
+  read_interaction_file_and_build_matrix(mat, cg, volume);
+  mat->finish_fm(mat);
+}
+
+double calculate_volume(const matrix simulation_box_lengths)
+{
+  double volume = 1.0;
+  int i;
+  for(i = 0;i < DIMENSION; i++)
+    {
+      volume *= simulation_box_lengths[i][i];
+    }
+  return volume;
+}
+  
+
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume)
+{ 
+  int counter = 0;
+  int* sitecounter;
+  sitecounter = new int[cg->n_cg_types]();
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(int j = 0; j < cg->n_cg_sites; j++){
+    int type = cg->topo_data.cg_site_types[j];
+    sitecounter[type-1]++;
+  }
+
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction, 
+    // if that interaction has a parameter distribution
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+    
+    // These interactions do not generate parameter distributions
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
+      {continue;}
+    
+    // Otherwise, process the data
+    (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      if( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+      if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ) {
+	    std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
+	    double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	    if( type_vector[0] == type_vector[1]){
+	      num_pairs -= sitecounter[type_vector[0]-1];
+	    }
+        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
+      } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
+	    double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    //read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
+        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, 2.0, 1.0);
+      } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
+        DensityClassSpec* dspec = static_cast<DensityClassSpec*>((*icomp_iterator)->ispec);
+	    read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
+      } else{
+	    double num_angles = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    read_one_param_dist_file_other((*icomp_iterator), cg->name, mat, i, counter, num_angles);
+      }
+    }
+  }  
+  delete [] sitecounter;
+}
+
+void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
+{
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }
+  std::string filename = basename + ".hist";
+  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+
+  int i, counts;
+  int *junk;
+  double PI = 3.1415926;
+  double r;
+  double potential;
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+  char buffer[100];
+  fgets(buffer,100,curr_dist_input_file); 
+  for(i = 0; i < num_entries; i++)
+    {
+      int first_nonzero_basis_index;
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      double normalized_counts = (double)(counts) / ( 4.0*PI*r*r*(r - icomp->ispec->get_fm_binwidth()) );
+      normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
+      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
+      mat->accumulate_target_force_element(mat, counter, &potential);
+      counter++;
+    }
+  delete [] derivatives;
+}
+
+void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
+{
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  // Append the class's short name with an underscore if one exists.
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }
+  std::string filename = basename + ".hist";
+  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+
+  int i, counts;
+  int *junk;
+  double r;
+  double potential;
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+  char buffer[100];
+    fgets(buffer,100,curr_dist_input_file); 
+  for(i = 0; i < num_entries; i++)
+    {
+      int first_nonzero_basis_index;
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      double normalized_counts = (double)(counts)*mat->normalization;
+      normalized_counts *= 2.0;
+      normalized_counts *= (1.0/num_of_pairs);
+      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
+      mat->accumulate_target_force_element(mat, counter, &normalized_counts);
+      counter++;
+    }
+  delete [] derivatives;
+}
+
+double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
+{
+  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+  // Append the class's short name with an underscore if one exists.
+  if (!icomp->ispec->get_short_name().empty())
+  {
+    basename += "_" + icomp->ispec->get_short_name();
+  }  
+  std::string filename = basename + ".hist";
+  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+
+  int i, counts;
+  int count_summ = 0;
+  double r;
+  char buffer[100];
+  fgets(buffer,100,curr_dist_input_file);
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  for(i = 0; i< num_entries; i++)
+    {
+      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
+      count_summ += counts;
+    }
+  int num_bonds = (double)( count_summ * mat->normalization );
+
+  return num_bonds;
+}
+
+void free_name(CG_MODEL_DATA* const cg)
+{
+    // Free data after output.
+    for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
+    delete [] cg->name;
+}

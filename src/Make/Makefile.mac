@@ -52,6 +52,9 @@ mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
 
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
 	
@@ -105,4 +108,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm.x rangefinder.x combinefm.x
+all: libmscg.a newfm.x rangefinder.x combinefm.x newrem.x
