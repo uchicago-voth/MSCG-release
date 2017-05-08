@@ -646,9 +646,7 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
   double volume = calculate_volume(fs->simulation_box_limits);
   
   read_interaction_file_and_build_matrix(mat, cg, volume);
-  printf("going into BI solve routine\n");
   mat->finish_fm(mat);
-  printf("leaving BI solve routine\n");
 }
 
 double calculate_volume(const matrix simulation_box_lengths)
@@ -687,7 +685,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
     (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
     for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
       if( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-      if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ){
+      if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ) {
 	    std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
 	    double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
 	    if( type_vector[0] == type_vector[1]){
@@ -696,7 +694,8 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
       } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
 	    double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
-        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
+	    //read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
+        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, 2.0, 1.0);
       } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
         DensityClassSpec* dspec = static_cast<DensityClassSpec*>((*icomp_iterator)->ispec);
 	    read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
@@ -732,11 +731,8 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
     {
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts) / (4.0*PI*(r*r*r - (r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth())*(r-icomp->ispec->get_fm_binwidth()))/3.0);
-      normalized_counts *= mat->normalization;
-      normalized_counts *= 2.0;
-      normalized_counts *= (1.0/num_of_pairs);
-      normalized_counts *= volume;
+      double normalized_counts = (double)(counts) / ( 4.0*PI*r*r*(r - icomp->ispec->get_fm_binwidth()) );
+      normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
       potential = mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
