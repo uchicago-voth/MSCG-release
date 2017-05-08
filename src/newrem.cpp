@@ -21,6 +21,7 @@
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
+inline void screen_interaction_basis(CG_MODEL_DATA* const cg);
 
 int main(int argc, char* argv[])
 {
@@ -66,6 +67,7 @@ int main(int argc, char* argv[])
     // should be fit, which should be tabulated, and which are not 
     // present in the model.
     printf("Reading interaction ranges.\n");
+	screen_interaction_basis(&cg);
     read_all_interaction_ranges(&cg);
 
     //frame weighting??? Read in of weights would happen here.
@@ -337,3 +339,12 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
     }
 }
     
+
+inline void screen_interaction_basis(CG_MODEL_DATA* const cg) {
+	std::list<InteractionClassSpec*>::iterator iclass_iterator;
+	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+		if ((*iclass_iterator)->class_type != kOneBody) {
+	        (*iclass_iterator)->set_basis_type(kBSplineAndDeriv);
+    	}
+    }
+}
