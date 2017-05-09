@@ -37,6 +37,7 @@ void determine_matrix_columns_and_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* co
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void log_n_basis_functions(InteractionClassSpec &ispec);
 void determine_BI_matrix_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
+void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp);
 
 // Matrix reset routines
 
@@ -825,20 +826,33 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 
 }
 
-void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
+void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
 {
   determine_matrix_columns_and_rows(mat, cg, 1, 0);
-  determine_BI_matrix_rows(mat, cg);
-
-  printf("matrix rows = %d\n",mat->fm_matrix_rows);fflush(stdout);
-
-  delete [] mat->dense_fm_rhs_vector;
-  delete [] mat->dense_fm_normal_rhs_vector;
   mat->fm_solution.resize(mat->fm_matrix_columns);
+   
+  mat->accumulate_matching_forces = accumulate_BI_elements;
+  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
+  mat->finish_fm = solve_BI_equation;
   
+  // reset output files
+  FILE* BI_matrix = fopen("BI_matrix.dat","w");
+  FILE* BI_vector = fopen("BI_vector.dat","w");
+  fclose(BI_matrix);
+  fclose(BI_vector);
+}
+
+void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer* const icomp)
+{
+  determine_BI_interaction_rows_and_cols(mat, icomp);
+
+  printf("%s matrix rows = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows);fflush(stdout);
+
   // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
   // However, the svd solver puts the solution vector into this array,
   // and  the solution vetor is of size mat->fm_matrix_columns.
+  delete [] mat->dense_fm_rhs_vector;
+  delete [] mat->dense_fm_normal_rhs_vector;
   if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
 	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
   	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
@@ -848,14 +862,8 @@ void initialize_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
   }
   
-  //mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
-  mat->accumulate_matching_forces = accumulate_BI_elements;
-  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
-  mat->finish_fm = solve_BI_equation;
-}
-
-  
+}  
 
 //--------------------------------------------------------------------
 // Bootstrapping helper routines
@@ -3463,6 +3471,32 @@ void solve_BI_equation(MATRIX_DATA* const mat)
   delete mat->dense_fm_matrix;
 }
   
+void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
+{
+  int i, j;
+  double* singular_values = new double[mat->fm_matrix_columns];
+  FILE* BI_matrix = fopen("BI_matrix.dat","a");
+  FILE* BI_vector = fopen("BI_vector.dat","a");
+  for(i = 0; i < mat->fm_matrix_rows; i++){
+    for(j = 0; j < mat->fm_matrix_columns; j++){
+      fprintf(BI_matrix,"%lf ",mat->dense_fm_matrix->get_scalar(i,j));
+    }
+    fprintf(BI_matrix,"\n");
+  }
+  
+  for(i = 0;i < mat->fm_matrix_rows;i++)
+    {
+      fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
+    }
+  
+  calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
+  for (i = 0; i < mat->fm_matrix_columns; i++) {
+    mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
+  }
+  delete [] singular_values;
+  delete mat->dense_fm_matrix;
+  solution_counter += mat->fm_matrix_columns;
+}
 
 void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 {
@@ -4109,7 +4143,7 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
 {
   int num_entries = 0;
-    std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
   	// Skip if it does not have a parameter distribution to use
   	if ((*icomp_iterator)->ispec->output_parameter_distribution !=  1) continue;
@@ -4119,4 +4153,18 @@ void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
     }
   }
   mat->fm_matrix_rows = num_entries;
+}
+
+void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
+{
+  int num_entries = 0;
+  // Skip if it does not have a parameter distribution to use
+  if (icomp->ispec->output_parameter_distribution ==  1) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      num_entries += (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth());
+    }
+  }
+  mat->fm_matrix_rows = num_entries;
+  mat->fm_matrix_columns = icomp->ispec->get_num_basis_func();
 }

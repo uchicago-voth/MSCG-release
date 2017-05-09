@@ -51,7 +51,7 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 
 void read_helical_parameter_file(InteractionClassSpec* const ispec);
 void read_density_parameter_file(DensityClassSpec* const ispec);
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume);
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* const topo_data);
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
 double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns);
@@ -464,7 +464,7 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
-    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
+    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle, distance_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
     
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
@@ -773,12 +773,22 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
 {
-  initialize_BI_matrix(mat, cg);
-
+  initialize_first_BI_matrix(mat, cg);
   double volume = calculate_volume(fs->simulation_box_limits);
+  int solution_counter = 0;
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction, 
+    // if that interaction has a parameter distribution
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+    
+    // These interactions do not generate parameter distributions
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
   
-  read_interaction_file_and_build_matrix(mat, cg, volume);
-  mat->finish_fm(mat);
+    initialize_next_BI_matrix(mat, (*icomp_iterator));
+    read_interaction_file_and_build_matrix(mat, (*icomp_iterator), volume, &cg->topo_data);
+    solve_this_BI_equation(mat, solution_counter);
+  }
 }
 
 double calculate_volume(const matrix simulation_box_lengths)
@@ -791,53 +801,42 @@ double calculate_volume(const matrix simulation_box_lengths)
     }
   return volume;
 }
-  
 
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume)
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data)
 { 
   int counter = 0;
   int* sitecounter;
-  sitecounter = new int[cg->n_cg_types]();
-  std::list<InteractionClassComputer*>::iterator icomp_iterator;
-  for(int j = 0; j < cg->n_cg_sites; j++){
-    int type = cg->topo_data.cg_site_types[j];
-    sitecounter[type-1]++;
-  }
-
-  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-    // For every defined interaction, 
-    // if that interaction has a parameter distribution
-    if ( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-    
-    // These interactions do not generate parameter distributions
-    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded )
-      {continue;}
-    
-    // Otherwise, process the data
-    (*icomp_iterator)->table_basis_fn_vals.resize((*icomp_iterator)->ispec->get_bspline_k());
-    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      if( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-      if( (*icomp_iterator)->ispec->class_type == kPairNonbonded ) {
-	    std::vector <int> type_vector = (*icomp_iterator)->ispec->get_interaction_types(i);
-	    double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
-	    if( type_vector[0] == type_vector[1]){
-	      num_pairs -= sitecounter[type_vector[0]-1];
-	    }
-        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
-      } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
-	    //double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
-	    //read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
-        read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, 2.0, 1.0);
-      } else if( (*icomp_iterator)->ispec->class_type == kDensity ){
-        DensityClassSpec* dspec = static_cast<DensityClassSpec*>((*icomp_iterator)->ispec);
-	    read_one_param_dist_file_other((*icomp_iterator), dspec->density_group_names, mat, i, counter, 1);
-      } else{
-	    double num_angles = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
-	    read_one_param_dist_file_other((*icomp_iterator), cg->name, mat, i, counter, num_angles);
-      }
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    sitecounter = new int[topo_data->n_cg_types]();
+    for(unsigned j = 0; j < topo_data->n_cg_sites; j++){
+      int type = topo_data->cg_site_types[j];
+      sitecounter[type-1]++;
     }
+  }
+    
+  // Otherwise, process the data
+  icomp->table_basis_fn_vals.resize(icomp->ispec->get_bspline_k());
+  for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+	if( icomp->ispec->class_type == kPairNonbonded ) {
+	  std::vector <int> type_vector = icomp->ispec->get_interaction_types(i);
+	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	  if( type_vector[0] == type_vector[1]){
+	    num_pairs -= sitecounter[type_vector[0]-1];
+	  }
+	  read_one_param_dist_file_pair(icomp, topo_data->name, mat, i, counter,num_pairs, volume);
+	} else if ( icomp->ispec->class_type == kPairBonded ) {
+	  read_one_param_dist_file_pair(icomp, topo_data->name, mat, i, counter, 2.0, 1.0);
+	} else if( icomp->ispec->class_type == kDensity ){
+	  DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
+	  read_one_param_dist_file_other(icomp, dspec->density_group_names, mat, i, counter, 1);
+	} else{
+	  double num_angles = count_bonded_interaction(icomp, topo_data->name, mat, i);
+	  read_one_param_dist_file_other(icomp, topo_data->name, mat, i, counter, num_angles);
+	}
   }  
-  delete [] sitecounter;
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    delete [] sitecounter;
+  }
 }
 
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
@@ -863,7 +862,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
     {
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth()) );
+      double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
       normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
       potential = mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
