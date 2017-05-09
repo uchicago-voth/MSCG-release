@@ -5,6 +5,7 @@ FM code
 4) Add MS-CG IX alternative 3B interactions (and tabulated)
 5) Orthogonal basis sets
 6) Wavelet basis sets (?)
+7) Volume dependent basis sets (for one-body) and MS-CODE
 
 LAMMPS files
 2) Test and debug pair*density pair_styles
