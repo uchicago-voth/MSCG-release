@@ -863,8 +863,8 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
     {
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts) / ( 4.0*PI*r*r*(r - icomp->ispec->get_fm_binwidth()) );
-      normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
+      double normalized_counts = (double)(counts) / (4.0*PI*((r*r*r) - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth()) ));
+      normalized_counts *= 6.0 * mat->normalization * volume / num_of_pairs;
       potential = mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
