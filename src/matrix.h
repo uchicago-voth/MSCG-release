@@ -120,6 +120,10 @@ struct csr_matrix {
 */
 	}
 	
+	inline void print_matrix_csr(FILE* fh) {
+		write_file(fh);
+	}
+	
     inline ~csr_matrix() {
         delete [] values;
         delete [] column_indices;
@@ -148,7 +152,7 @@ struct dense_matrix {
     }
 
 	inline void print_matrix(FILE* fh) {
-		fprintf(fh, "Printing Matrix:\n");
+		fprintf(fh, "Rows: %d\nColumns: %d\n", n_rows,  n_cols);
 		for (int i = 0; i < n_rows; i++) {
 			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
@@ -156,6 +160,52 @@ struct dense_matrix {
 			}
 			fprintf(fh, "\n");
 		}
+	}
+	
+	inline void print_matrix_csr(FILE* fh) {
+		
+		//Allocate this CSR
+		int nnz = get_nnz();
+		int counter = 0;
+		int column_indices[nnz];
+		int row_sizes[n_rows + 1];
+		row_sizes[0] = 0;
+		
+		fprintf(fh, "%d %d %d\n", n_rows, n_cols, nnz);
+		
+		//Populate this CSR and print non-zero values
+		for (int i = 0; i < n_rows; i++) {
+			for(int j = 0; j < n_cols; j++) {
+				if (fabs(values[j*n_rows + i]) > VERYSMALL)  {
+					fprintf(fh,"%lf ",  values[j*n_rows +  i]);
+					column_indices[counter++] = values[j*n_rows + i];
+				}
+			}
+			row_sizes[i+1] = counter;
+		}
+		fprintf(fh,"\n");
+		
+		// print the column indices
+		for (int i = 0; i < nnz; i++) {
+			fprintf(fh,"%d ", column_indices[i]);
+		}
+		fprintf(fh,"\n");
+		
+		// print the row_sizes
+		for (int i = 0; i <= n_rows; i++) {
+			fprintf(fh,"%d ", row_sizes[i]);
+		}
+		fprintf(fh,"\n");
+	}
+	
+	inline int get_nnz() {
+		int nnz = 0;
+		for (int i = 0; i < n_rows; i++) {
+			for (int j = 0; j < n_cols; j++) {
+				if (fabs(values[j*n_rows + i]) > VERYSMALL) nnz++;
+			}
+		}
+		return nnz;
 	}
 	
     inline void reset_matrix() {
@@ -297,7 +347,11 @@ struct MATRIX_DATA {
     int output_style;                       // 0 to output only tables; 2 to output tables and binary block equations; 3 to output only binary block equations
     int output_normal_equations_rhs_flag;   // 1 to output the final right hand side vector of the MS-CG normal equations as well as force tables; 0 otherwise
     int output_solution_flag;               // 0 to not output the solution vector; 1 to output the solution vector in x.out
-   
+    int output_raw_splines;					// 1 to output spline contributions for each interaction processed; 0 otherwise  (default)
+   	int output_raw_frame_blocks;			// 1 to output the pre-normal form fm_matrix  at the end of each frame block; 0 otherwise (default)
+   	FILE* frame_block_fh;
+   	
+
 	// Constructors and destructors
 	MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg);
 	
@@ -338,6 +392,9 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kREM) {
 	    	delete dense_fm_matrix;
 	 	}
+	 	if  (output_raw_frame_blocks == 1) {
+ 			fclose(frame_block_fh);
+ 		}
 	}
    
     // Modification function for matrix.

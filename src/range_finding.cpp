@@ -39,15 +39,17 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
 void calc_angular_three_body_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_radius_of_gyration_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
+void calc_helical_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void evaluate_density_sampling_range(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 
-void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep,  FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_interaction_output_file_handle, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_output_filep);
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
 
+void read_helical_parameter_file(InteractionClassSpec* const ispec);
 void read_density_parameter_file(DensityClassSpec* const ispec);
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* const cg, double volume);
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
@@ -96,7 +98,9 @@ void initialize_range_finding_temps(CG_MODEL_DATA* const cg)
 
 void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, InteractionClassComputer *icomp, TopologyData *topo_data) 
 {
-	if( ((iclass->class_type == kDensity || iclass->class_type == kRadiusofGyration) && iclass->class_subtype == 0) ) {
+	if( (iclass->class_type == kDensity || iclass->class_type == kRadiusofGyration || iclass->class_type == kHelical
+	   || iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded)
+		&& iclass->class_subtype == 0 ) {
 		iclass->dummy_setup_for_defined_interactions(topo_data);
 	} else {	 
 		iclass->setup_for_defined_interactions(topo_data);
@@ -125,9 +129,30 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 		} else {
 			report_unrecognized_class_subtype(iclass);
 		}
+	} else if (iclass->class_type == kR13Bonded ||
+			   iclass->class_type == kR14Bonded ||
+			   iclass->class_type == kR15Bonded) {
+		if (iclass->class_subtype == 0) {
+			icomp->calculate_fm_matrix_elements = calc_nothing;
+		} else if (iclass->class_subtype == 1) {
+			icomp->calculate_fm_matrix_elements = calc_isotropic_two_body_sampling_range;
+        }
+        else {
+        	report_unrecognized_class_subtype(iclass);
+        }
 	} else if (iclass->class_type == kRadiusofGyration) {
 		if (iclass->class_subtype == 1) { 
 			icomp->calculate_fm_matrix_elements = calc_radius_of_gyration_interaction_sampling_range;
+		} else if (iclass->class_subtype == 0) { // Do nothing
+			icomp->calculate_fm_matrix_elements = calc_nothing;
+		} else {
+			report_unrecognized_class_subtype(iclass);
+		}
+    } else if (iclass->class_type == kHelical) {
+		if (iclass->class_subtype == 1) { 
+			icomp->calculate_fm_matrix_elements = calc_helical_interaction_sampling_range;
+			read_helical_parameter_file(iclass); 
+
 		} else if (iclass->class_subtype == 0) { // Do nothing
 			icomp->calculate_fm_matrix_elements = calc_nothing;
 		} else {
@@ -166,12 +191,22 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 	
 	if(iclass->output_parameter_distribution == 1){
 		if(iclass->class_type == kDensity) {
-			open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
- 		} else if (iclass->class_type == kRadiusofGyration) {
- 			RadiusofGyrationClassSpec* rg_class = static_cast<RadiusofGyrationClassSpec*>(iclass);
-			open_parameter_distribution_files_for_class(icomp, rg_class->molecule_group_names);
-		} else {
+			if (iclass->class_subtype > 0) {
+				open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
+ 			}
+ 		} else if (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) {
+ 			if (iclass->class_subtype > 0) {
+ 				open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
+			}
+		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
+					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
+					iclass->class_subtype == 1) {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
+		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
+		    open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		} else {
+			// do nothing here
 		}
 	}
 }
@@ -305,8 +340,14 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
 	if (icomp->ispec->output_parameter_distribution == 1) {
-		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
-		else if (param < icomp->ispec->cutoff) 			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
+			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		} else if( (icomp->ispec->class_type == kPairNonbonded) && (param < icomp->ispec->cutoff)) {
+		 	fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		} else if( (icomp->ispec->class_type == kR13Bonded || icomp->ispec->class_type == kR14Bonded || icomp->ispec->class_type == kR15Bonded) &&
+					icomp->ispec->class_subtype == 1) {
+			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+		}
 	}
 }
 
@@ -337,6 +378,32 @@ void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
 	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+}
+
+void calc_helical_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+{
+	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(icomp->ispec);
+	int mol_id = icomp->k;
+    double param;
+    
+    int n_ids = h_spec->topo_data_->molecule_list->partner_numbers_[mol_id];
+	int* particle_ids = new int[n_ids];
+	for (int i = 0; i < n_ids; i++) particle_ids[i] = (int)(h_spec->topo_data_->molecule_list->partners_[mol_id][i]);
+	
+	int n_helical_ids = 2 * h_spec->helical_list->partner_numbers_[mol_id];
+	int* helical_ids = new int[n_helical_ids];
+	for (int i = 0; i < n_helical_ids; i++) helical_ids[i] = h_spec->helical_list->partners_[mol_id][i]; 
+	
+
+    calc_fraction_helical(particle_ids, x, simulation_box_half_lengths, n_ids, param, helical_ids, n_helical_ids/2, h_spec->r0[icomp->index_among_defined_intrxns], h_spec->sigma2[icomp->index_among_defined_intrxns]);
+
+    if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
+    if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
+	
+	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+
+	delete [] particle_ids;
+	delete [] helical_ids;
 }
 
 void calc_radius_of_gyration_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
@@ -386,23 +453,33 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
  	
     FILE* nonbonded_interaction_output_file_handle = open_file("rmin.in", "w");
     FILE* bonded_interaction_output_file_handle = open_file("rmin_b.in", "w");
-    FILE* density_interaction_output_file_handle;
+    FILE* distance_interaction_output_file_handle;
+    FILE* helical_interaction_output_file_handle;
+	FILE* density_interaction_output_file_handle;
     FILE* radius_of_gyration_interaction_output_file_handle;
-    if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
+    if (cg->r13_interactions.class_subtype > 0 ||
+        cg->r14_interactions.class_subtype > 0 ||
+        cg->r15_interactions.class_subtype > 0) distance_interaction_output_file_handle = open_file("rmin_r.in", "w");
+    if (cg->helical_interactions.class_subtype > 0) helical_interaction_output_file_handle = open_file("rmin_hel.in", "w");
+	if (cg->density_interactions.class_subtype > 0) density_interaction_output_file_handle = open_file("rmin_den.in", "w");
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) radius_of_gyration_interaction_output_file_handle = open_file("rmin_rg.in", "w");
 	
-    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
+    write_interaction_range_data_to_file(cg, mat, one_body_interaction_output_file_handle, nonbonded_interaction_output_file_handle, distance_interaction_output_file_handle, bonded_interaction_output_file_handle, density_interaction_output_file_handle, helical_interaction_output_file_handle, radius_of_gyration_interaction_output_file_handle);
     
     if (cg->one_body_interactions.class_subtype != 0) {
  		fclose(one_body_interaction_output_file_handle);
  	}
  	fclose(nonbonded_interaction_output_file_handle);
     fclose(bonded_interaction_output_file_handle);
+    if (cg->r13_interactions.class_subtype > 0 ||
+        cg->r14_interactions.class_subtype > 0 ||
+        cg->r15_interactions.class_subtype > 0) fclose(distance_interaction_output_file_handle);
+	if (cg->helical_interactions.class_subtype > 0) fclose(helical_interaction_output_file_handle);
 	if (cg->density_interactions.class_subtype > 0) fclose(density_interaction_output_file_handle);
 	if (cg->radius_of_gyration_interactions.class_subtype > 0) fclose(radius_of_gyration_interaction_output_file_handle);
 }
 
-void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
+void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -411,6 +488,13 @@ void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* 
         	write_one_body_iclass_range_specifications(*icomp_iterator, cg->name, mat, one_body_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kPairNonbonded) {
             write_iclass_range_specifications(*icomp_iterator, cg->name, mat, nonbonded_spline_output_filep);
+        } else if ( ((*iclass_iterator)->class_type == kR13Bonded ||
+        		 (*iclass_iterator)->class_type == kR14Bonded ||
+        		 (*iclass_iterator)->class_type == kR15Bonded) &&
+        		 (*iclass_iterator)->class_subtype != 0 ) {
+        	write_iclass_range_specifications(*icomp_iterator, cg->name, mat, distance_spline_output_filep);
+        } else if ((*iclass_iterator)->class_type == kHelical) {
+			write_iclass_range_specifications(*icomp_iterator, cg->helical_interactions.molecule_group_names, mat, helical_interaction_output_filep);
         } else if ((*iclass_iterator)->class_type == kRadiusofGyration) {
 			write_iclass_range_specifications(*icomp_iterator, cg->radius_of_gyration_interactions.molecule_group_names, mat, radius_of_gyration_interaction_output_filep);
 		} else if ((*iclass_iterator)->class_type == kDensity) {
@@ -432,12 +516,22 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
     }
 	
 	if (iclass->output_parameter_distribution == 1) {
-     	close_parameter_distribution_files_for_class(icomp);
-		if(iclass->class_type == kDensity) {
+		if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
+			close_parameter_distribution_files_for_class(icomp);
 			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(iclass);
 			generate_parameter_distribution_histogram(icomp, ispec->density_group_names);
+		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
+					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
+					iclass->class_subtype == 1 ) {
+			close_parameter_distribution_files_for_class(icomp);
+			generate_parameter_distribution_histogram(icomp, name);			
+		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
+		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
+			close_parameter_distribution_files_for_class(icomp);
+			generate_parameter_distribution_histogram(icomp, name);
+		} else {
+			// do nothing for these
 		}
-		else generate_parameter_distribution_histogram(icomp, name);
 	}
 }
 
@@ -460,6 +554,9 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 		basename = iclass->get_interaction_name(iclass->density_group_names, index_among_defined, " ");
 	} else if (ispec->class_type == kRadiusofGyration) {
 		RadiusofGyrationClassSpec* iclass = static_cast<RadiusofGyrationClassSpec*>(ispec);
+		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
+	} else if (ispec->class_type == kHelical) {
+		HelicalClassSpec* iclass = static_cast<HelicalClassSpec*>(ispec);
 		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
 	} else {
 		basename = ispec->get_interaction_name(name, index_among_defined, " ");
@@ -485,7 +582,42 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 		if(dspec->class_subtype == 1 || dspec->class_subtype == 4) fprintf(solution_spline_output_file, " %lf", dspec->density_sigma[index_among_defined]);
 		if(dspec->class_subtype == 2) fprintf(solution_spline_output_file, " %lf %lf", dspec->density_sigma[index_among_defined], dspec->density_switch[index_among_defined]);
 	}
+	HelicalClassSpec* hspec = dynamic_cast<HelicalClassSpec*>(ispec);
+	if(hspec != NULL) {
+		fprintf(solution_spline_output_file, " %lf %lf", hspec->r0[index_among_defined], hspec->sigma2[index_among_defined]);
+	}
 	fprintf(solution_spline_output_file, "\n");
+}
+
+void read_helical_parameter_file(InteractionClassSpec* const iclass) 
+{
+	HelicalClassSpec* ispec = static_cast<HelicalClassSpec*>(iclass);
+	int num_elements;
+	std::string line;
+	std::string* elements = new std::string[4];
+	std::ifstream prm_stream;
+	prm_stream.open("hel.prm", std::ifstream::in);
+	if (prm_stream.fail()) {
+		printf("Problem opening hel.prm file!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	for(int i = 0; i < ispec->get_n_defined(); i++) {
+		if(!std::getline(prm_stream, line)) {
+			printf("More lines expected in hel.prm!\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		num_elements = StringSplit(line, " \t", elements);
+		if(num_elements < 3) {
+			printf("Each line needs to have at least 3 elements!\n");
+			exit(EXIT_FAILURE);
+		}
+		ispec->r0[i] = atof(elements[1].c_str());
+		ispec->sigma2[i] = atof(elements[2].c_str());
+	}
+	prm_stream.close();
+	delete [] elements;
 }
 
 void read_density_parameter_file(DensityClassSpec* const ispec) 
@@ -693,7 +825,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, CG_MODEL_DATA* con
 	    }
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter,num_pairs, volume);
       } else if ( (*icomp_iterator)->ispec->class_type == kPairBonded ) {
-	    double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
+	    //double num_bonds = count_bonded_interaction((*icomp_iterator), cg->name, mat, i);
 	    //read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, num_bonds, volume);
         read_one_param_dist_file_pair((*icomp_iterator), cg->name, mat, i, counter, 2.0, 1.0);
       } else if( (*icomp_iterator)->ispec->class_type == kDensity ){

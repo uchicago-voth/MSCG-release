@@ -6,7 +6,47 @@
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
 
+// This file provides the library interface to the multi-scale coarse-graining (MS-CG)
+// code, which is also referred to as the force matching (FM) code. 
+// The order in which functions are intended to be called for FM is the following:
+// mscg_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// mscg_startup_part2
+// mscg_process_frame for each frame
+// mscg_solve_and output.
+// Additional functions are provided for updating or modifying certain information
+// after the data is initially set using one of the functions before or during 
+// mscg_startup_part2.
+
+// The order in which functions are intended to be called for range finding is the following:
+// rangefinder_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// rangefinder_startup_part2
+// rangefinder_process_frame for each frame
+// rangefinder_solve_and output.
+
 #include "mscg.h"
+
+// Prototype function definition for functions called internal to this file
+void finish_fix_reading(FrameSource *const frame_source);
+
+// Data structure holding all MSCG information.
+// It is passed to the driver function (LAMMPS fix) as an opaque pointer.
+struct MSCG_struct {
+	int curr_frame;
+	int nblocks;
+	int trajectory_block_frame_index;
+	int traj_frame_num;
+	double start_cputime;
+	FrameSource *frame_source;      // Trajectory frame data
+    CG_MODEL_DATA *cg;  			// CG model parameters and data
+    ControlInputs *control_input;	// Input settings read from control.in
+    MATRIX_DATA *mat;				// Matrix storage structure
+};
 
 // This function starts the MSCG process by allocating memory for the mscg_struct
 // and reading information from the control.in file.
@@ -18,9 +58,7 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->start_cputime = clock();	
 	
 	mscg_struct->frame_source = new FrameSource;
-    
     FrameSource *p_frame_source = mscg_struct->frame_source;
-    ControlInputs *p_control_input = mscg_struct->control_input;
     
     //----------------------------------------------------------------
     // Set up the force matching procedure
@@ -34,10 +72,16 @@ void* mscg_startup_part1(void* void_in)
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     mscg_struct->control_input = new ControlInputs;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
-    
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
-    
+	    
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
+    	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
+		exit(EXIT_FAILURE);
+    }
+
 	return (void*)(mscg_struct);
 }
     
@@ -53,8 +97,10 @@ void* rangefinder_startup_part1(void* void_in)
         printf("Rangefinder does not support three body nonbonded interaction ranges.\n");
         exit(EXIT_FAILURE);
     }
+
     mscg_struct->control_input->bootstrapping_flag = 0;
     mscg_struct->frame_source->bootstrapping_flag = 0;
+
     return void_in;
 }
 
@@ -90,7 +136,13 @@ void* mscg_startup_part2(void* void_in)
     if (p_cg->pair_nonbonded_interactions.n_tabulated > 0 ||
         p_cg->pair_bonded_interactions.n_tabulated > 0 ||
         p_cg->angular_interactions.n_tabulated > 0 ||
-        p_cg->dihedral_interactions.n_tabulated > 0) {
+        p_cg->dihedral_interactions.n_tabulated > 0 ||
+        p_cg->r13_interactions.n_tabulated > 0 ||
+        p_cg->r14_interactions.n_tabulated > 0 ||
+        p_cg->r15_interactions.n_tabulated > 0 ||
+        p_cg->helical_interactions.n_tabulated > 0 || 
+        p_cg->radius_of_gyration_interactions.n_tabulated > 0 ||
+		p_cg->density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(p_cg, p_cg->topo_data.n_cg_types);
     } 
@@ -195,7 +247,7 @@ void* mscg_startup_part2(void* void_in)
 void* rangefinder_startup_part2(void* void_in)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	int total_frame_samples = mscg_struct->control_input->n_frames;
+    int total_frame_samples = mscg_struct->control_input->n_frames;
 	int n_blocks = 0;
 
     // Read the range files rmin.in and rmax.in to determine which
@@ -551,13 +603,10 @@ void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_type
 	assert(n_cg_sites > 0);	
 	
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
-	FrameSource *p_frame_source = mscg_struct->frame_source;
-
-	FrameConfig* p_frame_config = new FrameConfig(n_cg_sites);
-	p_frame_source->frame_config = p_frame_config;
+	mscg_struct->frame_source->frame_config = new FrameConfig(n_cg_sites);
 	
 	// Set number of sites types.
-	p_frame_source->frame_config->cg_site_types = cg_site_types;
+	mscg_struct->frame_source->frame_config->cg_site_types = cg_site_types;
 	
 	// Set box size.
 	for (int i = 0; i < 3; i++) mscg_struct->frame_source->frame_config->simulation_box_half_lengths[i] = (real)(box_half_lengths[i]);
@@ -717,7 +766,7 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 		delete [] tb_k;
 	}
 	
-    void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
+	void_in = setup_frame_config( (void*)(mscg_struct), n_cg_sites, cg_site_types, box_half_lengths);
 	mscg_struct = (MSCG_struct*)(void_in);
 	mscg_struct->cg->topo_data.cg_site_types = mscg_struct->frame_source->frame_config->cg_site_types;
 
@@ -1013,3 +1062,16 @@ void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
 	return (void*)(mscg_struct);
 }
 
+// Returns the n_frames parameter
+int get_n_frames(void* void_in)
+{
+  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+  return mscg_struct->control_input->n_frames;
+}
+
+// Returns the block_size parameter
+int get_block_size(void* void_in)
+{
+  MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+  return mscg_struct->control_input->frames_per_traj_block;
+}

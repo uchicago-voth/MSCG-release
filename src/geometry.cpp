@@ -198,23 +198,26 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
 }
 
 // Calculate a dihedral angle and its derivatives.
+// Thanks to Andrew Jewett (jewett.aij  g m ail) for inspiration from LAMMPS dihedral_table.cpp
 
 bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, DIMENSION> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
-    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
+    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -223,22 +226,32 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-    check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
     
+	// This variable is only used to determine the sign of the angle
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}
+	    
     // Calculate the derivatives
-    double dot02_23 = dot_product(disp02, disp23);
-    double dot13_23 = dot_product(disp13, disp23);
-    
-	for (unsigned i = 0; i < DIMENSION; i++) {
-		derivatives[0][i] = - pb[i] * rrbc / pb2;
-		derivatives[1][i] =   pc[i] * rrbc / pc2;
-		derivatives[2][i] =  (pb[i] * dot02_23 * rrbc / pb2) \
-						   - (pc[i] * dot13_23 * rrbc / pc2) \
-						   - derivatives[0][i];
+    double dot03_23 = dot_product(disp03, disp23);
+    double dot12_23 = dot_product(disp12, disp23);
+    double r23_2    = dot_product(disp23, disp23);
+    double fcoef = dot03_23 / r23_2;
+	double hcoef = 1.0 + dot12_23 / r23_2; 
+	double dtf,dth;
+	for (unsigned i = 0; i < DIMENSION; i++) {		
+		dtf = pb[i] / (rrbc * pb2);				                
+		dth = - pc[i] / (rrbc * pc2);
+		
+		derivatives[0][i] = dtf; // first normal times projection of bond onto it
+		derivatives[1][i] = dth; //second normal times projection of bond onto it
+		derivatives[2][i] = - dtf * fcoef - dth * hcoef;
 	}
     return true;
 }
@@ -284,7 +297,7 @@ void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std:
 	param_val = rg2 / (double)(num_particles);	
 }
 
-void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
 {
 	std::array<double, DIMENSION>* displacement = new std::array<double, DIMENSION>[1];
 	int sub_particle_ids[2];
@@ -298,6 +311,7 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 		}
 	}
 	
+	// calculate fraction helical content and its derivative
 	for (int i = 0; i < n_helical_ids; i++) {
 		sub_particle_ids[0] = helical_ids[2 * i];
 		sub_particle_ids[1] = helical_ids[2 * i + 1];
@@ -306,10 +320,9 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 		diff = distance - r0;
 		contribution = exp( - 0.5 * diff * diff / sigma2);
 		param_val += contribution;
-
-		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
 		
-		// Accumulate this derivative as long as the first index is not the last particle in particle_ids
+		// Accumulate the derivative as long as the first index is not the last particle in particle_ids
+		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
 		if (sub_particle_ids[0] != particle_ids[n_ids - 1]) {
 			// find this index in particle_ids
 			int index = -1;
@@ -346,9 +359,9 @@ void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<d
 				}
 			}		
 		}
-		
 	}
 	param_val /= (double)(n_helical_ids);
+
 	delete [] displacement;
 }
 
@@ -404,23 +417,26 @@ void calc_angle(const int* particle_ids, const std::array<double, DIMENSION>* co
 }
 
 // Calculate a dihedral angle.
+// Thanks to Andrew Jewett (jewett.aij  g m ail) for inspiration from LAMMPS dihedral_table.cpp
 
 void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
     // Find the relevant displacements for defining the angle.
-    std::array<double, DIMENSION> disp02, disp23, disp13;
-    int particle_ids_02[2] = {particle_ids[0], particle_ids[2]};
-    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]};
-    int particle_ids_13[2] = {particle_ids[1], particle_ids[3]};
-    subtract_min_image_vectors(particle_ids_02, particle_positions, simulation_box_half_lengths, disp02);
+    std::array<double, DIMENSION> disp03, disp23, disp12;
+    int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
+    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
+    subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
-    subtract_min_image_vectors(particle_ids_13, particle_positions, simulation_box_half_lengths, disp13);
+    subtract_min_image_vectors(particle_ids_12, particle_positions, simulation_box_half_lengths, disp12);
 
-    // Calculate the angle, which requires many intermediates.
+    // Calculate the dihedral, which requires many intermediates.
+    // It is the dot product of the cross product. 
+    // Note: To calculate the cosine, the vectors in the final dot product need to be effectively normalized.
     double rrbc = 1.0 / sqrt(dot_product(disp23, disp23));	// central bond
     std::array<double, DIMENSION> pb, pc, cross_bc;
-    cross_product(disp02, disp23, pb);
-    cross_product(disp13, disp23, pc);
+    cross_product(disp03, disp23, pb); // This defines the normal vector to the first 3 sites
+    cross_product(disp12, disp23, pc); // This defines the normal vector to the last 3 sites
     cross_product(pb, pc, cross_bc);
     
     double pb2 = dot_product(pb, pb);
@@ -429,11 +445,17 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    //double s = dot_product( disp02, cross_bc) * rpb1 * rpc1 * rrbc; // LAMMPS has a different s
-	double s = - dot_product( pb, disp13) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
-	check_sine(s);
-    param_val = atan2(s, c) * DEGREES_PER_RADIAN;
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
+    
+	// This variable is only used to determine the sign of the angle
+	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
+	if (sign < 0.0) { 
+		param_val = - theta;
+	} else {
+		param_val = theta;
+	}    	
 }
 
 void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val)
@@ -471,7 +493,7 @@ void calc_radius_of_gyration(const int* particle_ids, const std::array<double, D
 }
 
 
-void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const int sigma2)
+void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
 {
 	int sub_particle_ids[2];
 	double distance, diff;

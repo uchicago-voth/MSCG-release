@@ -29,9 +29,6 @@ COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h inter
 libmscg.a: mscg.o $(COMMON_OBJECTS) range_finding.o
 	ar rvs libmscg.a *.o
 
-newrem.x: newrem.o  $(COMMON_OBJECTS) 
-	$(CC) $(LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) $(LIBS)
-
 newfm.x: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
 
@@ -52,11 +49,11 @@ combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
 mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
 	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o $(NO_GRO_LIBS)
 
-newrem.o: newrem.cpp $(COMMON_SOURCE)
-	$(CC) $(CFLAGS) -c newrem.cpp
-
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
 
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
@@ -111,4 +108,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: newfm.x rangefinder.x combinefm.x newrem.x libmscg.a
+all: libmscg.a newfm.x rangefinder.x combinefm.x newrem.x

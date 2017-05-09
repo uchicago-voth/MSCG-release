@@ -40,6 +40,10 @@ typedef struct ControlInputs {
     int one_body_flag;							// 1 to enable fitting one-body terms for specific types; 0 otherwise
     int angle_interaction_style;                // 1 to use distance-based angular interactions; 0 for angle-based angle interactions.
     int dihedral_interaction_style;             // 1 to use distance-based dihedral interactions; 0 for angle-based dihedral interactions.
+    int r13_distance_flag;
+    int r14_distance_flag;
+    int r15_distance_flag;
+    int helical_flag;
     int radius_of_gyration_flag;
     int three_body_flag;
     int three_body_nonbonded_exclusion_flag;
@@ -57,6 +61,10 @@ typedef struct ControlInputs {
     double pair_bond_fm_binwidth;
     double angle_fm_binwidth;
     double dihedral_fm_binwidth;
+    double r13_fm_binwidth;
+    double r14_fm_binwidth;
+    double r15_fm_binwidth;
+    double helical_fm_binwidth;
     double radius_of_gyration_fm_binwidth;
     double three_body_fm_binwidth;
 	double density_fm_binwidth;
@@ -64,6 +72,10 @@ typedef struct ControlInputs {
     int pair_bond_bspline_k;                // B-spline k value for bonded pair interactions
     int angle_bspline_k;                    // B-spline k value for bonded angular interactions
     int dihedral_bspline_k;                 // B-spline k value for bonded dihedral interactions
+    int r13_bspline_k;
+    int r14_bspline_k;
+    int r15_bspline_k;
+    int helical_bspline_k;
     int radius_of_gyration_bspline_k;		// B-spline k value for radius of gyration interations
     int three_body_bspline_k;               // B-spline k value for nonbonded three body interactions
 	int density_bspline_k;                  // B-spline k value for density interactions
@@ -81,6 +93,10 @@ typedef struct ControlInputs {
     double pair_bond_output_binwidth;
     double angle_output_binwidth;
     double dihedral_output_binwidth;
+    double r13_output_binwidth;
+    double r14_output_binwidth;
+    double r15_output_binwidth;
+    double helical_output_binwidth;
     double radius_of_gyration_output_binwidth;
     double three_body_nonbonded_output_binwidth;
 	double density_output_binwidth;
@@ -92,9 +108,22 @@ typedef struct ControlInputs {
     int output_pair_bond_parameter_distribution;
     int output_angle_parameter_distribution;
     int output_dihedral_parameter_distribution;
+    int output_r13_parameter_distribution;
+    int output_r14_parameter_distribution;
+    int output_r15_parameter_distribution;
+    int output_helical_parameter_distribution;
     int output_radius_of_gyration_parameter_distribution;
 	int output_density_parameter_distribution;
     
+    // Newfm  only output specifications
+    int output_raw_splines;
+    int output_raw_frame_blocks;
+    
+    //REM specification
+  	double REM_iteration_step_size;
+  	double temperature;
+  	double boltzmann;
+
     // Matrix specifications
     int matrix_type;
     int itnlim;
@@ -106,11 +135,6 @@ typedef struct ControlInputs {
 	double sparse_safety_factor; 
 	int num_sparse_threads;
 	
-	//REM specification
-  	double REM_iteration_step_size;
-  	double temperature;
-  	double boltzmann;
-
 	ControlInputs(void);
 	~ControlInputs(void);
 } ControlInputs;

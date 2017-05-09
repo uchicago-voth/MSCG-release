@@ -2,7 +2,6 @@
 # module load mkl/11.2
 # module load gsl/2.2.1+intel-15.0
 # module load intel/15.0
-# module load gcc
 # on any of RCC's clusters at UChicago.
 
 DIMENSION = 3
@@ -42,9 +41,6 @@ MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geom
 libmscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS)
 	ar rvs libmscg.a *.o
 
-newrem.x: newrem.o  $(COMMON_OBJECTS) 
-	$(CC) $(LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) $(LIBS)
-
 newfm.x: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
 
@@ -56,7 +52,19 @@ newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
 
 newfm_mkl_no_gro.x: newfm.o $(MKL_NO_GRO_COMMON_OBJECTS)
 	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@ newfm.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
+newrem.x: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) $(LIBS)
+
+newfm_mkl.x: newfm.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@ newfm.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
+
+newrem_no_gro.x: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 	
+newrem_mkl_no_gro.x: newrem.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@ newrem.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
 combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
 
@@ -74,14 +82,17 @@ rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
 mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
 	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o $(NO_GRO_LIBS)
 
-newrem.o: newrem.cpp $(COMMON_SOURCE)
-	$(CC) $(CFLAGS) -c newrem.cpp
-
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
 	
 newfm_mkl.o: newfm.cpp $(COMMON_SOURCE) 
 	$(CC) $(MKL_CFLAGS) -c newfm.cpp -D"_mkl_flag=1" -o newfm_mkl.o
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
+newrem_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newrem.cpp -D"_mkl_flag=1" -o newrem_mkl.o
 
 combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c combinefm.cpp
@@ -141,4 +152,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: newfm.x rangefinder.x combinefm.x newrem.x libmscg.a
+all: libmscg.a newfm.x rangefinder.x combinefm.x newrem.x

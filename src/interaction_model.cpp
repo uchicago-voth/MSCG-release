@@ -77,6 +77,8 @@ std::string DensityClassSpec::get_interaction_name(char **type_names, const int 
 {
 	std::vector<int> types = get_interaction_types(intrxn_index_among_defined);
 	std::string namestring = std::string(type_names[types[0] - 1]);
+	unsigned size = types.size();
+	if (size == 5) size = 2; // work around for R15 quints
     for(unsigned i = 1; i < types.size(); i++) {
         namestring += delimiter + type_names[types[i] - 1];
     }
@@ -120,6 +122,12 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
     
     int n_fields;
     int n_expected = 3 + get_n_body();
+    if (class_type == kOneBody) {
+    	n_expected = 1 + get_n_body();
+    } else if (class_type == kHelical) {
+    	n_expected += 2;
+    }
+    
 	std::vector<int> types(get_n_body());
 	std::string* elements = new std::string[n_expected + 1];
  	std::string line;
@@ -205,6 +213,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
     int n_expected = 3 + get_n_body();
     if (class_type == kOneBody) {
     	n_expected = 1 + get_n_body();
+    } else if (class_type == kHelical) {
+    	n_expected += 2;
     }
     
     std::vector<int> types(get_n_body());
@@ -214,15 +224,20 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	
 	DensityClassSpec* dspec;
 	RadiusofGyrationClassSpec* rgspec;
+	HelicalClassSpec* hspec;
 	if (class_type == kDensity) {
 		dspec = static_cast<DensityClassSpec*>(this);
 	} 
 	if (class_type == kRadiusofGyration) {
 		rgspec = static_cast<RadiusofGyrationClassSpec*>(this);
 	}
-
+	if (class_type == kHelical) {
+		hspec = static_cast<HelicalClassSpec*>(this);
+	}		
+	
 	std::getline(range_in, line);
-	while(range_in.good() == 1) {	
+	while(range_in.good() == 1) {
+	
 		// Check that this line has enough fields.
 		if ( (n_fields = StringSplit(line, " \t\n", elements)) < n_expected ) {	//allow for trailing white space
 			if(total_intrxns == 0) report_fields_error(get_full_name(), n_expected, n_fields);
@@ -237,13 +252,17 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			read_types(get_n_body(), types, &elements[0], dspec->n_density_groups, name);
 			index_among_defined = calc_asymmetric_interaction_hash(types, dspec->n_density_groups);
 			printf("dg [%d, %d] = %d hash\n", types[0], types[1], index_among_defined);
+		} else if (class_type == kHelical) {
+			read_types(get_n_body(), types, &elements[0], hspec->n_molecule_groups, name);
+			index_among_defined = calc_interaction_hash(types, hspec->n_molecule_groups);
 		} else if (class_type == kRadiusofGyration) {
 			read_types(get_n_body(), types, &elements[0], rgspec->n_molecule_groups, name);
 			index_among_defined = calc_interaction_hash(types, rgspec->n_molecule_groups);
-		} else {		
+		} else {
 			read_types(get_n_body(), types, &elements[0], n_cg_types, name);
 			index_among_defined = calc_interaction_hash(types, n_cg_types);
 		}	
+	
 		// Read the low and high parameter values;
 		read_rmin_class(elements, get_n_body(), index_among_defined, mode);
 		check_mode(mode);
@@ -288,8 +307,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			// This interaction is tabulated.
 			total_symmetric_tabulated++;
 			defined_to_symtab_intrxn_index_map[index_among_defined] = total_symmetric_tabulated;
-		}
-	std::getline(range_in, line);
+		}		
+    	std::getline(range_in, line);
     }
     n_to_force_match = total_to_fm;
     n_force = total_to_fm - total_symmetric;
@@ -329,6 +348,15 @@ void DensityClassSpec::read_rmin_class(std::string* &elements, const int positio
 	}
 }
 
+void HelicalClassSpec::read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode) 
+{
+	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
+	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
+	sprintf(mode, "%s", elements[position + 2].c_str());	
+	r0[index_among_defined] = atof(elements[position + 3].c_str());
+	sigma2[index_among_defined] = atof(elements[position + 4].c_str());
+}
+
 inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, char** molecule_group_names, const int n_molecule_groups, int &index_among_defined)
 {
 	// Read the base types and 
@@ -338,7 +366,7 @@ inline void extract_types_and_range(std::string* elements, const InteractionClas
 	if (type == kDensity) {
 		read_types(n_body, types, &elements[0], n_density_groups, density_group_names);
 		index_among_defined = calc_asymmetric_interaction_hash(types, n_density_groups);
-	} else if (type == kRadiusofGyration) {
+	} else if (type == kRadiusofGyration || type == kHelical) {
 		read_types(n_body, types, &elements[0], n_molecule_groups, molecule_group_names);
 		index_among_defined = calc_interaction_hash(types, n_molecule_groups);
 	} else {
@@ -353,7 +381,7 @@ inline void extract_types_and_range(std::string* elements, const InteractionClas
 		
 inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name)
 {
-    for (int j = 0; j < n_body; j++) {
+	for (int j = 0; j < n_body; j++) {
     	types[j] = match_type(elements[j], name, n_types);
         if( types[j] == -1) {
         	fprintf(stderr, "Unrecognized type %s!\n", elements[j].c_str());
@@ -421,6 +449,43 @@ void setup_site_to_density_group_index(DensityClassSpec* iclass)
 	}
 }
 
+void HelicalClassSpec::rebuild_helical_list(TopoList* molecule_list, TopoList* dihedral_list)
+{
+	// Free old list if previously allocated.
+	if (allocated == 1) {
+		delete helical_list;
+	}
+	
+	// Allocate new list.
+	allocated = 1;
+	int n_molecules = molecule_list->n_sites_;
+	int max_molecule_size = molecule_list->max_partners_;
+	helical_list = new TopoList(n_molecules, 2, max_molecule_size);
+
+	// Populate new list.
+	// For each site in a molecule, look for dihedral partners that are in that same molecule.
+	for (int mol = 0; mol < n_molecules; mol++) { // search each molecule
+		int num_mol_partners = 0;
+		for (unsigned site_num = 0; site_num < molecule_list->partner_numbers_[mol]; site_num++) { // using each site in the molecule
+			// look for dihedral partners
+			int site_id = molecule_list->partners_[mol][site_num];
+			int n_dihedral_partners = dihedral_list->partner_numbers_[site_id];
+			for (int partner_num = 0; partner_num < n_dihedral_partners; partner_num++) {
+				int partner_id = dihedral_list->partners_[site_id][3 * partner_num + 2];
+				// see if this partner is in the same molecule -- only if site > partner_id
+				if (partner_id < site_id && topo_data_->molecule_ids[partner_id] == mol) {
+					// Add this to this list with the first site having the larger index
+					helical_list->partners_[mol][num_mol_partners * 2    ] = site_id;
+					helical_list->partners_[mol][num_mol_partners * 2 + 1] = partner_id;
+					num_mol_partners++;
+				}			
+			}
+			
+		}
+		helical_list->partner_numbers_[mol] = num_mol_partners;
+	}
+}
+
 void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
 {
    if ((basis_type == kLinearSpline) || (basis_type == kBSpline) ||  (basis_type == kBSplineAndDeriv)) {
@@ -431,7 +496,7 @@ void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
         }
         // Now, round down the lower cutoff so that there is an integer number of a bin.
         lower_cutoffs[i] = upper_cutoffs[i] - floor( ((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 0.5 ) * fm_binwidth;
-        if (lower_cutoffs[i] < 0.0) lower_cutoffs[i] = 0.0;
+        if ((class_type != kDihedralBonded) && (lower_cutoffs[i] < 0.0)) lower_cutoffs[i] = 0.0;
     } else if (basis_type == kDelta) {
     	// Nothing to be done here.
     }
@@ -594,7 +659,6 @@ void report_fields_error(const std::string &full_name, const int n_expected, con
 	exit(EXIT_FAILURE);	
 }
 
-
 void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg)
 {
 	// Reset upper and lower cutoffs for all interactions before starting BI calculation
@@ -614,8 +678,9 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // The index array must be filled in from the range specifications in rmin.in and rmin_b.in.
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		if( ((*iclass_iterator)->class_type == kDensity || (*iclass_iterator)->class_type == kRadiusofGyration) 
-		 && (*iclass_iterator)->class_subtype == 0) {
+		if( ((*iclass_iterator)->class_type == kDensity || (*iclass_iterator)->class_type == kRadiusofGyration || (*iclass_iterator)->class_type == kHelical 
+		  || (*iclass_iterator)->class_type == kR13Bonded || (*iclass_iterator)->class_type == kR14Bonded || (*iclass_iterator)->class_type == kR15Bonded)
+		 && ((*iclass_iterator)->class_subtype == 0) ) {
 			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);
 		} else {
 			(*iclass_iterator)->setup_for_defined_interactions(&cg->topo_data);
@@ -628,14 +693,18 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // Read normal range specifications.
     // Open the range files.
     std::ifstream nonbonded_range_in, bonded_range_in;
-    std::ifstream density_range_in, rg_range_in, one_body_range_in;
+    std::ifstream density_range_in, rg_range_in, one_body_range_in, dist_range_in, helical_range_in;
     
-   	check_and_open_in_stream(nonbonded_range_in, "rmin.in");
+   	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
 	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
 
     if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(density_range_in, "rmin_den.in"); 
     if (cg->radius_of_gyration_interactions.class_subtype != 0) check_and_open_in_stream(rg_range_in, "rmin_rg.in");
     if (cg->one_body_interactions.class_subtype != 0) check_and_open_in_stream(one_body_range_in, "rmin_1.in");
+	if (cg->r13_interactions.class_subtype != 0 ||
+	    cg->r14_interactions.class_subtype != 0 ||
+	    cg->r15_interactions.class_subtype != 0 ) check_and_open_in_stream(dist_range_in, "rmin_r.in");
+    if (cg->helical_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
     
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -646,8 +715,14 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 			(*iclass_iterator)->smart_read_interaction_class_ranges(density_range_in, cg->density_interactions.density_group_names);
         } else if((*iclass_iterator)->class_type == kRadiusofGyration) {
         	(*iclass_iterator)->smart_read_interaction_class_ranges(rg_range_in, cg->radius_of_gyration_interactions.molecule_group_names);
+        } else if((*iclass_iterator)->class_type == kHelical) {
+        	(*iclass_iterator)->smart_read_interaction_class_ranges(helical_range_in, cg->helical_interactions.molecule_group_names);
         } else if((*iclass_iterator)->class_type == kOneBody) {
 			(*iclass_iterator)->smart_read_interaction_class_ranges(one_body_range_in, cg->name);
+		} else if((*iclass_iterator)->class_type == kR13Bonded ||
+				  (*iclass_iterator)->class_type == kR14Bonded ||
+				  (*iclass_iterator)->class_type == kR15Bonded ) {
+			(*iclass_iterator)->read_interaction_class_ranges(dist_range_in);
 		} else {
             (*iclass_iterator)->read_interaction_class_ranges(bonded_range_in);
         }
@@ -658,6 +733,10 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	if (cg->density_interactions.class_subtype != 0) density_range_in.close();
 	if (cg->radius_of_gyration_interactions.class_subtype != 0) rg_range_in.close();
 	if (cg->one_body_interactions.class_subtype != 0) one_body_range_in.close();
+	if (cg->r13_interactions.class_subtype != 0 ||
+	    cg->r14_interactions.class_subtype != 0 ||
+	    cg->r15_interactions.class_subtype != 0 ) dist_range_in.close();
+    if (cg->helical_interactions.class_subtype != 0) helical_range_in.close();
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
@@ -691,7 +770,12 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
 			if (( (*iclass_iterator)->class_type == kOneBody || (*iclass_iterator)->class_type == kRadiusofGyration ) &&
 				( (*iclass_iterator)->class_subtype == 0 )) {
 				// do not read table line
-			} else {
+			} if (((*iclass_iterator)->class_type == kR13Bonded ||
+	    		   (*iclass_iterator)->class_type == kR14Bonded ||
+	    		   (*iclass_iterator)->class_type == kR15Bonded ) && 
+	    		   (*iclass_iterator)->class_subtype == 0 ) {
+	    		// do not read table line	   
+    		} else {
 				line = (*iclass_iterator)->read_table(external_spline_table, line, cg->n_cg_types);
 			}
 		}
@@ -802,12 +886,12 @@ void InteractionClassComputer::calc_one_force_val(const std::vector<double> &spl
 
 void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals)
 {
-    BSplineAndDerivComputer* s_comp_ptr = static_cast<BSplineAndDerivComputer*>(fm_s_comp);    
+    BSplineAndDerivComputer* s_comp_ptr = static_cast<BSplineAndDerivComputer*>(fm_s_comp);
     unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);
 	deriv_vals = std::vector<double>(num_entries);
-
+	
     // Calculate forces by iterating over the grid points from low to high.
     double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
     double max = ispec->upper_cutoffs[index_among_defined];
@@ -819,7 +903,7 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     for (double axis = min; axis < max; axis += binwidth) {
     	axis_vals[counter] = axis;
         force_vals[counter] = s_comp_ptr->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
-        deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
+        deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);   
     	counter++;
     }
     
@@ -827,5 +911,3 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     axis_vals.resize(counter);
     force_vals.resize(counter);
 }
-
-  

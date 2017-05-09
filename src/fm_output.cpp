@@ -69,6 +69,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
     char** name = cg->name;
 	DensityClassSpec* dspec;
 	RadiusofGyrationClassSpec* rg_spec;
+	HelicalClassSpec* h_spec;
 
     // For each class of interactions, perform output for the active 
     // interactions in that class. For one-parameter interactions right now.
@@ -97,6 +98,8 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 					name = dspec->density_group_names;
 				 } else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
 				 	name = rg_spec->molecule_group_names;
+				 } else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
+				 	name = h_spec->molecule_group_names;
 				 } else {
 					name = cg->name;
 				 }

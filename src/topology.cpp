@@ -103,6 +103,7 @@ void initialize_topology_data(TopologyData* const topo_data)
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
         topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
     }
+    topo_data->max_quints_per_site = topo_data->max_dihedrals_per_site + 2;
     // Ready pair bond data structures.
     topo_data->bond_type_activation_flags = new int[calc_n_distinct_pairs(topo_data->n_cg_types)]();
     topo_data->bond_list = new TopoList(nsites, 1, topo_data->max_pair_bonds_per_site);
@@ -112,6 +113,9 @@ void initialize_topology_data(TopologyData* const topo_data)
     // Ready dihedral bond data structures.
     topo_data->dihedral_type_activation_flags = new int[calc_n_distinct_quadruples(topo_data->n_cg_types)]();
     topo_data->dihedral_list = new TopoList(nsites, 3, topo_data->max_dihedrals_per_site);
+    // Ready dihedral bond data structures.
+    topo_data->quint_type_activation_flags = new int[calc_n_distinct_quints(topo_data->n_cg_types)]();
+    topo_data->quint_list = new TopoList(nsites, 4, topo_data->max_quints_per_site);
     // Ready exclusion list data structures.
 	topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->excluded_style));
 	// Read density exclusion list data structures.
@@ -136,6 +140,7 @@ void TopologyData::free_topology_data(void) {
     if (bond_list != NULL) delete bond_list;
     if (angle_list != NULL) delete angle_list;
     if (dihedral_list != NULL) delete dihedral_list;
+    if (quint_list != NULL) delete quint_list;
     if (molecule_list != NULL) delete molecule_list;
     delete exclusion_list;
 	delete density_exclusion_list;
@@ -144,6 +149,7 @@ void TopologyData::free_topology_data(void) {
     if (bond_type_activation_flags != NULL) delete [] bond_type_activation_flags;
     if (angle_type_activation_flags != NULL) delete [] angle_type_activation_flags;
     if (dihedral_type_activation_flags != NULL) delete [] dihedral_type_activation_flags;
+    if (quint_type_activation_flags != NULL) delete [] quint_type_activation_flags;
 }
 
 //---------------------------------------------------------------
@@ -187,7 +193,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     }
     
     // Read the section of top.in defining radius of gyration interactions, if present.
-    if (cg->radius_of_gyration_interactions.class_subtype > 0) {
+    if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
     	line = read_molecule_groups(topo_data, cg, top_in, line, rg_lines);
     }
     
@@ -298,6 +304,10 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
                 for (l = 0; l < 3 * mol[molecule_type].dihedral_list->partner_numbers_[k]; l++) {
                     topo_data->dihedral_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].dihedral_list->partners_[k][l] + first_site_in_molecule;
                 }
+                topo_data->quint_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].quint_list->partner_numbers_[k];
+                for (l = 0; l < 4 * mol[molecule_type].quint_list->partner_numbers_[k]; l++) {
+                    topo_data->quint_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].quint_list->partners_[k][l] + first_site_in_molecule;
+                }
             }
             first_site_in_molecule += mol[molecule_type].n_cg_sites;
         }
@@ -314,7 +324,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
 	setup_molecule_list(topo_data, topo_data->molecule_list, total_cg_molecules, max_mol_size);
 	
 	// Process the molecule group information now, if necessary.
-	if (cg->radius_of_gyration_interactions.class_subtype > 0) {
+	if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
     	process_molecule_groups(topo_data, rg_lines);
     }
 	
@@ -575,7 +585,7 @@ int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::
 
 void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, std::ifstream &top_in, int &line)
 {
-    unsigned i, j;
+    unsigned i, j, hash_val;
     int automatic_topology_style = -5;
     std::string buff;
     char parameter_name[50];
@@ -615,7 +625,6 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     unsigned n_pair_bonded_interactions;
     int cg_site1, cg_site2, cg_site3, cg_site4;
     int cg_type1, cg_type2, cg_type3, cg_type4;
-    int hash_val;
     check_and_read_next_line(top_in, buff, line);
     sscanf(buff.c_str(), "%s%d", parameter_name, &n_pair_bonded_interactions);
     if (strcmp(parameter_name, "bonds") != 0) report_topology_input_format_error(line,  parameter_name);
@@ -771,15 +780,17 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
         unsigned l, n_angles;
         
         // Loop over CG sites in the molecule
-        for (i = 0; i < mol->n_cg_sites; i++) {
-            n_angles = 0;
+        for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+        	cg_type1 = mol->cg_site_types[cg_site1];
+        	n_angles = 0;
             // Loop over sites bonded to that molecule.
-            for (j = 0; j < mol->bond_list->partner_numbers_[i]; j++) {
+            for (j = 0; j < mol->bond_list->partner_numbers_[cg_site1]; j++) {
                 
                 // Overdetermine this bond style's activation flag.
-                cg_site1 = mol->bond_list->partners_[i][j];
-                if (mol->cg_site_types[i] <= mol->cg_site_types[cg_site1]) {
-                    hash_val = calc_two_body_interaction_hash(mol->cg_site_types[i], mol->cg_site_types[cg_site1], topo_data->n_cg_types);
+                cg_site2 = mol->bond_list->partners_[cg_site1][j];
+                cg_type2 = mol->cg_site_types[cg_site2];
+                if (cg_type1 <= cg_type2) {
+                    hash_val = calc_two_body_interaction_hash(cg_type1, cg_type2, topo_data->n_cg_types);
                     topo_data->bond_type_activation_flags[hash_val] = 1;
                 }
                 
@@ -788,23 +799,21 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
                 
                 // Otherwise, check the sites bonded to that one
                 // and add consider adding the angle to the angle table.
-                for (l = 0; l < mol->bond_list->partner_numbers_[cg_site1]; l++) {
+                for (l = 0; l < mol->bond_list->partner_numbers_[cg_site2]; l++) {
                     
-                    cg_site2 = mol->bond_list->partners_[cg_site1][l];
-                    if (unsigned(cg_site2) == i) continue;
+                    cg_site3 = mol->bond_list->partners_[cg_site2][l];
+                    cg_type3 = mol->cg_site_types[cg_site3];
+                    if (unsigned(cg_site3) == cg_site1) continue;
                     
-                    mol->angle_list->partners_[i][2 * n_angles] = cg_site1;
-                    mol->angle_list->partners_[i][2 * n_angles + 1] = cg_site2;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles]     = cg_site2;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles + 1] = cg_site3;
                     n_angles++;
                     
-                    cg_type1 = mol->cg_site_types[cg_site1];
-                    cg_type2 = mol->cg_site_types[i];
-                    cg_type3 = mol->cg_site_types[cg_site2];
-                    hash_val = calc_three_body_interaction_hash(cg_type1, cg_type2, cg_type3, topo_data->n_cg_types);
+                    hash_val = calc_three_body_interaction_hash(cg_type2, cg_type1, cg_type3, topo_data->n_cg_types);
                     topo_data->angle_type_activation_flags[hash_val] = 1;
                 }
             }
-            mol->angle_list->partner_numbers_[i] = n_angles;
+            mol->angle_list->partner_numbers_[cg_site1] = n_angles;
         }
         if (automatic_topology_style != 1) {
 	        int total_angles=0;
@@ -817,7 +826,8 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
         unsigned k, n_dihedrals;
         
         // Loop over CG sites in the molecule 
-        for (i = 0; i < mol->n_cg_sites; i++) {
+        for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+            cg_type1 = mol->cg_site_types[cg_site1];
             
             // For some styles of automatic topology generation, every
             // iteration of this loop should be skipped.
@@ -826,19 +836,25 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
             // Infer dihedrals for this site using a combination of the 
             // angle topology and the pair bond topology.
             n_dihedrals = 0;
-            for (j = 0; j < mol->angle_list->partner_numbers_[i]; j++) {
-                for (k = 0; k < mol->bond_list->partner_numbers_[mol->angle_list->partners_[i][2 * j + 1]]; k++) {
-                    if (mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k] == mol->angle_list->partners_[i][2 * j]) continue;
-                    if (mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k] == i) continue;
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals] = mol->angle_list->partners_[i][2 * j];
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals + 1] = mol->angle_list->partners_[i][2 * j + 1];
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals + 2] = mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k];
-                    cg_site2 = calc_four_body_interaction_hash(mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals]], mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals + 1]], mol->cg_site_types[i], mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals + 2]], topo_data->n_cg_types);
-                    topo_data->dihedral_type_activation_flags[cg_site2] = 1;
+            for (j = 0; j < mol->angle_list->partner_numbers_[cg_site1]; j++) {
+            	cg_site2 = mol->angle_list->partners_[cg_site1][2 * j];
+                cg_site3 = mol->angle_list->partners_[cg_site1][2 * j + 1];  
+                cg_type2 = mol->cg_site_types[cg_site2];
+                cg_type3 = mol->cg_site_types[cg_site3];
+                for (k = 0; k < mol->bond_list->partner_numbers_[mol->angle_list->partners_[cg_site1][2 * j + 1]]; k++) {
+                    cg_site4 = mol->bond_list->partners_[cg_site3][k];
+                    cg_type4 = mol->cg_site_types[cg_site4];
+                    if (cg_site4 == cg_site2) continue;
+                    if (cg_site4 == cg_site1) continue;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals] = cg_site2;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals + 1] = cg_site3;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals + 2] = cg_site4;
+                    hash_val = calc_four_body_interaction_hash(cg_type2, cg_type3, cg_type1, cg_type4, topo_data->n_cg_types);
+                    topo_data->dihedral_type_activation_flags[hash_val] = 1;
                     n_dihedrals++;
                 }
             }
-            mol->dihedral_list->partner_numbers_[i] = n_dihedrals;
+            mol->dihedral_list->partner_numbers_[cg_site1] = n_dihedrals;
         }
         if (automatic_topology_style > 2) {
             int total_dihedrals=0;
@@ -847,6 +863,48 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
 	        }
             printf("Automatically generated dihedral topology; %d dihedrals of %d dihedral types.\n", total_dihedrals/2, calc_n_active_interactions(topo_data->dihedral_type_activation_flags, calc_n_distinct_quadruples(topo_data->n_cg_types)));
         }
+    }
+    
+    // Set-up quint list by connecting angles with angles that do not go "back" on themselves
+    // Loop over CG sites in the molecule
+    int cg_site5, cg_type5;
+    for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+    	cg_type1 = mol->cg_site_types[cg_site1];
+    	int n_quints = 0;
+        // Loop over angles involving that CG site.
+        for (j = 0; j < mol->angle_list->partner_numbers_[cg_site1]; j++) {
+        	// Then look at angles involving that partner (j).
+        	cg_site2 = mol->angle_list->partners_[cg_site1][2 * j    ]; // The sites in this angle are mol->angle_list->partner_[i][2 * j] 
+        	cg_site3 = mol->angle_list->partners_[cg_site1][2 * j + 1]; //                         and mol->angle_list->partner_[i][2 * j + 1].
+			cg_type2 = mol->cg_site_types[cg_site2];
+			cg_type3 = mol->cg_site_types[cg_site3];
+			for (unsigned k = 0; k < mol->angle_list->partner_numbers_[mol->angle_list->partners_[cg_site1][2 * j + 1]]; k++) {
+				// Make sure that this angle is not folding back on the first angle
+				cg_site4 = mol->angle_list->partners_[cg_site3][2 * k];
+				cg_site5 = mol->angle_list->partners_[cg_site3][2 * k + 1]; 
+				cg_type4 = mol->cg_site_types[cg_site4];
+				cg_type5 = mol->cg_site_types[cg_site5];
+				// // The end of the 2nd angle can not match a site in the 1st angle.
+				if (cg_site5 == cg_site1) continue;
+				if (cg_site5 == cg_site2) continue;
+				// // The middle of the 2nd angle can not match a site in the 1st angle.
+				if (cg_site4 == cg_site1) continue;
+				if (cg_site4 == cg_site2) continue;
+				
+				// Add this quint to this partner list
+				mol->quint_list->partners_[cg_site1][4 * n_quints    ] = cg_site2;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 1] = cg_site3;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 2] = cg_site4;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 3] = cg_site5;
+				
+				// Set the activation flag for this site. 
+				hash_val = calc_five_body_interaction_hash(cg_type2, cg_type3, cg_type4, cg_type1, cg_type5, topo_data->n_cg_types);
+				topo_data->quint_type_activation_flags[hash_val] = 1;
+				n_quints++;
+			}
+		}
+		// set actual number of quints for this site
+		mol->quint_list->partner_numbers_[cg_site1] = n_quints;
     }
 }
 

@@ -36,6 +36,7 @@ void order_one_body_fm_matrix_element_calculation(InteractionClassComputer* cons
 void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void order_radius_of_gyration_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);    
+void order_helical_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void order_three_body_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void density_fm_matrix_element_calculation(InteractionClassComputer* const iclass, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 
@@ -54,6 +55,7 @@ void calc_isotropic_two_body_fm_matrix_elements(InteractionClassComputer* const 
 void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_radius_of_gyration_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
+void calc_helical_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
@@ -109,6 +111,7 @@ void InteractionClassComputer::set_up_computer(InteractionClassSpec* const ispec
 
 	process_interaction_matrix_elements = process_normal_interaction_matrix_elements;
     // Define the interaction class's geometric definition.
+    cutoff2 = ispec->cutoff * ispec->cutoff;
     class_set_up_computer();
 }
 
@@ -121,40 +124,54 @@ void OneBodyClassComputer::class_set_up_computer(void)
 
 void PairNonbondedClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = ispec->cutoff * ispec->cutoff;
-    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+	calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void PairBondedClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
 }
 
 void AngularClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     if (ispec->class_subtype == 1) calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
     else calculate_fm_matrix_elements = calc_angular_three_body_fm_matrix_elements;
 }
 
 void DihedralClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     if (ispec->class_subtype == 1) calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
     else calculate_fm_matrix_elements = calc_dihedral_four_body_fm_matrix_elements;
 }
 
+void R13ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R14ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R15ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void HelicalClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_helical_fm_matrix_elements;
+}
+
 void RadiusofGyrationClassComputer::class_set_up_computer(void) 
 {
-    cutoff2 = 1.0e6;
     calculate_fm_matrix_elements = calc_radius_of_gyration_fm_matrix_elements;
 }
 
 void DensityClassComputer::class_set_up_computer(void) 
 {
 	DensityClassSpec* iclass = static_cast<DensityClassSpec*>(ispec);
-	cutoff2 = iclass->cutoff * iclass->cutoff;
 	process_interaction_matrix_elements = process_density_matrix_elements;
 	
 	if(iclass->class_subtype == 0) return;
@@ -189,6 +206,11 @@ void DensityClassComputer::class_set_up_computer(void)
 	u_cutoff = new double[iclass->get_n_defined()];
 	f_cutoff = new double[iclass->get_n_defined()];
 	
+	for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
+		u_cutoff[ii] = 0.0;
+		f_cutoff[ii] =  0.0;
+	}
+	
 	if(iclass->class_subtype == 1) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			if (iclass->density_sigma[ii] < VERYSMALL_F) {
@@ -214,8 +236,6 @@ void DensityClassComputer::class_set_up_computer(void)
 	} else if (iclass->class_subtype == 3) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			denomenator[ii] = pow(iclass->cutoff, 4.0);
-			u_cutoff[ii] = 0.0;
-			f_cutoff[ii] =  0.0;
 		} 
 	} else if (iclass->class_subtype == 4) {
 		c0 = new double[iclass->get_n_defined()]();
@@ -226,8 +246,6 @@ void DensityClassComputer::class_set_up_computer(void)
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			double x = iclass->density_sigma[ii] * iclass->density_sigma[ii] / (iclass->cutoff * iclass->cutoff);
 			denomenator[ii] = (1 - x)*(1 - x)*(1 - x);
-			u_cutoff[ii] = 0.0;
-			f_cutoff[ii] =  0.0;
 			
 			c0[ii] = (1.0 - 3.0 * x)/ denomenator[ii];
 			c2[ii] = 6.0 * x / (cutsq * denomenator[ii]);
@@ -239,7 +257,6 @@ void DensityClassComputer::class_set_up_computer(void)
 		fflush(stdout);
 		exit(EXIT_FAILURE);
 	}
-
 }
 
 void DensityClassComputer::reset_density_array(void) 
@@ -308,6 +325,11 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
     // Check if molecule_list should be updated.
     if (cg->molecule_flag == 1) {
     	update_molecule_list(&cg->topo_data, cg->topo_data.molecule_list);
+    }
+    
+    // Check if molecule list should be updated.
+  	if (cg->helical_interactions.class_subtype == 1) {
+    	cg->helical_interactions.rebuild_helical_list(cg->topo_data.molecule_list, cg->topo_data.dihedral_list);
     }
     
     // Calculate matrix elements by looking through interaction (cell and topology) lists to find active (and non-excluded) interactions.
@@ -458,6 +480,89 @@ void DihedralClassComputer::calculate_interactions(MATRIX_DATA* const mat, int t
             j = topo_data.dihedral_list->partners_[k][3 * kk + 1];
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
+    }
+}
+
+void R13ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.angle_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from angle list (organization of angle_list described in topology files).
+        	// j is the "center" index while l and k are the "ends" of the angle.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.angle_list->partners_[k][2 * kk + 1];
+            j = topo_data.angle_list->partners_[k][2 * kk];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.dihedral_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
+            j = topo_data.dihedral_list->partners_[k][3 * kk];
+            i = topo_data.dihedral_list->partners_[k][3 * kk + 1];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.quint_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.quint_list->partners_[k][4 * kk + 3];
+            h = topo_data.quint_list->partners_[k][4 * kk];
+            i = topo_data.quint_list->partners_[k][4 * kk + 1];
+            j = topo_data.quint_list->partners_[k][4 * kk + 2];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void HelicalClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0 || ispec->class_subtype == 0) return;
+    
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(ispec);
+    
+    // Look through each molecule that could have active interactions
+    for (k = 0; k < (int)(h_spec->topo_data_->molecule_list->n_sites_); k++) {
+    	order_helical_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
     }
 }
 
@@ -632,7 +737,7 @@ void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const 
 {
      // Calculate the appropriate matrix elements.    
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(info->calculate_hash_number(cg_site_types, n_cg_types));
-	info->set_indices();
+    info->set_indices();
 
     if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
 
@@ -647,6 +752,25 @@ void order_radius_of_gyration_fm_matrix_element_calculation(InteractionClassComp
 	// Set the appropriate indices if it is active.
 	for (int i = 0; i < rg_spec->n_molecule_groups; i++) {
 		if (rg_spec->molecule_groups[i*(n_cg_molecules) + info->k] == true) {
+		
+			// Calculate the appropriate matrix elements.    
+			info->index_among_defined_intrxns = i;
+			info->set_indices();
+
+			if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+			(*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
+		}
+	}
+}
+
+void order_helical_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
+{
+	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(info->ispec);
+	int n_cg_molecules = h_spec->topo_data_->molecule_list->n_sites_;
+	// See what interaction types are active for this molecule (info->k)
+	// Set the appropriate indices if it is active.
+	for (int i = 0; i < h_spec->n_molecule_groups; i++) {
+		if (h_spec->molecule_groups[i*(n_cg_molecules) + info->k] == true) {
 		
 			// Calculate the appropriate matrix elements.    
 			info->index_among_defined_intrxns = i;
@@ -978,6 +1102,33 @@ void calc_radius_of_gyration_fm_matrix_elements(InteractionClassComputer* const 
 	}
 	delete [] derivatives;
 	delete [] particle_ids;
+}
+
+void calc_helical_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+{
+	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(info->ispec);
+	// k is currently the molecule id.
+	int index_among_defined = info->index_among_defined_intrxns;
+	
+	int n_ids = h_spec->topo_data_->molecule_list->partner_numbers_[info->k];
+	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[n_ids - 1];
+	int* particle_ids = new int[n_ids];
+	for (int i = 0; i < n_ids; i++) particle_ids[i] = (int)(h_spec->topo_data_->molecule_list->partners_[info->k][i]);
+	
+	int n_helical_ids = 2 * h_spec->helical_list->partner_numbers_[info->k];
+	int* helical_ids = new int[n_helical_ids];
+	for (int i = 0; i < n_helical_ids; i++) helical_ids[i] = h_spec->helical_list->partners_[info->k][i]; 
+	
+	double fraction_helical;
+	calc_fraction_helical_and_derivatives(particle_ids, x, simulation_box_half_lengths, n_ids, fraction_helical, derivatives, helical_ids, n_helical_ids/2, h_spec->r0[index_among_defined], h_spec->sigma2[index_among_defined]);
+
+	if (fraction_helical >= h_spec->lower_cutoffs[index_among_defined] &&
+	    fraction_helical <= h_spec->upper_cutoffs[index_among_defined]) {
+		info->process_interaction_matrix_elements(info, mat, n_ids, particle_ids, derivatives, fraction_helical, 0, 0.0, 0.0);
+	}
+	delete [] derivatives;
+	delete [] particle_ids;
+	delete [] helical_ids;
 }
 
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
