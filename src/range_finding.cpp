@@ -659,28 +659,19 @@ void open_parameter_distribution_files_for_class(InteractionClassComputer* const
 	ispec->output_range_file_handles = new FILE*[ispec->get_n_defined()];
 	
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
-	 	filename = ispec->get_interaction_name(name, i, "_");
-	 	if (!ispec->get_short_name().empty()) {
-        	filename += "_" + ispec->get_short_name();
-    	}
-	 	filename += ".dist";
-	 	ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
+	 	filename = ispec->get_basename(name, i,  "_") + ".dist";
+  		ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
 	}		
 }
 
 void open_density_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name) 
 {
 	DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-	std::string filename;
 	ispec->output_range_file_handles = new FILE*[ispec->get_n_defined()];
 	
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
-	 	filename = ispec->get_interaction_name(ispec->density_group_names, i, "_");
-	 	if (!ispec->get_short_name().empty()) {
-        	filename += "_" + ispec->get_short_name();
-    	}
-    	filename += ".dist";
-    	ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
+	 	std::string filename = icomp->ispec->get_basename(ispec->density_group_names, i,  "_") + ".dist";
+	 	ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
 	}		
 }
 
@@ -710,7 +701,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
 
 		// Set-up histogram based on interaction binwidth
-		num_bins = (int)(ceil((ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5));
+		num_bins = (int)(ceil((ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth()));
 		bin_centers = new double[num_bins]();
         bin_counts = new unsigned long[num_bins]();
         
@@ -721,14 +712,11 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		
 		// Open distribution file
 	 	if (dspec != NULL) {
-			filename = dspec->get_interaction_name(dspec->density_group_names, i, "_");
+			filename = dspec->get_basename(dspec->density_group_names, i, "_");
 		} else {
-			filename = ispec->get_interaction_name(name, i, "_");
+			filename = ispec->get_basename(name, i, "_");
 		}
-		if (!ispec->get_short_name().empty()) {
-        	filename += "_" + ispec->get_short_name();
-    	}
-    	filename += ".dist";
+		filename += ".dist";
 		
 		check_and_open_in_stream(dist_stream, filename.c_str()); 
 		
@@ -747,14 +735,11 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 		// Write histogram to file
 		if (dspec != NULL) {
-			filename = dspec->get_interaction_name(dspec->density_group_names, i, "_");
+			filename = dspec->get_basename(dspec->density_group_names, i, "_");
 		} else {
-			filename = ispec->get_interaction_name(name, i, "_");
+			filename = ispec->get_basename(name, i, "_");
 		}
-		if (!ispec->get_short_name().empty()) {
-        	filename += "_" + ispec->get_short_name();
-    	}
-    	filename += ".hist";
+		filename += ".hist";
     
 		hist_stream.open(filename, std::ofstream::out);
 		
@@ -836,10 +821,9 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 	  read_one_param_dist_file_pair(icomp, topo_data->name, mat, i, counter, 2.0, 1.0);
 	} else if( icomp->ispec->class_type == kDensity ){
 	  DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
-	  read_one_param_dist_file_other(icomp, dspec->density_group_names, mat, i, counter, 1);
+	  read_one_param_dist_file_other(icomp, dspec->density_group_names, mat, i, counter, 1.0);
 	} else{
-	  double num_angles = count_bonded_interaction(icomp, topo_data->name, mat, i);
-	  read_one_param_dist_file_other(icomp, topo_data->name, mat, i, counter, num_angles);
+	  read_one_param_dist_file_other(icomp, topo_data->name, mat, i, counter,1.0);
 	}
   }  
   if (icomp->ispec->class_type == kPairNonbonded) {
@@ -849,12 +833,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
-  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-  if (!icomp->ispec->get_short_name().empty())
-  {
-    basename += "_" + icomp->ispec->get_short_name();
-  }
-  std::string filename = basename + ".hist";
+  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
   int i, counts;
@@ -883,13 +862,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
 
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
 {
-  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-  // Append the class's short name with an underscore if one exists.
-  if (!icomp->ispec->get_short_name().empty())
-  {
-    basename += "_" + icomp->ispec->get_short_name();
-  }
-  std::string filename = basename + ".hist";
+  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
   int i, counts;
@@ -918,13 +891,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
 
 double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
 {
-  std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-  // Append the class's short name with an underscore if one exists.
-  if (!icomp->ispec->get_short_name().empty())
-  {
-    basename += "_" + icomp->ispec->get_short_name();
-  }  
-  std::string filename = basename + ".hist";
+  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
 
   int i, counts;

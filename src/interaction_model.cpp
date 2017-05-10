@@ -35,6 +35,20 @@ void report_tabulated_interaction_data_consistency_error(const int line);
 void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
 inline void check_mode(char* mode);
 
+
+// Get the name of a single defined interaction via its index among
+// defined interactions.  Also, add the short name at the end, if it exists.
+
+std::string InteractionClassSpec::get_basename(char **name, const int intrxn_index_among_defined, const std::string &delimiter) 
+{
+  std::string basename = get_interaction_name(name, intrxn_index_among_defined, "_");
+  if (!get_short_name().empty())
+  {
+    basename += "_" + get_short_name();
+  }
+  return basename;
+}
+
 // Get the name of a single defined interaction via its index among
 // defined interactions.
 
