@@ -808,7 +808,8 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
   }
     
   // Otherwise, process the data
-  icomp->table_basis_fn_vals.resize(icomp->ispec->get_bspline_k());
+  //fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
+  //printf("fm_s_comp->get_n_coef %d vs. icomp->ispec->get_bspline_k %d\n", icomp->fm_s_comp->get_n_coef(), icomp->ispec->get_bspline_k()); fflush(stdout);
   for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
 	if( icomp->ispec->class_type == kPairNonbonded ) {
 	  std::vector <int> type_vector = icomp->ispec->get_interaction_types(i);
@@ -842,6 +843,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
   double r;
   double potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  printf("num_entries %d, counter %d\n", num_entries, counter); fflush(stdout);
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
@@ -852,8 +854,8 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
       double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
       normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
       potential = mat->temperature*mat->boltzmann*log(normalized_counts);
-      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
       counter++;
     }
@@ -870,7 +872,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   double r;
   double potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
-  printf("num_entries %d, counter %d\n", num_entries, counter); fflush(stdout);
+  //printf("num_entries %d, counter %d\n", num_entries, counter); fflush(stdout);
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
@@ -881,8 +883,8 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       double normalized_counts = (double)(counts);
       normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
       potential = mat->temperature*mat->boltzmann*log(normalized_counts);
-      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->table_basis_fn_vals);
-      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->table_basis_fn_vals, counter, junk, derivatives, mat);
+      icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+      mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
       counter++;
     }
