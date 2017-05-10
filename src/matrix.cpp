@@ -133,7 +133,6 @@ void average_sparse_block_fm_solutions(MATRIX_DATA* const mat);
 void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
-void solve_BI_equation(MATRIX_DATA* const mat);
 
 // Bootstrapping routines
 
@@ -833,7 +832,6 @@ void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
    
   mat->accumulate_matching_forces = accumulate_BI_elements;
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
-  mat->finish_fm = solve_BI_equation;
   
   // reset output files
   FILE* BI_matrix = fopen("BI_matrix.dat","w");
@@ -3450,41 +3448,10 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     delete [] backup_rhs;
  	if(mat->matrix_type == 3) delete [] mat->dense_fm_normal_rhs_vector;
 }
-
-void solve_BI_equation(MATRIX_DATA* const mat)
-{
-  int i;
-  int j;
-  double* singular_values = new double[mat->fm_matrix_columns];
-  FILE* BI_matrix;
-  FILE* BI_vector;
-  BI_matrix = fopen("BI_matrix.dat","w");
-  BI_vector = fopen("BI_vector.dat","w");
-  for(i = 0; i < mat->fm_matrix_rows; i++){
-    for(j = 0; j < mat->fm_matrix_columns; j++){
-      //      printf("%lf ",mat->dense_fm_matrix->get_scalar(i,j));
-      fprintf(BI_matrix,"%lf ",mat->dense_fm_matrix->get_scalar(i,j));
-    }
-    fprintf(BI_matrix,"\n");
-  }
-  
-  for(i = 0;i < mat->fm_matrix_rows;i++)
-    {
-      fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
-    }
-  
-  calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
-  for (i = 0; i < mat->fm_matrix_columns; i++) {
-    mat->fm_solution[i] = mat->dense_fm_rhs_vector[i];
-  }
-  delete [] singular_values;
-  delete mat->dense_fm_matrix;
-}
   
 void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
 {
   int i, j;
-  double* singular_values = new double[mat->fm_matrix_columns];
   FILE* BI_matrix = fopen("BI_matrix.dat","a");
   FILE* BI_vector = fopen("BI_vector.dat","a");
   for(i = 0; i < mat->fm_matrix_rows; i++){
@@ -3494,12 +3461,15 @@ void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
     fprintf(BI_matrix,"\n");
   }
   
-  for(i = 0;i < mat->fm_matrix_rows;i++)
+  for(i = 0; i < mat->fm_matrix_rows;i++)
     {
       fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
     }
+  fclose(BI_matrix);
+  fclose(BI_vector);
   
   if (mat->fm_matrix_columns > 0 && mat->fm_matrix_rows > 0) {
+  	double* singular_values = new double[mat->fm_matrix_columns];
 	calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
   	for (i = 0; i < mat->fm_matrix_columns; i++) {
     	mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
