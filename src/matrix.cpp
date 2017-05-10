@@ -847,22 +847,28 @@ void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer*
   determine_BI_interaction_rows_and_cols(mat, icomp);
 
   printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
-
+  
   // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
   // However, the svd solver puts the solution vector into this array,
   // and  the solution vetor is of size mat->fm_matrix_columns.
   delete [] mat->dense_fm_rhs_vector;
   delete [] mat->dense_fm_normal_rhs_vector;
-  if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
-	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
-  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-  
+
+  // avoid allocation errors if this interactions is not actually active.
+  if(mat->fm_matrix_columns == 0 || mat->fm_matrix_rows == 0) {
+  	mat->dense_fm_normal_rhs_vector = new double[1]();
+  	mat->dense_fm_rhs_vector = new double[1]();
+  	mat->dense_fm_matrix =  new dense_matrix(1, 1);
   } else {
-  	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
-  	mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
+  	if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
+		mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
+  		mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
+	  } else {
+  		mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
+  		mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
+  	}
+ 	mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   }
-  
-  mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
 }  
 
 //--------------------------------------------------------------------
@@ -1115,6 +1121,10 @@ void accumulate_vector_matching_forces(InteractionClassComputer* const info, con
 {
     // For each basis function,
     int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+    if (ref_column >= mat->fm_matrix_columns -  1) {
+		printf("ref_col %d, fm_matrix_columns %d\n", ref_column, mat->fm_matrix_columns);
+		fflush(stdout);    
+    }
     std::vector<double> forces(DIMENSION * n_body);
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
         // Calculate the associated forces.
@@ -3489,13 +3499,15 @@ void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
       fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
     }
   
-  calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
-  for (i = 0; i < mat->fm_matrix_columns; i++) {
-    mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
+  if (mat->fm_matrix_columns > 0 && mat->fm_matrix_rows > 0) {
+	calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
+  	for (i = 0; i < mat->fm_matrix_columns; i++) {
+    	mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
+  	}
+  	delete [] singular_values;
+  	solution_counter += mat->fm_matrix_columns;
   }
-  delete [] singular_values;
   delete mat->dense_fm_matrix;
-  solution_counter += mat->fm_matrix_columns;
 }
 
 void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
