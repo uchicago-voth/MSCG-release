@@ -1190,7 +1190,8 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
 		printf("\ticci %d + ici[%d] %d + fnbi %d, basis_fn_vals size %d\n", info->interaction_class_column_index, info->index_among_matched_interactions - 1, info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1], first_nonzero_basis_index, basis_fn_vals.size());
 		insert_BI_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
     }
-/*  }
+*/
+  }
 }
 
 //---------------------------------------------------------------------
