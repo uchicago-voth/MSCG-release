@@ -809,8 +809,9 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
     
   // Otherwise, process the data
   //fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
-  //printf("fm_s_comp->get_n_coef %d vs. icomp->ispec->get_bspline_k %d\n", icomp->fm_s_comp->get_n_coef(), icomp->ispec->get_bspline_k()); fflush(stdout);
   for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+  	icomp->index_among_defined_intrxns = i; // This is OK since every defined interaction is "matched" here.
+  	icomp->set_indices();
 	if( icomp->ispec->class_type == kPairNonbonded ) {
 	  std::vector <int> type_vector = icomp->ispec->get_interaction_types(i);
 	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
@@ -843,7 +844,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
   double r;
   double potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
-  printf("num_entries %d, counter %d\n", num_entries, counter); fflush(stdout);
+  
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
@@ -872,7 +873,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   double r;
   double potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
-  //printf("num_entries %d, counter %d\n", num_entries, counter); fflush(stdout);
+  
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
