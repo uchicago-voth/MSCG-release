@@ -36,7 +36,6 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 void determine_matrix_columns_and_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg, int const frames_per_traj_block, int const pressure_constraint_flag);
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void log_n_basis_functions(InteractionClassSpec &ispec);
-void determine_BI_matrix_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp);
 
 // Matrix reset routines
@@ -844,7 +843,7 @@ void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer*
 {
   determine_BI_interaction_rows_and_cols(mat, icomp);
 
-  printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
+  //printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
   
   // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
   // However, the svd solver puts the solution vector into this array,
@@ -1186,8 +1185,12 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
 
   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-    insert_BI_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
-  }
+/*	if (ref_column + k > mat->fm_matrix_columns - 1) {
+		printf("accumulate_BI: ref_column %d + k %d = %d (%d)\n", ref_column, k, ref_column+k, mat->fm_matrix_columns);
+		printf("\ticci %d + ici[%d] %d + fnbi %d, basis_fn_vals size %d\n", info->interaction_class_column_index, info->index_among_matched_interactions - 1, info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1], first_nonzero_basis_index, basis_fn_vals.size());
+		insert_BI_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
+    }
+/*  }
 }
 
 //---------------------------------------------------------------------
@@ -4119,22 +4122,6 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 	fprintf(sol_fp, "\n");
 
 	fprintf(res_fp, "Iteration %d: %lf\n", iteration, residual);
-}
-
-
-void determine_BI_matrix_rows(MATRIX_DATA* mat, CG_MODEL_DATA* const cg)
-{
-  int num_entries = 0;
-  std::list<InteractionClassComputer*>::iterator icomp_iterator;
-  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-  	// Skip if it does not have a parameter distribution to use
-  	if ((*icomp_iterator)->ispec->output_parameter_distribution !=  1) continue;
-    // For every defined interaction,
-    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)(0.5 + ((*icomp_iterator)->ispec->upper_cutoffs[i] - (*icomp_iterator)->ispec->lower_cutoffs[i])/(*icomp_iterator)->ispec->get_fm_binwidth());
-    }
-  }
-  mat->fm_matrix_rows = num_entries;
 }
 
 void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
