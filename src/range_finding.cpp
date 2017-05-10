@@ -785,9 +785,17 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
     // These interactions do not generate parameter distributions
     if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
   
+  	// swap out icci so that matrix does not go out of bounds
+  	int icci = (*icomp_iterator)->interaction_class_column_index;
+  	(*icomp_iterator)->interaction_class_column_index = 0;
+  	
+  	// Do BI for this interaction
     initialize_next_BI_matrix(mat, (*icomp_iterator));
     read_interaction_file_and_build_matrix(mat, (*icomp_iterator), volume, &cg->topo_data);
     solve_this_BI_equation(mat, solution_counter);
+    
+    // restore icci
+    (*icomp_iterator)->interaction_class_column_index = icci;
   }
 }
 
