@@ -854,7 +854,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
       normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
-      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
+      potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
@@ -883,7 +883,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       double normalized_counts = (double)(counts);
       normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
-      potential = mat->temperature*mat->boltzmann*log(normalized_counts);
+      potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
