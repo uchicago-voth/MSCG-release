@@ -64,8 +64,9 @@ int main(int argc, char* argv[])
     construct_full_fm_matrix(&cg, &mat, &fs);
     printf("Ending range finding.\n");
     
-    printf("Writing final output.\n");
+    printf("Writing final output.\n"); fflush(stdout);
     write_range_files(&cg, &mat);
+	printf("After rangefinder final output.\n"); fflush(stdout);
 
     //This is part of the BI routine
     //Only calculate if at least one parameter distribution exists
@@ -89,7 +90,7 @@ int main(int argc, char* argv[])
     //print cpu time used
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
-    printf("%f seconds used.\n", elapsed_cputime);
+    printf("%f seconds used.\n", elapsed_cputime); fflush(stdout);
 
     return 0;
 }
