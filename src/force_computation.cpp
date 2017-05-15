@@ -1158,18 +1158,16 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
     icomp->intrxn_param = theta;
             
-    rt1 = rr1 - icomp->cutoff2;
-    rt2 = rr2 - icomp->cutoff2;
+    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
     s1 = exp(ispec->three_body_gamma / rt1);
     s2 = exp(ispec->three_body_gamma / rt2);
     s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
     s2_1 = ispec->three_body_gamma / (rt2 * rt2) * s2;
-    c1 = s1 * s2;
+    c1 = s1 * s2 * DEGREES_PER_RADIAN;
     c2 = s2 * s1_1;
     c3 = s1 * s2_1;
     
-    c1 *= DEGREES_PER_RADIAN;
-
     // Calculate the matrix elements if it's supposed to be force matched
     info->fm_s_comp->calculate_basis_fn_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, info->fm_basis_fn_vals); 
     std::vector<double> basis_der_vals(info->fm_s_comp->get_n_coef());
@@ -1186,8 +1184,8 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
         this_column = temp_column_index + i;
         for (int j = 0; j < DIMENSION; j++) {
-        	tx1[j] = (derivatives[0][j] * c1) * basis_der_vals[i] + (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
-        	tx2[j] = (derivatives[1][j] * c1) * basis_der_vals[i] + (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        	tx1[j] = (derivatives[0][j] * c1) * basis_der_vals[i] + 0.5 * (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        	tx2[j] = (derivatives[1][j] * c1) * basis_der_vals[i] + 0.5 * (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
         	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
         }
         
