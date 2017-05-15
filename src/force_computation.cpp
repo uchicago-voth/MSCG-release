@@ -1183,9 +1183,11 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
-        for (int j = 0; j < DIMENSION; j++) tx1[j] = (derivatives[0][j] * basis_der_vals[i] * c1) + ( (relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i] * c2 ); // derivative of angle plus derivative of distance for site 0 (K)
-        for (int j = 0; j < DIMENSION; j++) tx2[j] = (derivatives[1][j] * basis_der_vals[i] * c1) + ( (relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i] * c3 ); // derivative of angle plust derivative of distance for site 2 (L)
-        for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+        for (int j = 0; j < DIMENSION; j++) {
+        	tx1[j] = (derivatives[0][j] * c1) * basis_der_vals[i] + (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        	tx2[j] = (derivatives[1][j] * c1) * basis_der_vals[i] + (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+        }
         
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
         (*mat->accumulate_fm_matrix_element)(temp_row_index_2, this_column, &tx2[0], mat);
@@ -1198,6 +1200,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
+	// This function does not explicit use basis function values or derivatives (I assume because there is only one basis function for this phase).
     int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l) followed by center index (j).    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
@@ -1239,22 +1242,19 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     u = (cos_theta - icomp->stillinger_weber_angle_parameter) * (cos_theta - icomp->stillinger_weber_angle_parameter) * 4.184;
     u_1 = 2.0 * (cos_theta - icomp->stillinger_weber_angle_parameter) * sin(theta) * 4.184;
     
+    int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
     int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
-    int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
         
-    tt = c1 * u_1;
-    for (int j = 0; j < DIMENSION; j++) tx1[j] = derivatives[0][j] * tt;
-    for (int j = 0; j < DIMENSION; j++) tx2[j] = derivatives[1][j] * tt;
+    for (int j = 0; j < DIMENSION; j++) {
+    	tx1[j] = (derivatives[0][j] * c1 * u_1) + ( (relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
+    	tx2[j] = (derivatives[1][j] * c1 * u_1) + ( (relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
+    	tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+    }
     
-    tt = c2 * u;
-    for (int j = 0; j < DIMENSION; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
     (*mat->accumulate_fm_matrix_element)(temp_row_index_1, temp_column_index, &tx1[0], mat);
-    tt = c3 * u;
-    for (int j = 0; j < DIMENSION; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
     (*mat->accumulate_fm_matrix_element)(temp_row_index_2, temp_column_index, &tx2[0], mat);
-    for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]);
     (*mat->accumulate_fm_matrix_element)(temp_row_index_3, temp_column_index, &tx[0], mat); 
     
     delete [] relative_site_position_2;
