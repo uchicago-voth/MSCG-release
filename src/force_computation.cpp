@@ -1183,17 +1183,12 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
-        tt = basis_der_vals[i] * c1;
-        for (int j = 0; j < DIMENSION; j++) tx1[j] = derivatives[0][j] * tt;
-        for (int j = 0; j < DIMENSION; j++) tx2[j] = derivatives[1][j] * tt;
+        for (int j = 0; j < DIMENSION; j++) tx1[j] = (derivatives[0][j] * basis_der_vals[i] * c1) + ( (relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i] * c2 ); // derivative of angle plus derivative of distance for site 0 (K)
+        for (int j = 0; j < DIMENSION; j++) tx2[j] = (derivatives[1][j] * basis_der_vals[i] * c1) + ( (relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i] * c3 ); // derivative of angle plust derivative of distance for site 2 (L)
+        for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
         
-        tt = info->fm_basis_fn_vals[i] * c2;
-        for (int j = 0; j < DIMENSION; j++) tx1[j] += relative_site_position_2[0][j] / rr1 * tt;
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
-        tt = info->fm_basis_fn_vals[i] * c3;
-        for (int j = 0; j < DIMENSION; j++) tx2[j] += relative_site_position_3[0][j] / rr2 * tt;
         (*mat->accumulate_fm_matrix_element)(temp_row_index_2, this_column, &tx2[0], mat);
-        for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]);
         (*mat->accumulate_fm_matrix_element)(temp_row_index_3, this_column, &tx[0], mat);
     }
     delete [] relative_site_position_2;
