@@ -1184,8 +1184,8 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
         this_column = temp_column_index + i;
         for (int j = 0; j < DIMENSION; j++) {
-        	tx1[j] = (derivatives[0][j] * c1) * basis_der_vals[i] + 0.5 * (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
-        	tx2[j] = (derivatives[1][j] * c1) * basis_der_vals[i] + 0.5 * (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        	tx1[j] = - (derivatives[0][j] * c1) * basis_der_vals[i] + 0.5 * (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        	tx2[j] =   (derivatives[1][j] * c1) * basis_der_vals[i] + 0.5 * (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
         	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
         }
         
@@ -1228,8 +1228,8 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     theta /= DEGREES_PER_RADIAN;
     cos_theta = cos(theta);
     
-    rt1 = rr1 - icomp->cutoff2;
-    rt2 = rr2 - icomp->cutoff2;
+    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
     s1 = exp(ispec->three_body_gamma / rt1);
     s2 = exp(ispec->three_body_gamma / rt2);
     s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
@@ -1250,9 +1250,9 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     printf("%d, %d, %d: deriv[0] %lf, deriv[1] %lf, c1 %lf, c2 %lf, c3 %lf, rr1 %lf, rr2 %lf, u_1 %lf\n", particle_ids[0], particle_ids[1], particle_ids[2], derivatives[0][0], derivatives[1][0], c1, c2, c3, rr1, rr2, u_1); fflush(stdout);
     
     for (int j = 0; j < DIMENSION; j++) {
-    	tx1[j] = (derivatives[0][j] * c1 * u_1) + ( (relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
-    	tx2[j] = (derivatives[1][j] * c1 * u_1) + ( (relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
-    	tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+    	tx1[j] = - (derivatives[0][j] * c1 * u_1) + ( (relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
+    	tx2[j] =   (derivatives[1][j] * c1 * u_1) + ( (relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
+    	tx[j]  = - (tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
     }
     
     (*mat->accumulate_fm_matrix_element)(temp_row_index_1, temp_column_index, &tx1[0], mat);
