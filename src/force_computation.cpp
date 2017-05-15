@@ -1180,7 +1180,8 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
 	int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
-        
+    
+    printf("%d, %d, %d: deriv[0] %lf, deriv[1] %lf, c1 %lf, c2 %lf, c3 %lf, rr1 %lf, rr2 %lf\n", particle_ids[0], particle_ids[1], particle_ids[2], derivatives[0][0], derivatives[1][0], c1, c2, c3, rr1, rr2); fflush(stdout);
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
@@ -1247,7 +1248,9 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
-        
+    
+    printf("%d, %d, %d: deriv[0] %lf, deriv[1] %lf, c1 %lf, c2 %lf, c3 %lf, rr1 %lf, rr2 %lf, u_1 %lf\n", particle_ids[0], particle_ids[1], particle_ids[2], derivatives[0][0], derivatives[1][0], c1, c2, c3, rr1, rr2, u_1); fflush(stdout);
+    
     for (int j = 0; j < DIMENSION; j++) {
     	tx1[j] = (derivatives[0][j] * c1 * u_1) + ( (relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
     	tx2[j] = (derivatives[1][j] * c1 * u_1) + ( (relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
