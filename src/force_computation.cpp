@@ -296,6 +296,7 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
         *curr_iclass_col_index += ispec->interaction_column_indices[ispec->n_to_force_match];
     }
     fm_s_comp = new BSplineAndDerivComputer(ispec);
+    fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
 }
 
 //--------------------------------------------------------------------
