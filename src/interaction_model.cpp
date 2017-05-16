@@ -561,12 +561,12 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
             if ((get_basis_type() == kBSpline) || (get_basis_type() == kBSplineAndDeriv)) { // Set up a B-spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5));
                 }
             } else if (get_basis_type() == kLinearSpline) { // Set up a linear spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5));
                 }
 			}
 		}
