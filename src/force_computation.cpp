@@ -1143,8 +1143,8 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[2];
 	std::array<double, DIMENSION> tx1, tx2, tx;
 	double theta, rr1, rr2;
-    double s1, s2, s1_1, s2_1, rt1, rt2;
-    double c1, c2, c3;
+    double sw_exp1, sw_exp2, sw_exp_dr1, sw_exp_dr2, r1_minus_cut, r2_minus_cut;
+    double angle_prefactor, dr1_prefactor, dr2_prefactor;
     double tt;
     int	this_column;
 	
@@ -1158,15 +1158,15 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 
     icomp->intrxn_param = theta;
             
-    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    s1 = exp(ispec->three_body_gamma / rt1);
-    s2 = exp(ispec->three_body_gamma / rt2);
-    s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
-    s2_1 = ispec->three_body_gamma / (rt2 * rt2) * s2;
-    c1 = s1 * s2 * DEGREES_PER_RADIAN;
-    c2 = s2 * s1_1;
-    c3 = s1 * s2_1;
+    r1_minus_cut = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    r2_minus_cut = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    sw_exp1 = exp(ispec->three_body_gamma / r1_minus_cut);
+    sw_exp2 = exp(ispec->three_body_gamma / r2_minus_cut);
+    sw_exp_dr1 = ispec->three_body_gamma / (r1_minus_cut * r1_minus_cut) * sw_exp1;
+    sw_exp_dr2 = ispec->three_body_gamma / (r2_minus_cut * r2_minus_cut) * sw_exp2;
+    angle_prefactor = sw_exp1 * sw_exp2 * DEGREES_PER_RADIAN;
+    dr1_prefactor = sw_exp2 * sw_exp_dr1;
+    dr2_prefactor = sw_exp1 * sw_exp_dr2;
     
     // Calculate the matrix elements if it's supposed to be force matched
     info->fm_s_comp->calculate_basis_fn_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, info->fm_basis_fn_vals); 
@@ -1179,14 +1179,13 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
 	int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
     
-    printf("%d, %d, %d: deriv[0] %lf, deriv[1] %lf, c1 %lf, c2 %lf, c3 %lf, rr1 %lf, rr2 %lf\n", particle_ids[0], particle_ids[1], particle_ids[2], derivatives[0][0], derivatives[1][0], c1, c2, c3, rr1, rr2); fflush(stdout);
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
         for (int j = 0; j < DIMENSION; j++) {
-        	tx1[j] = - (derivatives[0][j] * c1) * basis_der_vals[i] + 0.5 * (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
-        	tx2[j] =   (derivatives[1][j] * c1) * basis_der_vals[i] + 0.5 * (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
-        	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+        	tx1[j] = - (derivatives[0][j] * angle_prefactor) * basis_der_vals[i] + 0.5 * (dr1_prefactor * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        	tx2[j] =   (derivatives[1][j] * angle_prefactor) * basis_der_vals[i] + 0.5 * (dr2_prefactor * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        	tx[j]  = - (tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
         }
         
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
@@ -1211,8 +1210,8 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
 	std::array<double, DIMENSION> tx1, tx2, tx;
     double theta, rr1, rr2;
     double cos_theta;
-    double s1, s2, s1_1, s2_1, rt1, rt2;
-    double c1, c2, c3;
+    double sw_exp1, sw_exp2, sw_exp_dr1, sw_exp_dr2, r1_minus_cut, r2_minus_cut;
+    double angle_prefactor, dr1_prefactor, dr2_prefactor;
     double u, u_1;
     double tt;
     
@@ -1228,16 +1227,16 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     theta /= DEGREES_PER_RADIAN;
     cos_theta = cos(theta);
     
-    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    s1 = exp(ispec->three_body_gamma / rt1);
-    s2 = exp(ispec->three_body_gamma / rt2);
-    s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
-    s2_1 = ispec->three_body_gamma / (rt2 * rt2) * s2;
+    r1_minus_cut = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    r2_minus_cut = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    sw_exp1 = exp(ispec->three_body_gamma / r1_minus_cut);
+    sw_exp2 = exp(ispec->three_body_gamma / r2_minus_cut);
+    sw_exp_dr1 = ispec->three_body_gamma / (r1_minus_cut * r1_minus_cut) * sw_exp1;
+    sw_exp_dr2 = ispec->three_body_gamma / (r2_minus_cut * r2_minus_cut) * sw_exp2;
     
-    c1 = s1 * s2;
-    c2 = s2 * s1_1;
-    c3 = s1 * s2_1;
+    angle_prefactor = sw_exp1 * sw_exp2;
+    dr1_prefactor = sw_exp2 * sw_exp_dr1;
+    dr2_prefactor = sw_exp1 * sw_exp_dr2;
     
     u = (cos_theta - icomp->stillinger_weber_angle_parameter) * (cos_theta - icomp->stillinger_weber_angle_parameter) * 4.184;
     u_1 = 2.0 * (cos_theta - icomp->stillinger_weber_angle_parameter) * sin(theta) * 4.184;
@@ -1246,12 +1245,10 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
-    
-    printf("%d, %d, %d: deriv[0] %lf, deriv[1] %lf, c1 %lf, c2 %lf, c3 %lf, rr1 %lf, rr2 %lf, u_1 %lf\n", particle_ids[0], particle_ids[1], particle_ids[2], derivatives[0][0], derivatives[1][0], c1, c2, c3, rr1, rr2, u_1); fflush(stdout);
-    
+        
     for (int j = 0; j < DIMENSION; j++) {
-    	tx1[j] = - (derivatives[0][j] * c1 * u_1) + ( (relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
-    	tx2[j] =   (derivatives[1][j] * c1 * u_1) + ( (relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
+    	tx1[j] = - (derivatives[0][j] * angle_prefactor * u_1) + 0.5 * ( (relative_site_position_2[0][j] / rr1) * dr1_prefactor * u ); // derivative of angle plus derivative of distance for site 0 (K)
+    	tx2[j] =   (derivatives[1][j] * angle_prefactor * u_1) + 0.5 * ( (relative_site_position_3[0][j] / rr2) * dr2_prefactor * u ); // derivative of angle plus derivative of distance for site 2 (L)
     	tx[j]  = - (tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
     }
     
