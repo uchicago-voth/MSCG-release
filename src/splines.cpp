@@ -208,7 +208,7 @@ void BSplineAndDerivComputer::calculate_bspline_deriv_vals(const int index_among
     assert(vals.size() == n_coef);
 	size_t istart, iend;
     double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
-    first_nonzero_basis_index = (int)(param_less_lower_cutoff / binwidth);
+    first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_deriv_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], (size_t)(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched]);
@@ -224,7 +224,7 @@ void BSplineAndDerivComputer::calculate_basis_fn_vals(const int index_among_defi
     assert(vals.size() == n_coef);
     size_t istart, iend;
     double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
-    first_nonzero_basis_index = (int)(param_less_lower_cutoff / binwidth);
+    first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
     
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
@@ -301,7 +301,7 @@ double DeltaSplineComputer::evaluate_spline(const int index_among_defined, const
 {
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
 	double param_less_lower_cutoff = axis - ispec_->lower_cutoffs[index_among_defined];
-	int basis_function_column_index = (int)(param_less_lower_cutoff / binwidth);
+	int basis_function_column_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
     double force = 0.0;
     if ( (unsigned)(first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + basis_function_column_index) <= spline_coeffs.size()) {
 	    force = spline_coeffs[first_nonzero_basis_index + ispec_->interaction_column_indices[index_among_matched_interactions - 1] + basis_function_column_index];
@@ -315,8 +315,8 @@ void LinearSplineComputer::calculate_basis_fn_vals(const int index_among_defined
 {
     assert(vals.size() == n_coef);
     double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
-    first_nonzero_basis_index = int(param_less_lower_cutoff / binwidth);
-    vals[1] = fmod(param_less_lower_cutoff / binwidth, 1.0);
+    first_nonzero_basis_index = int(param_less_lower_cutoff / ispec_->get_fm_binwidth());
+    vals[1] = fmod(param_less_lower_cutoff / ispec_->get_fm_binwidth(), 1.0);
     vals[0] = 1.0 - vals[1];
 }
 
@@ -327,8 +327,8 @@ double LinearSplineComputer::evaluate_spline(const int index_among_defined, cons
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
 	double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, axis);
 
-	int basis_function_column_index = (int)(param_less_lower_cutoff / binwidth);
-    double remainder_after_binning = fmod(param_less_lower_cutoff / binwidth, 1.0);
+	int basis_function_column_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
+    double remainder_after_binning = fmod(param_less_lower_cutoff / ispec_->get_fm_binwidth(), 1.0);
     if (index_among_matched_interactions > 0) {
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
