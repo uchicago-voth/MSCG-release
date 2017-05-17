@@ -103,7 +103,7 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   
   double spacing = axis_vals[1] - axis_vals[0];
   int i = 0;
-  
+
   // Find a positive value
   while(force_vals[i] < 0)
     {
@@ -141,7 +141,8 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   double spacing = axis_vals[2] - axis_vals[1];
   int last = axis_vals.size() - 1;
   int i = last;
-  
+
+  if(axix_vals[last] > high) return;
   // Find a negative value
   while(force_vals[i]>0)
     {

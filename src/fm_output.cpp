@@ -25,8 +25,8 @@
 void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const icomp, MATRIX_DATA* const mat, char ** const name);
 
-void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
-void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
+void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined);
 
 void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined_intrxns);
@@ -81,10 +81,10 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
 	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-		     write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i);	      
+		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_interaction.cutoff);	      
 		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
-                write_one_param_bspline_file(*icomp_iterator, name, mat, i);
+		       write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	         } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 					   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
 				write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
@@ -120,7 +120,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
                 	}
    				} else {
 	                // Write tabular output, regardless of spline type.
-    	            write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i);
+				  write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_interaction.cutoff);
         	        // Write special output files for the specific spline types.
             	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
@@ -229,7 +229,7 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 }
 
 // Write the tabular output for a single interaction.
-void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
 {
   std::vector<double> axis_vals, force_vals, potential_vals;
   if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
@@ -276,7 +276,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
       {
 	   std::vector<double> padded_potential_vals;
 	   pad_values_front_with_fix(axis_vals,force_vals);
-	   pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	   pad_values_back_with_fix(cutoff,axis_vals,force_vals);
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
@@ -355,7 +355,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
       {
 	    std::vector<double> padded_potential_vals;
 	    pad_values_front_with_fix(axis_vals,force_vals);
-	    pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	    pad_values_back_with_fix(cutoff,axis_vals,force_vals);
 	    integrate_force(axis_vals, force_vals, padded_potential_vals);
 	    write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
