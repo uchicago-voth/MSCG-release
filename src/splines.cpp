@@ -67,11 +67,6 @@ double SplineComputer::get_param_less_lower_cutoff(const int index_among_defined
 BSplineComputer::BSplineComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
     int interaction_column_indices, n_to_print_minus_bspline_k;
-    n_coef = ispec_->get_bspline_k();
-    n_to_force_match = ispec_->n_to_force_match;
-    n_defined = ispec_->get_n_defined();
-    binwidth = ispec_->get_fm_binwidth();
-
     if (n_coef < 2) {
     	printf("Spline order for BSplineAndDeriv must be at least 2!\n");
 		exit(EXIT_FAILURE);
@@ -141,14 +136,7 @@ double BSplineComputer::evaluate_spline(const int index_among_defined, const int
 
 BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
-    int n_to_print_minus_bspline_k, interaction_column_indices;
-
-    n_coef = ispec_->get_bspline_k();
-    n_to_force_match = ispec_->n_to_force_match; 
     class_subtype = ispec_->class_subtype;
-    n_defined = ispec_->get_n_defined();
-    binwidth = ispec_->get_fm_binwidth();
-    
     if (n_coef < 3) {
     	printf("Spline order for BSplineAndDeriv must be at least 3!\n");
 		exit(EXIT_FAILURE);
@@ -156,22 +144,22 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
     
     // Exclude kThreeBody class_subtype == 0 only
     if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2) || (ispec_->class_subtype == 3) ) {
+	    int n_to_print_minus_bspline_k, interaction_column_indices;
         printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
-        bspline_vectors = gsl_vector_alloc(n_coef);
+        bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
+     	bspline_vectors = gsl_vector_alloc(n_coef);
         bspline_matrices = gsl_matrix_alloc(n_coef, 2);
        	
-       	if (ispec_->class_type == kThreeBodyNonbonded) {
-        	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
-     	} else {
-     		bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
-     	}
-     	
        	int counter = 0; // this is a stand in for index_among_matched_interxns
 		for (unsigned i = 0; i < n_defined; i++) {
 			if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
 				interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
 				n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
-				check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
+				if (ispec->class_subtype != 3) {
+					check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
+				} else {
+					n_to_print_minus_bspline_k = 1;
+				} 
 				bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
 				gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
 				counter++;
@@ -182,13 +170,9 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
 
 BSplineAndDerivComputer::~BSplineAndDerivComputer() 
 {
+	// Exclude kThreeBody class_subtype == 0 only
     if ((ispec_->class_type != kThreeBodyNonbonded) || (class_subtype == 1) || (class_subtype == 2) || (ispec_->class_subtype == 3) ) {
-    	if (ispec_->class_type != kThreeBodyNonbonded) {
-    		for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
-    	} else {
-    		for (unsigned i = 0; i < n_defined; i++)  gsl_bspline_free(bspline_workspaces[i]);
-        }
-        
+    	for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
         delete [] bspline_workspaces;
         gsl_vector_free(bspline_vectors);
 		gsl_matrix_free(bspline_matrices);
@@ -266,17 +250,11 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
 LinearSplineComputer::LinearSplineComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
     n_coef = 2;
-    n_to_force_match = ispec_->n_to_force_match;
-    n_defined = ispec_->get_n_defined();
-    binwidth = ispec_->get_fm_binwidth();
 }
 
 DeltaSplineComputer::DeltaSplineComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
     n_coef = 1;
-    n_to_force_match = ispec_->n_to_force_match;
-    n_defined = ispec_->get_n_defined();
-    binwidth = ispec_->get_fm_binwidth();
 }
 
 // Calculate the value of the a one-parameter linear spline; direction of the 
@@ -338,9 +316,6 @@ double LinearSplineComputer::evaluate_spline(const int index_among_defined, cons
 TableSplineComputer::TableSplineComputer(InteractionClassSpec* ispec) : SplineComputer(ispec) 
 {
     n_coef = 2;
-    n_to_force_match = ispec_->n_to_force_match;
-    n_defined = ispec_->get_n_defined();
-    binwidth = ispec_->external_table_spline_binwidth;
 }
 
 void TableSplineComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
