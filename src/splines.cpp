@@ -110,7 +110,7 @@ void BSplineComputer::calculate_basis_fn_vals(const int index_among_defined, con
     assert(vals.size() == n_coef);
 	size_t istart, iend;
     double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
-    first_nonzero_basis_index = (int)(param_less_lower_cutoff / binwidth);
+    first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
