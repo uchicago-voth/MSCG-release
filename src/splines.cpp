@@ -154,37 +154,29 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
 		exit(EXIT_FAILURE);
     }
     
+    // Exclude kThreeBody class_subtype == 0 only
     if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2) || (ispec_->class_subtype == 3) ) {
         printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
         bspline_vectors = gsl_vector_alloc(n_coef);
         bspline_matrices = gsl_matrix_alloc(n_coef, 2);
        	
-        if (ispec_->class_type == kThreeBodyNonbonded) {
+       	if (ispec_->class_type == kThreeBodyNonbonded) {
         	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
-     		
-     		for (unsigned counter = 0; counter < n_defined; counter++) {
-     			//n_to_print_minus_bspline_k = floor(180.0 / cg->three_body_nonbonded_interactions.fm_binwidth + 0.5) + 1
-     			interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
-            	n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
-            	check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
-     			bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-            	gsl_bspline_knots_uniform(ispec_->lower_cutoffs[counter], ispec_->upper_cutoffs[counter], bspline_workspaces[counter]);
-        	}
      	} else {
      		bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
-       	
-      		int counter = 0;
-       		for (unsigned i = 0; i < n_defined; i++) {
-       			if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
-            		interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
-            		n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
-            		check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
-            		bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-            		gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
-            		counter++;
-        		}
-        	}
-        }
+     	}
+     	
+       	int counter = 0; // this is a stand in for index_among_matched_interxns
+		for (unsigned i = 0; i < n_defined; i++) {
+			if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
+				interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
+				n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
+				check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
+				bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
+				gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
+				counter++;
+			}
+		}
     }
 }
 
