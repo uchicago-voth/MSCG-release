@@ -28,13 +28,6 @@ protected:
     InteractionClassSpec *ispec_;
     double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     
-    SplineComputer(InteractionClassSpec* ispec) {
-    	n_coef = ispec_->get_bspline_k();
-		n_to_force_match = ispec_->n_to_force_match;
-		n_defined = ispec_->get_n_defined();
-		binwidth = ispec_->get_fm_binwidth();
-    }
-    
 public:
     inline SplineComputer(InteractionClassSpec* ispec) : ispec_(ispec) {}
     inline virtual ~SplineComputer() {}
