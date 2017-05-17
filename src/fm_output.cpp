@@ -81,7 +81,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
 	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_interaction.cutoff);	      
+		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);	      
 		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
 		       write_one_param_bspline_file(*icomp_iterator, name, mat, i);
@@ -120,7 +120,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
                 	}
    				} else {
 	                // Write tabular output, regardless of spline type.
-				  write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_interaction.cutoff);
+				  write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
         	        // Write special output files for the specific spline types.
             	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
@@ -305,7 +305,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
       }
 }
 				 
-void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
+void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
 {	
     // Compute forces over a grid of parameter values.
     std::vector<double> axis_vals, force_vals, potential_vals;

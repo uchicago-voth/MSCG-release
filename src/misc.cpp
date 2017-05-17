@@ -142,7 +142,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   int last = axis_vals.size() - 1;
   int i = last;
 
-  if(axix_vals[last] > high) return;
+  if(axis_vals[last] > high) return;
   // Find a negative value
   while(force_vals[i]>0)
     {
