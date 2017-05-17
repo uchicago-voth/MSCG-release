@@ -340,7 +340,7 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
 	if (icomp->ispec->output_parameter_distribution == 1) {
-		if (icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
+		if (icomp->ispec->class_type == kPairBonded || icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
 			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 		} else if( (icomp->ispec->class_type == kPairNonbonded) && (param < icomp->ispec->cutoff)) {
 		 	fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
