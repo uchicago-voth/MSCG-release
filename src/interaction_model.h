@@ -122,6 +122,7 @@ struct InteractionClassSpec {
     virtual void setup_indices_in_fm_matrix(void);
 	
 	// Helper and implementation functions.
+	std::string get_basename(char **type_names, const int intrxn_index_among_defined, const std::string& delimiter);
 	void adjust_cutoffs_for_basis(int i);
     void setup_for_defined_interactions(TopologyData* topo_data); 
 	void dummy_setup_for_defined_interactions(TopologyData* topo_data);

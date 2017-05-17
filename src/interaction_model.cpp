@@ -35,6 +35,20 @@ void report_tabulated_interaction_data_consistency_error(const int line);
 void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
 inline void check_mode(char* mode);
 
+
+// Get the name of a single defined interaction via its index among
+// defined interactions.  Also, add the short name at the end, if it exists.
+
+std::string InteractionClassSpec::get_basename(char **name, const int intrxn_index_among_defined, const std::string &delimiter) 
+{
+  std::string basename = get_interaction_name(name, intrxn_index_among_defined, "_");
+  if (!get_short_name().empty())
+  {
+    basename += "_" + get_short_name();
+  }
+  return basename;
+}
+
 // Get the name of a single defined interaction via its index among
 // defined interactions.
 
@@ -547,12 +561,12 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
             if ((get_basis_type() == kBSpline) || (get_basis_type() == kBSplineAndDeriv)) { // Set up a B-spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5));
                 }
             } else if (get_basis_type() == kLinearSpline) { // Set up a linear spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5));
                 }
 			}
 		}
