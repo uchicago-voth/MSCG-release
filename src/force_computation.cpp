@@ -1142,11 +1142,10 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
 	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[2];
 	std::array<double, DIMENSION> tx1, tx2, tx;
 	double theta, rr1, rr2;
-    double sw_exp1, sw_exp2, sw_exp_dr1, sw_exp_dr2, r1_less_cutoff, r2_less_cutoff;
     double angle_prefactor, dr1_prefactor, dr2_prefactor;
     int	this_column;
 	
-	bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, x,simulation_box_half_lengths, info->cutoff2, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2);
+	bool within_cutoff = conditionally_calc_sw_angle_and_intermediates(particle_ids, x, simulation_box_half_lengths, ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns], ispec->three_body_gamma, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2, angle_prefactor, dr1_prefactor, dr2_prefactor);
 	if (!within_cutoff) {
 		delete [] relative_site_position_2;
 		delete [] relative_site_position_3;
@@ -1155,17 +1154,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     }
 
     icomp->intrxn_param = theta;
-            
-    r1_less_cutoff = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    r2_less_cutoff = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    sw_exp1 = exp(ispec->three_body_gamma / r1_less_cutoff);
-    sw_exp2 = exp(ispec->three_body_gamma / r2_less_cutoff);
-    sw_exp_dr1 = ispec->three_body_gamma / (r1_less_cutoff * r1_less_cutoff) * sw_exp1;
-    sw_exp_dr2 = ispec->three_body_gamma / (r2_less_cutoff * r2_less_cutoff) * sw_exp2;
-    angle_prefactor = s1 * s2 * DEGREES_PER_RADIAN;
-    dr1_prefactor = sw_exp2 * sw_exp_dr1;
-    dr2_prefactor = sw_exp1 * sw_exp_dr2;
-   
+  
     // Calculate the matrix elements if it's supposed to be force matched
     info->fm_s_comp->calculate_basis_fn_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, info->fm_basis_fn_vals); 
     std::vector<double> basis_der_vals(info->fm_s_comp->get_n_coef());
@@ -1205,11 +1194,10 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
 	std::array<double, DIMENSION> tx1, tx2, tx;
     double theta, rr1, rr2;
     double cos_theta;
-    double sw_exp1, sw_exp2, sw_exp_dr1, sw_exp_dr2, r1_less_cutoff, r2_less_cutoff;
     double angle_prefactor, dr1_prefactor, dr2_prefactor;
     double u, du;
     
-	bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, x,simulation_box_half_lengths, info->cutoff2, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2);
+    bool within_cutoff = conditionally_calc_sw_angle_and_intermediates(particle_ids, x, simulation_box_half_lengths, ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns], ispec->three_body_gamma, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2, angle_prefactor, dr1_prefactor, dr2_prefactor);
 	if (!within_cutoff) {
 		delete [] relative_site_position_2;
 		delete [] relative_site_position_3;
@@ -1220,18 +1208,7 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     icomp->intrxn_param = theta;
     theta /= DEGREES_PER_RADIAN;
     cos_theta = cos(theta);
-    
-    r1_less_cutoff = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    r2_less_cutoff = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
-    sw_exp1 = exp(ispec->three_body_gamma / r1_less_cutoff);
-    sw_exp2 = exp(ispec->three_body_gamma / r2_less_cutoff);
-    sw_exp_dr1 = ispec->three_body_gamma / (r1_less_cutoff * r1_less_cutoff) * sw_exp1;
-    sw_exp_dr2 = ispec->three_body_gamma / (r2_less_cutoff * r2_less_cutoff) * sw_exp2;
-    
-    angle_prefactor = sw_exp1 * sw_exp2;
-    dr1_prefactor = sw_exp2 * sw_exp_dr1;
-    dr2_prefactor = sw_exp1 * sw_exp_dr2;
-    
+        
     u = (cos_theta - icomp->stillinger_weber_angle_parameter) * (cos_theta - icomp->stillinger_weber_angle_parameter) * 4.184;
     du = 2.0 * (cos_theta - icomp->stillinger_weber_angle_parameter) * sin(theta) * 4.184;
     
