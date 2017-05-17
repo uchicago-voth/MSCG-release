@@ -1169,9 +1169,9 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
-        for (int j = 0; j < DIMENSION; j++) tx1[j] = - angle_prefactor * derivatives[0][j] * basis_der_vals[i] + 0.5 * dr1_prefactor * (relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i];
-        for (int j = 0; j < DIMENSION; j++) tx2[j] = - angle_prefactor * derivatives[1][j] * basis_der_vals[i] + 0.5 * dr2_prefactor * (relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i];
-        for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]);
+        for (int j = 0; j < DIMENSION; j++) tx1[j] = - derivatives[0][j] * angle_prefactor * basis_der_vals[i] + 0.5 * dr1_prefactor * (relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        for (int j = 0; j < DIMENSION; j++) tx2[j] = - derivatives[1][j] * angle_prefactor * basis_der_vals[i] + 0.5 * dr2_prefactor * (relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        for (int j = 0; j < DIMENSION; j++) tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
         
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
         (*mat->accumulate_fm_matrix_element)(temp_row_index_2, this_column, &tx2[0], mat);
@@ -1218,9 +1218,9 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
         
     for (int j = 0; j < DIMENSION; j++) {
-    	tx1[j] = - angle_prefactor * derivatives[0][j] * du + 0.5 * dr1_prefactor * u * (relative_site_position_2[0][j] / rr1);
-    	tx2[j] = - angle_prefactor * derivatives[1][j] * du + 0.5 * dr2_prefactor * u * (relative_site_position_3[0][j] / rr1);
-    	tx[j]  = -(tx1[j] + tx2[j]);
+    	tx1[j] = - derivatives[0][j] * angle_prefactor * du + 0.5 * dr1_prefactor * u * (relative_site_position_2[0][j] / rr1); // derivative of angle (with harmonic cosine) plus derivative of distance for site 0 (K)
+    	tx2[j] = - derivatives[1][j] * angle_prefactor * du + 0.5 * dr2_prefactor * u * (relative_site_position_3[0][j] / rr1); // derivative of angle (with harmonic cosine) plus derivative of distance for site 2 (L)
+    	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
     }
     
     (*mat->accumulate_fm_matrix_element)(temp_row_index_1, temp_column_index, &tx1[0], mat);
