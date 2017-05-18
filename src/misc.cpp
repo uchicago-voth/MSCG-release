@@ -80,7 +80,8 @@ void pad_values_front(const double low, std::vector<double>& axis_vals, std::vec
 void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
 {
 	double spacing = axis_vals[2] - axis_vals[1];
-	int last = axis_vals.size() - 1;	 
+	int last = axis_vals.size() - 1;
+	
 	while (axis_vals[last] + spacing < high) {
 		axis_vals.push_back(axis_vals[last] + spacing);
 		force_vals.push_back(fpad);
@@ -99,7 +100,6 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   std::vector<double>::iterator axis_it;
   std::vector<double>::iterator force_it;
   int last = axis_vals.size() - 1;
-  
   
   double spacing = axis_vals[1] - axis_vals[0];
   int i = 0;
@@ -153,7 +153,10 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   while(force_vals[i]>force_vals[i-1])
     {
       i--;
-      if (i <= 0) break;
+      if (i < 1) {
+      	i = 1;
+      	break;
+      	}
     }
   // Now, pad interaction
   // first filling in the existing spaces
