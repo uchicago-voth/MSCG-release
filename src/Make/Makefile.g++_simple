@@ -36,7 +36,7 @@ newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
 	$(CC) $(NO_GRO_LDFLAGS) -o $@ newfm.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 
 newrem_no_gro.x: newrem.o  $(COMMON_OBJECTS) 
-	$(CC) $(NO_GRO_LDFLAGS) -o $@ newrem.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@ newrem.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 	
 combinefm_no_gro.x: combinefm.o batch_fm_combination.o $(NO_GRO_COMMON_OBJECTS)
 	$(CC) $(NO_GRO_LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
