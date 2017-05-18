@@ -1,9 +1,5 @@
 FM code
 1) Test and debug 3B interactions
-2) Test and debug R15 interactions
-3) Add Qhel interactions
-4) Unify interaction padding and output options in master and REM
-5) Merge REM and master branches
 
 LAMMPS release
 1) Create python install script (Zack)
