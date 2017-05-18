@@ -767,12 +767,12 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
 				line = dspec->read_table(external_spline_table, line, dspec->n_density_groups);
 			}
 		} else {
-			if (( (*iclass_iterator)->class_type == kOneBody || (*iclass_iterator)->class_type == kRadiusofGyration ) &&
-				( (*iclass_iterator)->class_subtype == 0 )) {
-				// do not read table line
-			} if (((*iclass_iterator)->class_type == kR13Bonded ||
+			if (((*iclass_iterator)->class_type == kOneBody ||
+				   (*iclass_iterator)->class_type == kR13Bonded ||
 	    		   (*iclass_iterator)->class_type == kR14Bonded ||
-	    		   (*iclass_iterator)->class_type == kR15Bonded ) && 
+	    		   (*iclass_iterator)->class_type == kR15Bonded ||
+	    		   (*iclass_iterator)->class_type == kHelical ||
+	    		   (*iclass_iterator)->class_type == kRadiusofGyration) && 
 	    		   (*iclass_iterator)->class_subtype == 0 ) {
 	    		// do not read table line	   
     		} else {
