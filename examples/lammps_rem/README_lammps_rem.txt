@@ -20,10 +20,10 @@ named "fmec.table". This file can be created with the command:
 cp 1_1.table fmec.table
 )
 
-3) Move all the files including the newrem.x excutable, except the reference trajectory and the iterate.sh script, to a
-directory named "iter_0".
+3) Move all the files including the newrem.x excutable and BI simulation trajectory, 
+but not the reference trajectory and the iterate.sh script, to a directory named "iter_0".
 
 4) Next, the provided iterate script can be used to perform the REM routine:
-source iterate.sh 10 reference_trajectory.lammpstrj dump.lammpstrj.cg lmp_mpi
+source iterate.sh 10 reference_traj.lammpstrj dump.lammpstrj.cg lmp_mpi
 
 5) compare the results to those in the "output" directory.
