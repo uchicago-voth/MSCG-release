@@ -575,7 +575,13 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
             ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
         }
     }
-    fprintf(solution_spline_output_file, "%lf %lf fm", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
+    
+    fprintf(solution_spline_output_file, "%lf %lf", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
+    if (ispec->upper_cutoffs[index_among_defined] == -1.0) {
+		fprintf(solution_spline_output_file, " none");	    
+    } else {
+	    fprintf(solution_spline_output_file, " fm");
+	}
 	
 	DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(ispec);
 	if(dspec != NULL) {
