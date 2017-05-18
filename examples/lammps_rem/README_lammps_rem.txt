@@ -12,7 +12,7 @@ sampling to produce a converged result.
 prepared by boltmann inversion using the rangefinder code:
 ./rangefinder.x -l reference_trajectory.lammpstrj
 
-2) Run a CG simulation using the resulting BI interactions given by rangefinder.
+1) Run a CG simulation using the resulting BI interactions given by rangefinder. (see lammps_bi example)
 If you are using lammps, simulation can be run using the provided input and data files:
 ./lmp_mpi < CG.in
 (note: the lammps input file "CG.in" will expect the name of the interactions to be in a file
@@ -20,10 +20,10 @@ named "fmec.table". This file can be created with the command:
 cp 1_1.table fmec.table
 )
 
-3) Move all the files including the newrem.x excutable and BI simulation trajectory, 
+2) Move all the files including the newrem.x excutable and BI simulation trajectory, 
 but not the reference trajectory and the iterate.sh script, to a directory named "iter_0".
 
-4) Next, the provided iterate script can be used to perform the REM routine:
+3) Next, the provided iterate script can be used to perform the REM routine:
 source iterate.sh 10 reference_traj.lammpstrj dump.lammpstrj.cg lmp_mpi
 
-5) compare the results to those in the "output" directory.
+4) compare the results to those in the "output" directory.
