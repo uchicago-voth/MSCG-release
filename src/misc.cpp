@@ -83,6 +83,10 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 	double spacing = axis_vals[2] - axis_vals[1];
 	int last = axis_vals.size() - 1;
 	
+  while(force_vals.size() > axis_vals.size()) {
+  	force_vals.pop_back();
+  }
+
 	while (axis_vals[last] + spacing < high) {
 		axis_vals.push_back(axis_vals[last] + spacing);
 		force_vals.push_back(fpad);
