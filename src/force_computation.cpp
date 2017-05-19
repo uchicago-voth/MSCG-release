@@ -296,6 +296,7 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
         *curr_iclass_col_index += ispec->interaction_column_indices[ispec->n_to_force_match];
     }
     fm_s_comp = new BSplineAndDerivComputer(ispec);
+    fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
 }
 
 //--------------------------------------------------------------------
@@ -622,42 +623,42 @@ void ThreeBodyNonbondedClassComputer::calculate_3B_interactions(MATRIX_DATA* con
 inline void InteractionClassComputer::walk_3B_neighbor_list(MATRIX_DATA* const mat, const int n_cg_types, const TopologyData& topo_data, const ThreeBCellList& three_body_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
 {
 	int stencil_size = three_body_cell_list.get_stencil_size();
-    for (int kk = 0; kk < three_body_cell_list.size; kk++) {
-        j = three_body_cell_list.head[kk];
-        while (j >= 0) {
-            k = three_body_cell_list.head[kk];
-            while (k >= 0) {
-                if (j != k) {
-                    //three body
-                    l = three_body_cell_list.list[k];
-                    while (l >= 0) {
-                        if (l >= 0) {
-	                        if (l != j) {
-    	                       if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
-        	                       order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
-            	               }
-            	        	}
-                        	l = three_body_cell_list.list[l];
-						}
-					}
-                    for (int nei_3 = 0; nei_3 < stencil_size; nei_3++) {
-                        int ll_3 = three_body_cell_list.stencil[stencil_size * kk + nei_3];
-                        l = three_body_cell_list.head[ll_3];
-                        while (l >= 0) {
-                            if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
-                                order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
-                            }
-                            l = three_body_cell_list.list[l];
-                        }
-                    }
-                }
-                k = three_body_cell_list.list[k];
-            }
-            
-            for (int nei = 0; nei < stencil_size; nei++) {
-                int ll = three_body_cell_list.stencil[stencil_size * kk + nei];
-                k = three_body_cell_list.head[ll];
+        for (int kk = 0; kk < three_body_cell_list.size; kk++) {
+            j = three_body_cell_list.head[kk];
+            while (j >= 0) {
+                k = three_body_cell_list.head[kk];
                 while (k >= 0) {
+                    if (j != k) {
+                    //three body
+                      l = three_body_cell_list.list[k];
+                      while (l >= 0) {
+                          if (l >= 0) {
+	                      if (l != j) {
+    	                          if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
+        	                         order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+            	                  }
+            	              }
+                              l = three_body_cell_list.list[l];
+			  }
+		      }
+                      for (int nei_3 = 0; nei_3 < stencil_size; nei_3++) {
+                          int ll_3 = three_body_cell_list.stencil[stencil_size * kk + nei_3];
+                          l = three_body_cell_list.head[ll_3];
+                          while (l >= 0) {
+                              if ( (check_excluded_list(&topo_data, l, j) == false)  && (check_excluded_list(&topo_data, j, k) == false) ) {
+                                  order_three_body_nonbonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+                              }
+                              l = three_body_cell_list.list[l];
+                          }
+                      }
+                   }
+                   k = three_body_cell_list.list[k];
+               }
+            
+               for (int nei = 0; nei < stencil_size; nei++) {
+                  int ll = three_body_cell_list.stencil[stencil_size * kk + nei];
+                  k = three_body_cell_list.head[ll];
+                  while (k >= 0) {
                     //three body
                     l = three_body_cell_list.list[k];
                     while (l >= 0) {
@@ -677,11 +678,11 @@ inline void InteractionClassComputer::walk_3B_neighbor_list(MATRIX_DATA* const m
                         }
                     }
                     k = three_body_cell_list.list[k];
-                }
-            }
-            j = three_body_cell_list.list[j];
-        }
-    }
+                  }
+              }
+              j = three_body_cell_list.list[j];
+          }
+      }
 }
 
 //--------------------------------------------------------------------
@@ -784,6 +785,9 @@ void order_helical_fm_matrix_element_calculation(InteractionClassComputer* const
 
 void order_three_body_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
 {
+    static int count = 0;
+    count++;
+    //printf("count : %d\n", count);
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
     
@@ -1154,25 +1158,47 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     }
 
     icomp->intrxn_param = theta;
+<<<<<<< HEAD
+            
+    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    s1 = exp(ispec->three_body_gamma / rt1);
+    s2 = exp(ispec->three_body_gamma / rt2);
+    s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
+    s2_1 = ispec->three_body_gamma / (rt2 * rt2) * s2;
+    c1 = s1 * s2;
+    c2 = s2 * s1_1;
+    c3 = s1 * s2_1;
+    
+    c1 *= DEGREES_PER_RADIAN;
+
+=======
   
+>>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
     // Calculate the matrix elements if it's supposed to be force matched
     info->fm_s_comp->calculate_basis_fn_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, info->fm_basis_fn_vals); 
     std::vector<double> basis_der_vals(info->fm_s_comp->get_n_coef());
     BSplineAndDerivComputer *fm_s_comp = static_cast<BSplineAndDerivComputer*>(icomp->fm_s_comp);
     fm_s_comp->calculate_bspline_deriv_vals(info->index_among_defined_intrxns, info->intrxn_param, info->basis_function_column_index, basis_der_vals); 
-    
+  
     int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
-    int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
-    int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
-	int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
-        
+    int temp_row_index_2 = particle_ids[1] + icomp->current_frame_starting_row;
+    int temp_row_index_3 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + icomp->basis_function_column_index;
+    
     for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
 
         this_column = temp_column_index + i;
         for (int j = 0; j < DIMENSION; j++) {
+<<<<<<< HEAD
+        	tx1[j] = (-derivatives[0][j] * c1) * basis_der_vals[i] + 0.5 * (c2 * relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
+        	tx2[j] = (-derivatives[1][j] * c1) * basis_der_vals[i] + 0.5 * (c3 * relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
+        	tx[j]  = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+=======
         	tx1[j] = derivatives[0][j] * angle_prefactor * basis_der_vals[i] + 0.5 * dr1_prefactor * (relative_site_position_2[0][j] / rr1) * info->fm_basis_fn_vals[i]; // derivative of angle plus derivative of distance for site 0 (K)
         	tx2[j] = derivatives[1][j] * angle_prefactor * basis_der_vals[i] + 0.5 * dr2_prefactor * (relative_site_position_3[0][j] / rr2) * info->fm_basis_fn_vals[i]; // derivative of angle plust derivative of distance for site 2 (L)
         	tx[j]  = - (tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+>>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
         }
         
         (*mat->accumulate_fm_matrix_element)(temp_row_index_1, this_column, &tx1[0], mat);
@@ -1180,7 +1206,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
         (*mat->accumulate_fm_matrix_element)(temp_row_index_3, this_column, &tx[0], mat);
     }
     delete [] relative_site_position_2;
-	delete [] relative_site_position_3;
+    delete [] relative_site_position_3;
     delete [] derivatives;
 }
 
@@ -1190,16 +1216,26 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
     ThreeBodyNonbondedClassSpec* ispec = static_cast<ThreeBodyNonbondedClassSpec*>(icomp->ispec);
     
-	std::array<double, DIMENSION>* relative_site_position_2 = new std::array<double, DIMENSION>[1];
-	std::array<double, DIMENSION>* relative_site_position_3 = new std::array<double, DIMENSION>[1];
-	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[2];
-	std::array<double, DIMENSION> tx1, tx2, tx;
+    std::array<double, DIMENSION>* relative_site_position_2 = new std::array<double, DIMENSION>[1];
+    std::array<double, DIMENSION>* relative_site_position_3 = new std::array<double, DIMENSION>[1];
+    std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[2];
+    std::array<double, DIMENSION> tx1, tx2, tx;
+
     double theta, rr1, rr2;
     double cos_theta;
+<<<<<<< HEAD
+    double s1, s2, s1_1, s2_1, rt1, rt2;
+    double c1, c2, c3;
+    double u, u_1;
+    double tt;
+   
+    bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, x,simulation_box_half_lengths, info->cutoff2, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2);
+=======
     double angle_prefactor, dr1_prefactor, dr2_prefactor;
     double u, du;
     
     bool within_cutoff = conditionally_calc_sw_angle_and_intermediates(particle_ids, x, simulation_box_half_lengths, ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns], ispec->three_body_gamma, relative_site_position_2, relative_site_position_3, derivatives, theta, rr1, rr2, angle_prefactor, dr1_prefactor, dr2_prefactor);
+>>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
 	if (!within_cutoff) {
 		delete [] relative_site_position_2;
 		delete [] relative_site_position_3;
@@ -1210,10 +1246,36 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     icomp->intrxn_param = theta;
     theta /= DEGREES_PER_RADIAN;
     cos_theta = cos(theta);
+<<<<<<< HEAD
+    
+    rt1 = rr1 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    rt2 = rr2 - ispec->three_body_nonbonded_cutoffs[icomp->index_among_defined_intrxns];
+    s1 = exp(ispec->three_body_gamma / rt1);
+    s2 = exp(ispec->three_body_gamma / rt2);
+    s1_1 = ispec->three_body_gamma / (rt1 * rt1) * s1;
+    s2_1 = ispec->three_body_gamma / (rt2 * rt2) * s2;
+    
+    c1 = s1 * s2;
+    c2 = s2 * s1_1;
+    c3 = s1 * s2_1;
+    
+=======
         
+>>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
     u = (cos_theta - icomp->stillinger_weber_angle_parameter) * (cos_theta - icomp->stillinger_weber_angle_parameter) * 4.184;
     du = 2.0 * (cos_theta - icomp->stillinger_weber_angle_parameter) * sin(theta) * 4.184;
     
+<<<<<<< HEAD
+    int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
+    int temp_row_index_2 = particle_ids[1] + icomp->current_frame_starting_row;
+    int temp_row_index_3 = particle_ids[2] + icomp->current_frame_starting_row;
+    int temp_column_index = icomp->interaction_class_column_index + ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
+        
+    for (int j = 0; j < DIMENSION; j++) {
+    	tx1[j] = (-derivatives[0][j] * c1 * u_1) + ( (0.5*relative_site_position_2[0][j] / rr1) * c2 * u ); // derivative of angle plus derivative of distance for site 0 (K)
+    	tx2[j] = (-derivatives[1][j] * c1 * u_1) + ( (0.5*relative_site_position_3[0][j] / rr2) * c3 * u ); // derivative of angle plus derivative of distance for site 2 (L)
+    	tx[j] = -(tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+=======
     int temp_row_index_2 = particle_ids[2] + icomp->current_frame_starting_row;
     int temp_row_index_3 = particle_ids[1] + icomp->current_frame_starting_row;
     int temp_row_index_1 = particle_ids[0] + icomp->current_frame_starting_row;
@@ -1223,6 +1285,7 @@ void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* co
     	tx1[j] = derivatives[0][j] * angle_prefactor * du + 0.5 * dr1_prefactor * u * (relative_site_position_2[0][j] / rr1); // derivative of angle (with harmonic cosine) plus derivative of distance for site 0 (K)
     	tx2[j] = derivatives[1][j] * angle_prefactor * du + 0.5 * dr2_prefactor * u * (relative_site_position_3[0][j] / rr1); // derivative of angle (with harmonic cosine) plus derivative of distance for site 2 (L)
     	tx[j]  = - (tx1[j] + tx2[j]); // Use Newton's third law to determine for on central site
+>>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
     }
     
     (*mat->accumulate_fm_matrix_element)(temp_row_index_1, temp_column_index, &tx1[0], mat);
