@@ -1,6 +1,10 @@
 Release Notes
 =============
 
+Version 1.6.5 (May 19,2017)
+	* Rewrite three-body calculations
+	* Add threebody_fm example
+	
 Version 1.6.4 (April 24, 2017)
 	* Rewrite dihedral calculations
 	
