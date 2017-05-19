@@ -159,28 +159,7 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
         printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
         bspline_vectors = gsl_vector_alloc(n_coef);
         bspline_matrices = gsl_matrix_alloc(n_coef, 2);
-       	
-       	if (ispec_->class_type == kThreeBodyNonbonded) {
-        	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
-<<<<<<< HEAD
-     		
-     		for (unsigned counter = 0; counter < n_defined; counter++) {
-     			//n_to_print_minus_bspline_k = floor(180.0 / cg->three_body_nonbonded_interactions.fm_binwidth + 0.5) + 1
-     			interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
-            		n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
-                        if (ispec_->class_subtype != 3)
-            		  check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
-			else
-			   n_to_print_minus_bspline_k = 10;
-     			bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-                	printf("counter %d knots %d interaction_column_indices %d\n", counter, n_to_print_minus_bspline_k, interaction_column_indices);
-            		gsl_bspline_knots_uniform(ispec_->lower_cutoffs[counter], ispec_->upper_cutoffs[counter], bspline_workspaces[counter]);
-        	}
-=======
->>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
-     	} else {
-     		bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
-     	}
+       	bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
      	
        	int counter = 0; // this is a stand in for index_among_matched_interxns
 		for (unsigned i = 0; i < n_defined; i++) {

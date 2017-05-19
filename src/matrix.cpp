@@ -2502,13 +2502,7 @@ inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_
 	cblas_dsyrk(CblasColMajor, CblasUpper, CblasTrans, mat->fm_matrix_columns, mat->fm_matrix_rows, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, oned, normal_matrix->values, mat->fm_matrix_columns);
 	#endif
 	// Take normal form of the current frame's target vector and add to the existing normal form target vector.
-<<<<<<< HEAD
-	//cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, dense_fm_rhs_vector, 1, 1.0, dense_fm_normal_rhs_vector, 1);
-	// Take normal form of the current frame's target vector and add to the existing normal form target vector.
-    cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, dense_fm_rhs_vector, onei, oned, dense_fm_normal_rhs_vector, onei);
-=======
 	cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, dense_fm_rhs_vector, 1, 1.0, dense_fm_normal_rhs_vector, 1);
->>>>>>> ed119f48345c3278b2716c1e925fe49d8753b1c7
 }
 
 // Calculate the residual for a dense matrix.
