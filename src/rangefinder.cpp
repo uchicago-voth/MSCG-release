@@ -259,7 +259,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 inline bool any_active_parameter_distributions(CG_MODEL_DATA* const cg) {
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-        if((*iclass_iterator)->output_parameter_distribution == 1) {
+        if((*iclass_iterator)->output_parameter_distribution != 0) {
         	return true;
         }
     }
@@ -269,7 +269,7 @@ inline bool any_active_parameter_distributions(CG_MODEL_DATA* const cg) {
 inline void screen_interactions_by_distribution(CG_MODEL_DATA* const cg) {
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-        if((*iclass_iterator)->output_parameter_distribution != 1) {
+        if((*iclass_iterator)->output_parameter_distribution == 0) {
         	(*iclass_iterator)->n_to_force_match = 0;
         	(*iclass_iterator)->n_tabulated = 0;
         	(*iclass_iterator)->interaction_column_indices[0] = 0;

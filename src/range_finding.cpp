@@ -59,6 +59,7 @@ double calculate_volume(const matrix simulation_box_lengths);
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
 void open_density_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
 void close_parameter_distribution_files_for_class(InteractionClassComputer* const icomp);
+void remove_dist_files(InteractionClassComputer* const icomp, char **name);
 void generate_parameter_distribution_histogram(InteractionClassComputer* const icomp, char **name);
 
 // Dummy implementations
@@ -187,7 +188,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
     iclass->n_to_force_match = iclass->get_n_defined();
     iclass->interaction_column_indices = std::vector<unsigned>(iclass->n_to_force_match + 1);
 	
-	if(iclass->output_parameter_distribution == 1){
+	if(iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2 ){
 		if(iclass->class_type == kDensity) {
 			if (iclass->class_subtype > 0) {
 				open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
@@ -337,7 +338,7 @@ void calc_isotropic_two_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) {
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) {
 		if (icomp->ispec->class_type == kPairBonded || icomp->ispec->class_type == kAngularBonded || icomp->ispec->class_type == kDihedralBonded) {
 			fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 		} else if( (icomp->ispec->class_type == kPairNonbonded) && (param < icomp->ispec->cutoff)) {
@@ -358,7 +359,7 @@ void calc_angular_three_body_sampling_range(InteractionClassComputer* const icom
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 }
 
 void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
@@ -375,7 +376,7 @@ void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 }
 
 void calc_helical_interaction_sampling_range(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
@@ -398,7 +399,7 @@ void calc_helical_interaction_sampling_range(InteractionClassComputer* const ico
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 
 	delete [] particle_ids;
 	delete [] helical_ids;
@@ -419,7 +420,7 @@ void calc_radius_of_gyration_interaction_sampling_range(InteractionClassComputer
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 
 	delete [] particle_ids;
 }
@@ -434,7 +435,7 @@ void evaluate_density_sampling_range(InteractionClassComputer* const info, std::
 	if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
-	if (icomp->ispec->output_parameter_distribution == 1) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
+	if (icomp->ispec->output_parameter_distribution == 1 || icomp->ispec->output_parameter_distribution == 2) fprintf(icomp->ispec->output_range_file_handles[icomp->index_among_defined_intrxns], "%lf\n", param);
 }
 
 void calc_nothing(InteractionClassComputer* const icomp, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat) {
@@ -513,20 +514,30 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
         }
     }
 	
-	if (iclass->output_parameter_distribution == 1) {
+	if (iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2) {
 		if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
 			close_parameter_distribution_files_for_class(icomp);
-			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(iclass);
-			generate_parameter_distribution_histogram(icomp, ispec->density_group_names);
-		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
-					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
+			DensityClassSpec* d_spec = static_cast<DensityClassSpec*>(iclass);
+			generate_parameter_distribution_histogram(icomp, d_spec->density_group_names);
+			remove_dist_files(icomp, d_spec->density_group_names);
+		} else if (iclass->class_type == kRadiusofGyration && iclass->class_subtype == 1) {
+			RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(iclass);
+			generate_parameter_distribution_histogram(icomp, rg_spec->molecule_group_names);
+			remove_dist_files(icomp, rg_spec->molecule_group_names);
+		} else if (iclass->class_type == kHelical && iclass->class_subtype == 1) {
+			HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(iclass);
+			generate_parameter_distribution_histogram(icomp, h_spec->molecule_group_names);
+			remove_dist_files(icomp, h_spec->molecule_group_names);
+		} else if ( (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
 					iclass->class_subtype == 1 ) {
 			close_parameter_distribution_files_for_class(icomp);
 			generate_parameter_distribution_histogram(icomp, name);			
+			remove_dist_files(icomp, name);
 		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
 		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
 			close_parameter_distribution_files_for_class(icomp);
 			generate_parameter_distribution_histogram(icomp, name);
+			remove_dist_files(icomp, name);
 		} else {
 			// do nothing for these
 		}
@@ -688,11 +699,22 @@ void close_parameter_distribution_files_for_class(InteractionClassComputer* cons
 	delete [] ispec->output_range_file_handles;
 }
 
+void remove_dist_files(InteractionClassComputer* const icomp, char **name) 
+{
+    InteractionClassSpec* ispec = icomp->ispec;	
+    if(ispec->output_parameter_distribution != 1) return;
+    for (int i = 0; i < ispec->get_n_defined(); i++) {
+		// get name of dist file
+		std::string filename = ispec->get_basename(name, i, "_") + ".dist";
+		// remove file
+		remove(filename.c_str());
+	}
+}
+
 void generate_parameter_distribution_histogram(InteractionClassComputer* const icomp, char **name)
 {
 	printf("Generating parameter distribution histogram for %s interactions.\n", icomp->ispec->get_full_name().c_str());
     InteractionClassSpec* ispec = icomp->ispec;	
-	DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(ispec);
 	
 	std::string filename;
 	std::ifstream dist_stream;
@@ -715,13 +737,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
         }
 		
 		// Open distribution file
-	 	if (dspec != NULL) {
-			filename = dspec->get_basename(dspec->density_group_names, i, "_");
-		} else {
-			filename = ispec->get_basename(name, i, "_");
-		}
-		filename += ".dist";
-		
+	 	filename = ispec->get_basename(name, i, "_") + ".dist";
 		check_and_open_in_stream(dist_stream, filename.c_str()); 
 		
 		// Populate histogram by reading distribution file
@@ -738,12 +754,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		}
 
 		// Write histogram to file
-		if (dspec != NULL) {
-			filename = dspec->get_basename(dspec->density_group_names, i, "_");
-		} else {
-			filename = ispec->get_basename(name, i, "_");
-		}
-		filename += ".hist";
+		filename = ispec->get_basename(name, i, "_") + ".hist";
     
 		hist_stream.open(filename, std::ofstream::out);
 		
@@ -769,7 +780,7 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction, 
     // if that interaction has a parameter distribution
-    if ( (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
     
     // These interactions do not generate parameter distributions
     if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;

@@ -4121,7 +4121,7 @@ void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassCo
 {
   int num_entries = 0;
   // Skip if it does not have a parameter distribution to use
-  if (icomp->ispec->output_parameter_distribution ==  1) {
+  if (icomp->ispec->output_parameter_distribution !=  0) {
     // For every defined interaction,
     for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
       num_entries += (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth());

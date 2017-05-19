@@ -968,7 +968,7 @@ void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double>
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);    
     // Calculate forces by iterating over the grid points from low to high.
-    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
+    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 0.5) * binwidth;
     double max = ispec->upper_cutoffs[index_among_defined];
     if (min >= max) {
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");

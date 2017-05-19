@@ -80,7 +80,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             // If that interaction is being matched (includes forces and symmetric/DOOM),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
-	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
+	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
 		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);	      
 		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
