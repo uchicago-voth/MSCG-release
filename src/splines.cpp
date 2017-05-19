@@ -159,12 +159,7 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
         printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
         bspline_vectors = gsl_vector_alloc(n_coef);
         bspline_matrices = gsl_matrix_alloc(n_coef, 2);
-       	
-       	if (ispec_->class_type == kThreeBodyNonbonded) {
-        	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
-     	} else {
-     		bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
-     	}
+       	bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
      	
        	int counter = 0; // this is a stand in for index_among_matched_interxns
 		for (unsigned i = 0; i < n_defined; i++) {

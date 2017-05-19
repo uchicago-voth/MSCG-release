@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <random>
 #include <stdint.h>
 
 #include "control_input.h"
@@ -829,7 +830,7 @@ int read_scalar_lammps_body(LammpsData *const lammps_data, FrameConfig *const fr
 void FrameSource::sampleTypesFromProbs()
 {
 	double rand;
-    std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+        std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 	// Determine each site's type/state by comparing the probability against a random number
 	for(int i = 0; i < frame_config->current_n_sites; i++) {
 		// Generate random number [0,1] using Mersenne Twister.
