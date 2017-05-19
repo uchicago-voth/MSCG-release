@@ -109,14 +109,20 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   while(force_vals[i] < 0)
     {
       i++;
-      if (i  >= last) break;
+      if (i  >= last) {
+      	i = last - 1;
+      	break;
+      }
     }
     
   // Keep going until it is non-decreasing
   while(force_vals[i]<force_vals[i+1])
     {
       i++;
-      if (i  >= last) break;
+      if (i  >= last) {
+      	i = last - 1;
+      	break;
+      }
     }
 
   // Now, pad interaction
@@ -148,7 +154,10 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   while(force_vals[i]>0)
     {
       i--;
-      if (i <= 0) break;
+      if (i < 1) {
+      	i = 1;
+      	break;
+      }
     }
   // Keep going until it is non-increasing
   while(force_vals[i]>force_vals[i-1])
