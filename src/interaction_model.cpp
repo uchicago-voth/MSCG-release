@@ -30,7 +30,7 @@ void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
 
 // Input checking and error reporting functions.
 void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const ispec, double const cutoff);
-void report_tabulated_interaction_format_error(const int line);
+void report_tabulated_interaction_format_error(const int line, const std::string& string);
 void report_tabulated_interaction_data_consistency_error(const int line);
 void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
 inline void check_mode(char* mode);
@@ -652,9 +652,9 @@ void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, Topo
 
 // Tabulated potential reading error reporting functions
 
-void report_tabulated_interaction_format_error(const int line)
+void report_tabulated_interaction_format_error(const int line, const std::string& string)
 {
-    fprintf(stderr, "Wrong format in table.in:line %d!\n", line);
+    fprintf(stderr, "Wrong format in table.in:line %d! Expected keyword %s\n", line, string.c_str());
     fflush(stderr);
     exit(EXIT_FAILURE);
 }
@@ -808,7 +808,7 @@ int InteractionClassSpec::read_table(std::ifstream &external_spline_table, int l
     // Read the file header.
     check_and_read_next_line(external_spline_table, buff, line);
     sscanf(buff.c_str(), "%s %d %lf", parameter_name, &n_external_splines_to_read, &external_table_spline_binwidth);
-    if (strcmp(parameter_name, get_table_name().c_str()) != 0) report_tabulated_interaction_format_error(line);
+    if (strcmp(parameter_name, get_table_name().c_str()) != 0) report_tabulated_interaction_format_error(line, get_table_name());
     if (n_external_splines_to_read != n_tabulated) report_tabulated_interaction_data_consistency_error(line);
     if (n_external_splines_to_read <= 0) return line;
     
