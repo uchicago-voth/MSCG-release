@@ -233,6 +233,14 @@ Note: Each of these labels (short_range, bond, angle, and dihedral) must be incl
 with the number and binwidth even if the number of tabulated interactions for that type is
 0.
 
+Note: There is an alternative way to specify multiple interactions that use the same table.
+In front of every set of types, add the keyword "types". For example,
+short_range Ns Bs
+types i1 j1
+types i2 j2
+Rl Rh
+...
+
 For a worked example using a tabulated interaction, please see the "table_fm" 
 sub-directory of the examples.
 
