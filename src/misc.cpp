@@ -161,7 +161,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
     }
   // Now, pad interaction
   // first filling in the existing spaces
-  while(i<last)
+  while(i<=last)
     {
       force_vals[i+1]= 2.0*force_vals[i] -  force_vals[i-1];
       i++;
