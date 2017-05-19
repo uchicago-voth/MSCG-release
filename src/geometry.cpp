@@ -190,8 +190,8 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
         double rr_11c = cos_theta / (rr_21 * rr_21 * sin_theta);
 
         for (unsigned i = 0; i < DIMENSION; i++) {
-            derivatives[0][i] = 0.5 * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = 0.5 * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
+            derivatives[0][i] = - 0.5 * (dist_derivs_21[0][i] * rr_01_1 + rr_00c * dist_derivs_20[0][i]);
+            derivatives[1][i] = - 0.5 * (dist_derivs_20[0][i] * rr_01_1 + rr_11c * dist_derivs_21[0][i]);
         }
     }    
     return true;
