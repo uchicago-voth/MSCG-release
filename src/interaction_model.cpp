@@ -864,7 +864,7 @@ int InteractionClassSpec::read_table(std::ifstream &external_spline_table, int l
     		
     		// read the table
     		prev_line = line;
-    		line = read_bspline_table(external_spline_table, line, index_among_defined);
+    		line = read_bspline_table(external_spline_table, line, index_list[0]);
 			
 			// copy the table to all of the other defined interactions in index_list
 			// also, increment the number of "tables read" (i)
