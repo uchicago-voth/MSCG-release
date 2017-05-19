@@ -197,6 +197,30 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
     return true;
 }
 
+// Calculate a terms for Stillinger-Weber interactions.
+
+bool conditionally_calc_sw_angle_and_intermediates(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff, const double gamma, std::array<double, DIMENSION>* &dist_derivs_01, std::array<double, DIMENSION>* &dist_derivs_02, std::array<double, DIMENSION>* &derivatives, double &param_val, double &rr1, double &rr2, double &angle_prefactor, double &dr1_prefactor, double &dr2_prefactor)
+{	
+	bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, particle_positions, simulation_box_half_lengths, cutoff*cutoff, dist_derivs_01, dist_derivs_02, derivatives, param_val, rr1, rr2);
+	if(within_cutoff == false) {
+		return false;
+	} else {
+		double r1_less_cutoff = rr1 - cutoff;
+		double r2_less_cutoff = rr2 - cutoff;
+
+		double sw_exp1 = exp(gamma / r1_less_cutoff);
+		double sw_exp2 = exp(gamma / r2_less_cutoff);
+
+		double sw_exp_dr1 = gamma / (r1_less_cutoff * r1_less_cutoff) * sw_exp1;
+		double sw_exp_dr2 = gamma / (r2_less_cutoff * r2_less_cutoff) * sw_exp2;
+
+		angle_prefactor = sw_exp1 * sw_exp2 * DEGREES_PER_RADIAN;
+		dr1_prefactor = sw_exp2 * sw_exp_dr1;
+		dr2_prefactor = sw_exp1 * sw_exp_dr2;
+	}
+	return true;
+}
+
 // Calculate a dihedral angle and its derivatives.
 // Thanks to Andrew Jewett (jewett.aij  g m ail) for inspiration from LAMMPS dihedral_table.cpp
 

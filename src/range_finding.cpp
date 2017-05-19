@@ -17,8 +17,6 @@
 #include "range_finding.h"
 #include "misc.h"
 
-const double VERYLARGE = 1000.0;
-
 //----------------------------------------------------------------------------
 // Prototypes for private implementation routines.
 //----------------------------------------------------------------------------
@@ -575,7 +573,13 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
             ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
         }
     }
-    fprintf(solution_spline_output_file, "%lf %lf fm", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
+    
+    fprintf(solution_spline_output_file, "%lf %lf", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
+    if (ispec->upper_cutoffs[index_among_defined] == -1.0) {
+		fprintf(solution_spline_output_file, " none");	    
+    } else {
+	    fprintf(solution_spline_output_file, " fm");
+	}
 	
 	DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(ispec);
 	if(dspec != NULL) {
@@ -701,7 +705,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
 
 		// Set-up histogram based on interaction binwidth
-		num_bins = (int)(ceil((ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth()));
+		num_bins = (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth()) + 0.5 );
 		bin_centers = new double[num_bins]();
         bin_counts = new unsigned long[num_bins]();
         
@@ -837,12 +841,11 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
 {
   std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
-
+  
   int i, counts;
   int *junk;
   double PI = 3.1415926;
-  double r;
-  double potential;
+  double r, potential;
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
   
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
@@ -852,9 +855,17 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
     {
       int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
-      normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
-      potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
+      if (counts > 0) {
+      	double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
+      	normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
+      	potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
+      } else {
+      	potential = 100.0;
+      }
+      if (potential > VERYLARGE || potential < - VERYLARGE) {
+      	potential = VERYLARGE;
+      }
+      
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
@@ -881,9 +892,16 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
     {
 	  int first_nonzero_basis_index;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      double normalized_counts = (double)(counts);
-      normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
-      potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
+      if (counts > 0) {
+	      double normalized_counts = (double)(counts);
+    	  normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
+    	  potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
+      } else {
+      	potential = 100.0;
+      }
+	  if (potential > VERYLARGE || potential < - VERYLARGE) {
+      	potential = VERYLARGE;
+      }
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);

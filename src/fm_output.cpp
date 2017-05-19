@@ -25,8 +25,8 @@
 void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const icomp, MATRIX_DATA* const mat, char ** const name);
 
-void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
-void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns);
+void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined);
 
 void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined_intrxns);
@@ -81,10 +81,10 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
 	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution != 1) continue;
-		     write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i);	      
+		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);	      
 		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
-                write_one_param_bspline_file(*icomp_iterator, name, mat, i);
+		       write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	         } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 					   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
 				write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
@@ -120,7 +120,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
                 	}
    				} else {
 	                // Write tabular output, regardless of spline type.
-    	            write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i);
+				  write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
         	        // Write special output files for the specific spline types.
             	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
@@ -229,7 +229,7 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 }
 
 // Write the tabular output for a single interaction.
-void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
+void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
 {
   std::vector<double> axis_vals, force_vals, potential_vals;
   if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
@@ -245,11 +245,16 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+        basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
       }
     else
       {
-        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+        basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+      }
+    // Append the class's short name with an underscore if one exists.
+    if (!icomp->ispec->get_short_name().empty())
+      {
+        basename += "_" + icomp->ispec->get_short_name();
       }
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
@@ -271,7 +276,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
       {
 	   std::vector<double> padded_potential_vals;
 	   pad_values_front_with_fix(axis_vals,force_vals);
-	   pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	   pad_values_back_with_fix(cutoff,axis_vals,force_vals);
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
@@ -300,7 +305,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
       }
 }
 				 
-void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns) 
+void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
 {	
     // Compute forces over a grid of parameter values.
     std::vector<double> axis_vals, force_vals, potential_vals;
@@ -319,11 +324,16 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
+        basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
       }
     else
       {
-        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+        basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+      }
+    // Append the class's short name with an underscore if one exists.
+    if (!icomp->ispec->get_short_name().empty())
+      {
+        basename += "_" + icomp->ispec->get_short_name();
       }
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
@@ -345,7 +355,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
       {
 	    std::vector<double> padded_potential_vals;
 	    pad_values_front_with_fix(axis_vals,force_vals);
-	    pad_values_back_with_fix(icomp->ispec->cutoff,axis_vals,force_vals);
+	    pad_values_back_with_fix(cutoff,axis_vals,force_vals);
 	    integrate_force(axis_vals, force_vals, padded_potential_vals);
 	    write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals);
       }
@@ -377,7 +387,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined)
 {
     // Print out a table of the interaction forces.
-    std::string filename = icomp->ispec->get_basename(name, index_among_defined, "_") + ".dat";
+    std::string filename = ispec->get_basename(name, index_among_defined_intrxns, "_") + ".dat";
     FILE* curr_spline_output_file = open_file(filename.c_str(), "w");
 	std::vector<double> axis_vals, force_vals, deriv_vals;
 	icomp->calc_grid_of_force_and_deriv_vals(mat->fm_solution, index_among_defined, icomp->ispec->output_binwidth, axis_vals, force_vals, deriv_vals);
@@ -398,11 +408,14 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
 		
 		if (icomp->ispec->class_type == kDensity) {
 			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-			basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
+			basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
 		} else {
-			basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+			basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
 		}
-		
+		if (!icomp->ispec->get_short_name().empty()) {
+        	basename += "_" + icomp->ispec->get_short_name();
+    	}
+
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
     	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
 		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
@@ -554,8 +567,8 @@ void write_bootstrapping_one_param_table_files(InteractionClassComputer* const i
 	}
     
     // Print out tabulated output files in MSCGFM style and LAMMPS style.
-    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-    
+    basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
 	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
 		basename += "_sym";	
@@ -608,8 +621,11 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
     if (icomp->ispec->output_spline_coeffs_flag == 1) {
         char name_tmp1[100], name_tmp2[100];
         FILE *raw_rhs_output_file, *normal_form_rhs_output_file;
-        std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-        
+        std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+        if (!icomp->ispec->get_short_name().empty()) {
+        	basename += "_" + icomp->ispec->get_short_name();
+	    }
+
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
     	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
 		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {

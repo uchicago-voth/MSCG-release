@@ -20,6 +20,7 @@ typedef real rvec[3];
 // Global variable definitions
 //-------------------------------------------------------------
 
+extern const double VERYLARGE;
 extern const double VERYSMALL;
 extern const float VERYSMALL_F; // Small number for single precision
 extern const double MAX_INPUT_FORCE_VALUE; // Filter some noisy data

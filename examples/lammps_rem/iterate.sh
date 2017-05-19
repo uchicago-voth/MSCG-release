@@ -28,7 +28,7 @@ until [ $ITERATION -gt $MAX_ITERATION ]; do
     cp iter_$PREV_ITERATION/$LAMMPS iter_$ITERATION/$LAMMPS
     cd iter_$ITERATION/
     ./newrem.x -l_ref ../$REF_TRAJECTORY -l_cg ../iter_$PREV_ITERATION/$CG_TRAJECTORY
-    cat fmec* > fmec.table
+    cat *.table > fmec.table
     mpirun ./$LAMMPS < CG.in
     cd ..
     let ITERATION=$ITERATION+1
