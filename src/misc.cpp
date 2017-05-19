@@ -150,6 +150,11 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   int i = last;
 
   if(axis_vals[last] > high) return;
+
+  while(force_vals.size() > axis_vals.size()) {
+  	force_vals.pop_back();
+  }
+
   // Find a negative value
   while(force_vals[i]>0)
     {
@@ -170,7 +175,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
     }
   // Now, pad interaction
   // first filling in the existing spaces
-  while(i<=last)
+  while(i<last)
     {
       force_vals[i+1]= 2.0*force_vals[i] -  force_vals[i-1];
       i++;
