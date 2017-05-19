@@ -174,7 +174,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 
   printf("entering expectation calculator\n");fflush(stdout);
 
-  (*mat->set_fm_matrix_to_zero)(mat);//Do I need this??
+  (*mat->set_fm_matrix_to_zero)(mat);
   
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
 
@@ -188,13 +188,13 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 
       //chck that the last frame read was successful
       if (read_stat == 0){
-	printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
-	exit(EXIT_FAILURE);
+	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
+	    exit(EXIT_FAILURE);
       }
 
       if (fs->use_statistical_reweighting) {
-	printf("statistical reweighting is not supported by newrem\n");
-	exit(EXIT_FAILURE);
+	    printf("statistical reweighting is not supported by newrem\n");
+	    exit(EXIT_FAILURE);
       }
 
       FrameConfig* frame_config = fs->getFrameConfig();
@@ -202,11 +202,11 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
       calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
       
       if(fs->dynamic_state_sampling == 0){
-	//Read next frame
-	if( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) || ((mat->trajectory_block_index + 1) < n_blocks) ){
-	  read_stat = (*fs->get_next_frame)(fs);
-	}
-	traj_frame_num++;
+	    //Read next frame
+	    if( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) || ((mat->trajectory_block_index + 1) < n_blocks) ){
+	      read_stat = (*fs->get_next_frame)(fs);
+	    }
+	    traj_frame_num++;
       }
     }
     printf("\r%d (%d) frames have been sampled. ", fs->current_frame_n, (mat->trajectory_block_index + 1) * mat->frames_per_traj_block);
@@ -224,44 +224,27 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
   FILE* spline_input_file = open_file("b-spline-previous.out","r");
 
   std::string type_name;
-  //  char charjunk;
   char stringjunk[100];
-  //int decjunk1;
-  //int decjunk2;
-  //double floatjunk1;
-  //double floatjunk2;
   int counter = 0;
 
-
-  
-         std::list<InteractionClassComputer*>::iterator icomp_iterator;
-	for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-        // For every defined interaction,
-        for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-            // If that interaction is being matched,
-            if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
-	      /*	      type_name = (*icomp_iterator)->ispec->get_interaction_name(cg->name, i, " ");
-	      fscanf(spline_input_file, "%c: ",&charjunk);
-	      fscanf(spline_input_file, "%s ",stringjunk);
-		      //	      if(strcmp(stringjunk, type_name ) != 0) exit(EXIT_FAILURE);
-	     
-	      //              int n_to_print_minus_bspline_k = n_basis_funcs - (*icomp_iterator)->ispec->get_bspline_k() + 2;
-	      fscanf(spline_input_file, "%d %d ",&decjunk1,&decjunk2);
-
-	      fscanf(spline_input_file, "%.15le %.15le\n",&floatjunk1,&floatjunk2);
-	      */
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+        // If that interaction is being matched,
+        if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
-              int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+          int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
 	      fgets(stringjunk, 100, spline_input_file);
 	      for (int k = 0; k < n_basis_funcs; k++) {
-		fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
-		counter += 1;
+		    fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
+		    counter += 1;
 	      }
-	      fscanf(spline_input_file, "\n");
-            }
+	    fscanf(spline_input_file, "\n");
+      }
 	}
   }
-	fclose(spline_input_file);
+  fclose(spline_input_file);
 }		    	 
 
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
@@ -336,7 +319,7 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
 	{
 	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100;
 	}
-    }
+  }
 }
     
 

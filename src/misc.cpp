@@ -15,6 +15,7 @@
 
 // Global variable assignments
 
+const double VERYLARGE = 1000.0;
 const double VERYSMALL = 1.0e-14;
 const float VERYSMALL_F = 1.0e-6; // Small number for single precision
 const double MAX_INPUT_FORCE_VALUE = 1000.0; // Filter some noisy data

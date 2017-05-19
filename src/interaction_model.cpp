@@ -35,6 +35,20 @@ void report_tabulated_interaction_data_consistency_error(const int line);
 void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
 inline void check_mode(char* mode);
 
+
+// Get the name of a single defined interaction via its index among
+// defined interactions.  Also, add the short name at the end, if it exists.
+
+std::string InteractionClassSpec::get_basename(char **name, const int intrxn_index_among_defined, const std::string &delimiter) 
+{
+  std::string basename = get_interaction_name(name, intrxn_index_among_defined, "_");
+  if (!get_short_name().empty())
+  {
+    basename += "_" + get_short_name();
+  }
+  return basename;
+}
+
 // Get the name of a single defined interaction via its index among
 // defined interactions.
 
@@ -767,7 +781,7 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
 				line = dspec->read_table(external_spline_table, line, dspec->n_density_groups);
 			}
 		} else {
-			if ((  (*iclass_iterator)->class_type == kOneBody ||
+			if (( (*iclass_iterator)->class_type == kOneBody ||
 				   (*iclass_iterator)->class_type == kR13Bonded ||
 	    		   (*iclass_iterator)->class_type == kR14Bonded ||
 	    		   (*iclass_iterator)->class_type == kR15Bonded ||
