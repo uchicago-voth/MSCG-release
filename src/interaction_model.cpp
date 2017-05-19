@@ -962,13 +962,13 @@ void InteractionClassComputer::calc_one_force_val(const std::vector<double> &spl
 void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals)
 {
     BSplineAndDerivComputer* s_comp_ptr = static_cast<BSplineAndDerivComputer*>(fm_s_comp);
-    unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 0.5);
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);
 	deriv_vals = std::vector<double>(num_entries);
 	
     // Calculate forces by iterating over the grid points from low to high.
-    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
+    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 0.5) * binwidth;
     double max = ispec->upper_cutoffs[index_among_defined];
     if (min >= max) {
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
