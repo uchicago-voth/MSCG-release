@@ -387,7 +387,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined)
 {
     // Print out a table of the interaction forces.
-    std::string filename = ispec->get_basename(name, index_among_defined_intrxns, "_") + ".dat";
+    std::string filename = icomp->ispec->get_basename(name, index_among_defined, "_") + ".dat";
     FILE* curr_spline_output_file = open_file(filename.c_str(), "w");
 	std::vector<double> axis_vals, force_vals, deriv_vals;
 	icomp->calc_grid_of_force_and_deriv_vals(mat->fm_solution, index_among_defined, icomp->ispec->output_binwidth, axis_vals, force_vals, deriv_vals);
@@ -567,7 +567,7 @@ void write_bootstrapping_one_param_table_files(InteractionClassComputer* const i
 	}
     
     // Print out tabulated output files in MSCGFM style and LAMMPS style.
-    basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
 	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {

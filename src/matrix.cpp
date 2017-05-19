@@ -2492,7 +2492,6 @@ inline void create_sparse_normal_form_matrix(MATRIX_DATA* const mat, const int n
 
 inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_weight, dense_matrix* const dense_fm_matrix, dense_matrix* normal_matrix, double* const dense_fm_rhs_vector, double* dense_fm_normal_rhs_vector)
 {	
-    int onei = 1;
     double oned = 1.0;    
     // Take normal form of the current frame's matrix and add to the existing normal form matrix.
     #if _mkl_flag == 1
