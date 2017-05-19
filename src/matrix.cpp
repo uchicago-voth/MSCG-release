@@ -1186,7 +1186,6 @@ void convert_dense_fm_equation_to_normal_form_and_bootstrap(MATRIX_DATA* const m
 
 void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA* const mat)
 {
-    char tchar = 'T';
     int onei = 1;
     double oned = 1.0;
     double frame_weight = mat->get_frame_weight() * mat->normalization;
@@ -2044,7 +2043,6 @@ inline void create_sparse_normal_form_matrix(MATRIX_DATA* const mat, const int n
 
 inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_weight, dense_matrix* const dense_fm_matrix, dense_matrix* normal_matrix, double* const dense_fm_rhs_vector, double* dense_fm_normal_rhs_vector)
 {	
-    int onei = 1;
     double oned = 1.0;    
     // Take normal form of the current frame's matrix and add to the existing normal form matrix.
 	#if _mkl_flag == 1
@@ -2064,7 +2062,6 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 	double residual, normal_matrix, vector_left, vector_right;
 	int i;
 	// Prepare the solution for linear algebra calls.
-	char none='n';  // not transpose
 	int onei = 1;
 	double oned = 1.0;
 	double* intermediate = new double[mat->fm_matrix_columns]();
@@ -2503,7 +2500,6 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			}		
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
-			char none = 'n';
 			double oned = 1.0;
 			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
 				it_normal_matrix->values, mat->fm_matrix_columns, backup_dense_matrix->values, mat->fm_matrix_columns, oned,
@@ -2859,7 +2855,6 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 						
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
-			char none = 'n';
 			double oned = 1.0;
 			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
 				it_dense_normal_matrix->values, mat->fm_matrix_columns, backup_normal_matrix->values, mat->fm_matrix_columns, oned,

@@ -541,7 +541,7 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
 	delete [] derivatives;
 }
 
-void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, 3>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
     int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l) followed by center index (j).    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
@@ -594,7 +594,7 @@ void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* co
     delete [] derivatives;
 }
 
-void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, 3>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, const rvec* x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
     int particle_ids[3] = {info->k, info->l, info->j}; // end indices (k, l) followed by center index (j).    
     ThreeBodyNonbondedClassComputer* icomp = static_cast<ThreeBodyNonbondedClassComputer*>(info);
