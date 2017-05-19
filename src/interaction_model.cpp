@@ -20,6 +20,7 @@
 //---------------------------------------------------------------
 
 // Input extraction functions.
+int extract_index_among_defined_from_line(InteractionClassSpec* ispec, std::string &buff, const int num_cg_types);
 inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, char** molecule_group_names, const int n_molecule_groups, int &index_among_defined);
 inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name);
 
@@ -369,6 +370,26 @@ void HelicalClassSpec::read_rmin_class(std::string* &elements, const int positio
 	sprintf(mode, "%s", elements[position + 2].c_str());	
 	r0[index_among_defined] = atof(elements[position + 3].c_str());
 	sigma2[index_among_defined] = atof(elements[position + 4].c_str());
+}
+
+int extract_index_among_defined_from_line(InteractionClassSpec* ispec, std::string &buff, const int num_cg_types)
+{
+	int hash_val;
+	std::vector<int> types(ispec->get_n_body());
+	// Find it in the defined interactions.
+	if (ispec->class_type == kDensity) {
+		DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(ispec);
+		std::string* elements = new std::string[dspec->get_n_body()];
+		hash_val = StringSplit(buff, " \t\n", elements); // this return value is ignored
+		read_types(dspec->get_n_body(), types, &elements[0], dspec->n_density_groups, dspec->density_group_names);
+		hash_val = calc_asymmetric_interaction_hash(types, num_cg_types);
+		delete [] elements;
+	} else {
+		std::istringstream buffss(buff);
+		for (unsigned j = 0; j < types.size(); j++) buffss >> types[j];
+		hash_val = calc_interaction_hash(types, num_cg_types);
+	}
+	return ispec->get_index_from_hash(hash_val);
 }
 
 inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, char** molecule_group_names, const int n_molecule_groups, int &index_among_defined)
@@ -802,7 +823,7 @@ int InteractionClassSpec::read_table(std::ifstream &external_spline_table, int l
 {
     std::string buff;
     char parameter_name[50];
-    int hash_val, index_among_defined;
+    int index_among_defined;
     int n_external_splines_to_read = 0;
     
     // Read the file header.
@@ -817,22 +838,47 @@ int InteractionClassSpec::read_table(std::ifstream &external_spline_table, int l
     for (int i = 0; i < n_external_splines_to_read; i++) {
         // Read the types of the interaction.
         check_and_read_next_line(external_spline_table, buff, line);
-        std::vector<int> types(get_n_body());
-        // Find it in the defined interactions.
-        if (class_type == kDensity) {
-        	DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(this);
-        	std::string* elements = new std::string[get_n_body()];
-			hash_val = StringSplit(buff, " \t\n", elements);
-			read_types(get_n_body(), types, &elements[0], dspec->n_density_groups, dspec->density_group_names);
-        	hash_val = calc_asymmetric_interaction_hash(types, num_cg_types);
-        } else {
-	        std::istringstream buffss(buff);
-        	for (unsigned j = 0; j < types.size(); j++) buffss >> types[j];
-	        hash_val = calc_interaction_hash(types, num_cg_types);
-        }
-        index_among_defined = get_index_from_hash(hash_val);
-        // Read the values.
-        line = read_bspline_table(external_spline_table, line, index_among_defined);
+        std::size_t pos = buff.find("types");
+        if (pos != std::string::npos) { // this uses the "new" multiple types for same table format
+    		int offset, prev_line;
+    		std::vector<int> index_list(1);
+    		std::string remainder = buff.substr(pos + 5);
+    		index_list[0] = extract_index_among_defined_from_line(this, remainder, num_cg_types);
+			while (1) {
+				// save this line position 		
+				offset = external_spline_table.tellg();
+				check_and_read_next_line(external_spline_table, buff, line);
+    			pos = buff.find("types"); // each line of types must begin with the "types" tag
+    			if (pos != std::string::npos) { 
+    				// add this to the vector and keep going
+    				remainder = buff.substr(pos + 5);
+    				index_list.push_back(extract_index_among_defined_from_line(this, remainder, num_cg_types));
+    			} else {
+    				// reset the file stream back one line and exit the loop
+    				external_spline_table.clear();
+    				external_spline_table.seekg(offset);
+    				line--;
+    				break;
+    			}
+    		}
+    		
+    		// read the table
+    		prev_line = line;
+    		line = read_bspline_table(external_spline_table, line, index_among_defined);
+			
+			// copy the table to all of the other defined interactions in index_list
+			// also, increment the number of "tables read" (i)
+			for (unsigned j = 1; j < index_list.size(); j++) {
+				copy_table(index_list[0], index_list[j], line - prev_line);
+				i++;
+			}
+			
+    	} else { // process as single type per table ("old" format)
+    		// determine the hash and index for this set of types
+			index_among_defined = extract_index_among_defined_from_line(this, buff, num_cg_types);
+			// Read the values.
+			line = read_bspline_table(external_spline_table, line, index_among_defined);
+		}
     }
     return line;
 }
@@ -852,6 +898,21 @@ int InteractionClassSpec::read_bspline_table(std::ifstream &external_spline_tabl
 		sscanf(buff.c_str(), "%lf", &external_table_spline_coefficients[index_among_tabulated][j]);
      }
      return line;
+}
+
+void InteractionClassSpec::copy_table(const int base_defined, const int target_defined, const int num_lines)
+{
+	lower_cutoffs[target_defined] = lower_cutoffs[base_defined];
+	upper_cutoffs[target_defined] = upper_cutoffs[base_defined];
+	
+	int base_tab    = defined_to_tabulated_intrxn_index_map[base_defined  ] - 1;
+	int target_tab  = defined_to_tabulated_intrxn_index_map[target_defined] - 1;
+	
+	int n_external_spline_control_points = num_lines - 1;
+	external_table_spline_coefficients[target_tab] = new double[n_external_spline_control_points];
+	for (int j = 0; j < n_external_spline_control_points; j++) {
+		external_table_spline_coefficients[target_tab][j] = external_table_spline_coefficients[base_tab][j];
+	}
 }
 
 void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 

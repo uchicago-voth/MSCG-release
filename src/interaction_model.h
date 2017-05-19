@@ -130,6 +130,7 @@ struct InteractionClassSpec {
 	void smart_read_interaction_class_ranges(std::ifstream &range_in, char** name);
     int read_table(std::ifstream &external_spline_table, int line, int offset);
 	int read_bspline_table(std::ifstream &external_spline_table, int line, int offset);
+	void copy_table(const int base_defined, const int target_defined, const int num_lines);
 	void free_force_tabulated_interaction_data(void);
 	
 	inline int get_index_from_hash(const int hash_val) const {if (defined_to_possible_intrxn_index_map.size() == 0) return hash_val; else return SearchIntTable(defined_to_possible_intrxn_index_map, hash_val);}
