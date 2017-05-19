@@ -108,6 +108,51 @@ std::vector<int> DensityClassSpec::get_interaction_types(const int index_among_d
 	return types;
 }
 
+
+void check_input_values(CG_MODEL_DATA* cg)
+{
+	std::list<InteractionClassSpec*>::iterator iclass_iterator;
+	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+		if ( (*iclass_iterator)->class_subtype < 0 || (*iclass_iterator)->class_subtype > 4) {
+			printf("Invalid class_subtype (%d) for %s!\n", (*iclass_iterator)->class_subtype, (*iclass_iterator)->get_full_name().c_str());
+			(*iclass_iterator)->class_subtype = 0;
+		}
+		if ( (*iclass_iterator)->cutoff <= 0.0 ) {
+			printf("Invalid cutoff (%lf) for %s!\n", (*iclass_iterator)->cutoff, (*iclass_iterator)->get_full_name().c_str());
+			(*iclass_iterator)->cutoff = cg->pair_nonbonded_cutoff;
+		}
+		if ( (*iclass_iterator)->output_spline_coeffs_flag < 0 || (*iclass_iterator)->output_spline_coeffs_flag > 1) {
+			printf("Invalid output_spline_coeffs_flag (%d) for %s!\n", (*iclass_iterator)->output_spline_coeffs_flag, (*iclass_iterator)->get_full_name().c_str());
+			(*iclass_iterator)->output_spline_coeffs_flag = 0;
+		}
+		if ( (*iclass_iterator)->get_fm_binwidth() < 0.0 || (*iclass_iterator)->get_fm_binwidth() > (*iclass_iterator)->cutoff )  {
+			printf("Invalid fm_binwidth (%lf) for %s!\n", (*iclass_iterator)->get_fm_binwidth(), (*iclass_iterator)->get_full_name().c_str());
+			exit(EXIT_FAILURE);
+		}
+		if ( (*iclass_iterator)->get_bspline_k() < 2 ) {
+			printf("Invalid bspline_k (%d) for %s!\n (Must be at least 3)\n", (*iclass_iterator)->get_bspline_k(), (*iclass_iterator)->get_full_name().c_str());
+			exit(EXIT_FAILURE);
+		}
+		if ( (*iclass_iterator)->output_parameter_distribution < 0 || (*iclass_iterator)->output_parameter_distribution > 2 ) {
+			 printf("Invalid output_parameter_distribution (%d) for %s!\n", (*iclass_iterator)->output_parameter_distribution, (*iclass_iterator)->get_full_name().c_str());
+			 (*iclass_iterator)->output_parameter_distribution = 0;
+		}
+	}
+	
+	if (cg->three_body_nonbonded_interactions.class_subtype < 0 || cg->three_body_nonbonded_interactions.class_subtype > 3) {
+		printf("Invalid class_subtype (%d) for %s!\n", cg->three_body_nonbonded_interactions.class_subtype, cg->three_body_nonbonded_interactions.get_full_name().c_str());
+		cg->three_body_nonbonded_interactions.class_subtype = 0;
+	}
+		if ( cg->three_body_nonbonded_interactions.get_fm_binwidth() < 0.0 ) {
+		printf("Invalid fm_binwidth (%lf) for %s!\n", cg->three_body_nonbonded_interactions.get_fm_binwidth(), cg->three_body_nonbonded_interactions.get_full_name().c_str());
+		exit(EXIT_FAILURE);
+	}
+	if ( cg->three_body_nonbonded_interactions.get_bspline_k() < 2 ) {
+		printf("Invalid bspline_k (%d) for %s!\n (Must be at least 3)\n", cg->three_body_nonbonded_interactions.get_bspline_k(), cg->three_body_nonbonded_interactions.get_full_name().c_str());
+		exit(EXIT_FAILURE);
+	}
+}
+
 // Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const ispec, double const cutoff)
 {

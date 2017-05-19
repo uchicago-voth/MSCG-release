@@ -33,6 +33,8 @@ struct DensityClassSpec;
 
 // Function called externally
 void free_interaction_data(CG_MODEL_DATA* cg);
+// Variable checking routine
+void check_input_values(CG_MODEL_DATA* cg);
 
 //-------------------------------------------------------------
 // Enumerated type definitions
@@ -284,7 +286,7 @@ struct OneBodyClassSpec: InteractionClassSpec {
 		cutoff = 1.0;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		fm_binwidth = 1.0;
-		bspline_k = 1;
+		bspline_k = 3;
 		output_binwidth = 1.0;
 		output_parameter_distribution = 0;
 	}
@@ -1068,6 +1070,8 @@ struct CG_MODEL_DATA {
 		icomp_list.push_back(&helical_computer);
 		icomp_list.push_back(&radius_of_gyration_computer);
 		icomp_list.push_back(&density_computer);
+		
+		check_input_values(this);
 	}
 		
 	~CG_MODEL_DATA() {    
@@ -1090,6 +1094,7 @@ struct CG_MODEL_DATA {
 		
 		topo_data.free_topology_data();
 	};
+	
 };
 
 //--------------------------------------------------------------------
