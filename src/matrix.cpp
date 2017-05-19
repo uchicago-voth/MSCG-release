@@ -843,7 +843,7 @@ void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer*
 {
   determine_BI_interaction_rows_and_cols(mat, icomp);
 
-  //printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
+  printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
   
   // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
   // However, the svd solver puts the solution vector into this array,

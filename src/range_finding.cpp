@@ -730,7 +730,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 			curr_bin = (int)(floor((value - ispec->lower_cutoffs[i] + 0.00001) / ispec->get_fm_binwidth()));	
 			if( (curr_bin < num_bins) && (curr_bin >= 0) ) {
 				bin_counts[curr_bin]++;
-			} else {
+			} else if (curr_bin > num_bins) {
 				printf("Warning: Bin %d is out-of-bounds. Array size: %d\n", curr_bin, num_bins);
 				fflush(stdout);
 			}
