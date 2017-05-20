@@ -478,30 +478,35 @@ output_pair_nonbonded_parameter_distribution (0)
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_pair_bond_parameter_distribution (0) 
     Whether or not to output the distribution of pair bonded distances sampled and 
     a histogram using the pair_bond_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_angle_parameter_distribution (0) 
     Whether or not to output the distribution of angles sampled and a histogram using 
     the angle_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_dihedral_parameter_distribution (0) 
     Whether or not to output the distribution of dihedrals sampled and a histogram using 
     the dihedral_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_radius_of_gyration_parameter_distribution (0) 
     Whether or not to output the distribution of radius-of-gyration sampled and a 
     histogram using the dihedral_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 stillinger_weber_gamma (.12) 
     A fixed parameter for Stillinger-Weber type three body non-bonded interactions
     This determines the radial dependence of the interaction
