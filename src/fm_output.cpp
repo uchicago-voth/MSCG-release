@@ -260,7 +260,68 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
      }
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
-	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+	//pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+	int status;
+	// Print out tabulated output files in MSCGFM style and LAMMPS style.
+    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
+    char char_id = icomp->ispec->get_char_id();
+	printf("char %c: name %s\n", char_id, basename.c_str());
+    if (char_id == 'n')
+      {
+	   std::vector<double> padded_potential_vals;
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+  	   }
+  	   
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
+      }
+    else if (char_id == 'b')
+      {
+	   std::vector<double> padded_potential_vals;
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
+	   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
+      }
+    else if (char_id == 'a')
+      {
+      	printf("I'm an angle\n");
+    	std::vector<double> padded_potential_vals;
+    	status = pad_values_front_with_fix(axis_vals,force_vals);
+    	if (status == -1) {
+    		printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+    	}
+	    status = pad_values_back_with_fix(180.0,axis_vals,force_vals);
+	    if (status == -1) {
+	    	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	    }
+	    integrate_force(axis_vals, force_vals, padded_potential_vals);
+    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
+      }
+    else if (char_id == 'g')
+      {
+    	int size = axis_vals.size();
+    	std::vector<double> rg_potential_vals;
+    	std::vector<double> sqrt_axis_vals(size);
+    	for (int i = 0; i < size; i++)
+	       {
+    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
+    		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
+    		write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
+	       }
+      }
+    else {
+    	printf("dihedral\n");
+    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
+      }
 }
 				 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
@@ -295,7 +356,68 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
      }
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
-	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+	//pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+	int status;
+	// Print out tabulated output files in MSCGFM style and LAMMPS style.
+    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
+    char char_id = icomp->ispec->get_char_id();
+	printf("char %c: name %s\n", char_id, basename.c_str());
+    if (char_id == 'n')
+      {
+	   std::vector<double> padded_potential_vals;
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+  	   }
+  	   
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
+      }
+    else if (char_id == 'b')
+      {
+	   std::vector<double> padded_potential_vals;
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
+	   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+	   if (status == -1) {
+	   	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
+	   integrate_force(axis_vals, force_vals, padded_potential_vals);
+	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
+      }
+    else if (char_id == 'a')
+      {
+      	printf("I'm an angle\n");
+    	std::vector<double> padded_potential_vals;
+    	status = pad_values_front_with_fix(axis_vals,force_vals);
+    	if (status == -1) {
+    		printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+    	}
+	    status = pad_values_back_with_fix(180.0,axis_vals,force_vals);
+	    if (status == -1) {
+	    	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	    }
+	    integrate_force(axis_vals, force_vals, padded_potential_vals);
+    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
+      }
+    else if (char_id == 'g')
+      {
+    	int size = axis_vals.size();
+    	std::vector<double> rg_potential_vals;
+    	std::vector<double> sqrt_axis_vals(size);
+    	for (int i = 0; i < size; i++)
+	       {
+    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
+    		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
+    		write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
+	       }
+      }
+    else {
+    	printf("dihedral\n");
+    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
+      }
 }
 
 void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff)
@@ -331,6 +453,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
       }
     else if (char_id == 'a')
       {
+      	printf("I'm an angle\n");
     	std::vector<double> padded_potential_vals;
     	status = pad_values_front_with_fix(axis_vals,force_vals);
     	if (status == -1) {
