@@ -46,10 +46,9 @@ void integrate_force(const std::vector<double> &axis_vals, const std::vector<dou
 void make_negative(std::vector<double> &force_vals);
 
 // Function to pad 2 vectors so that the first runs between low and high values with fpad
-void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad);
-void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad);
 int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals);
-int pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::vector<double>& force_vals);
+int pad_values_back_with_fix(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals);
+
 // Find the index of the minimum value in a vector.
 unsigned get_min_index(const std::vector<double> &potential_vals);
 

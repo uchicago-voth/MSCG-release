@@ -246,7 +246,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
       }
     else
       {
@@ -282,7 +282,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
       }
     else
       {
@@ -304,36 +304,46 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
 
-    if (char_id == 'n')
+    if (strcmp(&char_id, "n") == 0)
       {
 	   std::vector<double> padded_potential_vals;
 	   status = pad_values_front_with_fix(axis_vals,force_vals);
-	   if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-  	
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+  	   }
+  	   
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
-    else if (char_id == 'b')
+    else if ( strcmp(&char_id,"b") == 0)
       {
 	   std::vector<double> padded_potential_vals;
 	   status = pad_values_front_with_fix(axis_vals,force_vals);
-	   if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   if (status == -1) {
+	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
 	   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
-	   if (status == -1) printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   if (status == -1) {
+	   	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   }
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
-    else if (char_id == 'a')
+    else if (strcmp(&char_id, "a") == 0)
       {
     	std::vector<double> padded_potential_vals;
     	status = pad_values_front_with_fix(axis_vals,force_vals);
-    	if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+    	if (status == -1) {
+    		printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+    	}
 	    status = pad_values_back_with_fix(180.0,axis_vals,force_vals);
-	    if (status == -1) printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	    if (status == -1) {
+	    	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	    }
 	    integrate_force(axis_vals, force_vals, padded_potential_vals);
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
       }
-    else if (char_id == 'g')
+    else if (strcmp(&char_id, "g") == 0)
       {
     	int size = axis_vals.size();
     	std::vector<double> rg_potential_vals;
@@ -346,6 +356,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	       }
       }
     else {
+    	printf("not pair, bond, angle, or RG\n");
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
       }
 }
