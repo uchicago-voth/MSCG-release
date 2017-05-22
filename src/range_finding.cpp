@@ -197,9 +197,8 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
  			if (iclass->class_subtype > 0) {
  				open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
 			}
-		} else if ( (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical ||
-					iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
-					iclass->class_subtype == 1) {
+		} else if ( (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
+					 iclass->class_subtype == 1 ) {
 			open_parameter_distribution_files_for_class(icomp, topo_data->name);
 		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
 		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
@@ -839,7 +838,9 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 	} else if( icomp->ispec->class_type == kDensity ){
 	  DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
 	  read_one_param_dist_file_other(icomp, dspec->density_group_names, mat, i, counter, 1.0);
-	} else{
+	} else if ( icomp->ispec->class_type == kRadiusofGyration || icomp->ispec->class_type == kHelical) {
+		read_one_param_dist_file_other(icomp, topo_data->molecule_group_names, mat, i, counter, 1.0);
+	} else {
 	  read_one_param_dist_file_other(icomp, topo_data->name, mat, i, counter,1.0);
 	}
   }  
