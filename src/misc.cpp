@@ -105,7 +105,7 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   std::vector<double>::iterator axis_it;
   std::vector<double>::iterator force_it;
   int last = axis_vals.size() - 1;
-  
+  int flag = 1;
   double spacing = axis_vals[1] - axis_vals[0];
   int i = 0;
 
@@ -114,6 +114,8 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
     {
       i++;
       if (i  >= last) {
+      	// We are out of room
+      	flag = -1;
       	i = last - 1;
       	break;
       }
@@ -123,12 +125,32 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   while(force_vals[i]<force_vals[i+1])
     {
       i++;
-      if (i  >= last) {
+      if (i  >= last - 1) {
+      	// we are out of room
       	i = last - 1;
+      	flag = -1;
       	break;
       }
     }
 
+  // If it failed to meet these requirements (it ran out of room),
+  // print a warning to the user 
+  // and try again without the positivity requirement.
+  if (flag == -1) {
+  	printf("Error encountered when padding the lower end of force! Please check the output tables carefully before using!\n");
+  	i = 0;
+  	// Go until it is non-decreasing
+  	while(force_vals[i]<force_vals[i+1])
+    {
+      i++;
+      if (i  >= last - 1) {
+      	// we are out of room
+      	// this time, abort padding front
+      	return;
+      }
+    }
+  }
+  
   // Now, pad interaction
   // first filling in the existing spaces
   while(i > 0)
@@ -152,7 +174,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   double spacing = axis_vals[2] - axis_vals[1];
   int last = axis_vals.size() - 1;
   int i = last;
-
+  int flag = 1;
   if(axis_vals[last] > high) return;
 
   while(force_vals.size() > axis_vals.size()) {
@@ -165,6 +187,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
       i--;
       if (i < 1) {
       	i = 1;
+      	flag = -1;
       	break;
       }
     }
@@ -174,9 +197,28 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
       i--;
       if (i < 1) {
       	i = 1;
+      	flag = -1;
       	break;
       	}
     }
+
+  // If it failed to meet these requirements (it ran out of room),
+  // print a warning to the user 
+  // and try again without the negativity requirement.
+  if (flag == -1) {
+  	printf("Error encountered when padding force! Please check the output tables carefully before using!\n");
+  	i = last;
+  	while(force_vals[i]>force_vals[i-1]) {
+      i--;
+      if (i < 1) {
+      	// we are out of room
+      	// this time, abort padding back
+      	return;
+      }
+    }
+  }
+  
+  
   // Now, pad interaction
   // first filling in the existing spaces
   while(i<last)
