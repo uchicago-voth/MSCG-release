@@ -246,17 +246,13 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+        basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
     else
       {
-        basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
-    // Append the class's short name with an underscore if one exists.
-    if (!icomp->ispec->get_short_name().empty())
-      {
-        basename += "_" + icomp->ispec->get_short_name();
-      }
+
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
      {
@@ -286,16 +282,11 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     if(icomp->ispec->class_type == kDensity)
       {
         DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+        basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
     else
       {
-        basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-      }
-    // Append the class's short name with an underscore if one exists.
-    if (!icomp->ispec->get_short_name().empty())
-      {
-        basename += "_" + icomp->ispec->get_short_name();
+        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
@@ -376,13 +367,10 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
 		
 		if (icomp->ispec->class_type == kDensity) {
 			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-			basename = ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+			basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
 		} else {
-			basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
+			basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 		}
-		if (!icomp->ispec->get_short_name().empty()) {
-        	basename += "_" + icomp->ispec->get_short_name();
-    	}
 
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
     	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
@@ -394,7 +382,7 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
         sprintf(name_tmp1, "%s.b", basename.c_str());
         raw_rhs_output_file = open_file(name_tmp1, "w");
         for (unsigned i = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched_interactions - 1]; i < icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched_interactions]; i++) {
-               fprintf(raw_rhs_output_file, "%lf %.15le\n", icomp->ispec->lower_cutoffs[index_among_defined_intrxns] + icomp->ispec->get_fm_binwidth() * (i - icomp->interaction_class_column_index - icomp->ispec->interaction_column_indices[index_among_matched_interactions]), mat->fm_solution[i]);
+            fprintf(raw_rhs_output_file, "%lf %.15le\n", icomp->ispec->lower_cutoffs[index_among_defined_intrxns] + icomp->ispec->get_fm_binwidth() * (i - icomp->interaction_class_column_index - icomp->ispec->interaction_column_indices[index_among_matched_interactions]), mat->fm_solution[i]);
         }
         fclose(raw_rhs_output_file);
         
@@ -403,7 +391,7 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
             sprintf(name_tmp2, "%s.dense_fm_normal_rhs_vector", basename.c_str());
             normal_form_rhs_output_file = open_file(name_tmp2, "w");
             for (unsigned i = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched_interactions - 1]; i < icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched_interactions]; i++) {
-                fprintf(normal_form_rhs_output_file, "%lf %.15le\n", icomp->ispec->lower_cutoffs[index_among_defined_intrxns] + icomp->ispec->get_fm_binwidth() * (i - icomp->interaction_class_column_index - icomp->ispec->interaction_column_indices[index_among_matched_interactions - 1]), mat->dense_fm_normal_rhs_vector[i]);
+            	fprintf(normal_form_rhs_output_file, "%lf %.15le\n", icomp->ispec->lower_cutoffs[index_among_defined_intrxns] + icomp->ispec->get_fm_binwidth() * (i - icomp->interaction_class_column_index - icomp->ispec->interaction_column_indices[index_among_matched_interactions - 1]), mat->dense_fm_normal_rhs_vector[i]);
             }
             fclose(normal_form_rhs_output_file);
         }
@@ -589,11 +577,8 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
     if (icomp->ispec->output_spline_coeffs_flag == 1) {
         char name_tmp1[100], name_tmp2[100];
         FILE *raw_rhs_output_file, *normal_form_rhs_output_file;
-        std::string basename = icomp->ispec->get_interaction_name(name, index_among_defined_intrxns, "_");
-        if (!icomp->ispec->get_short_name().empty()) {
-        	basename += "_" + icomp->ispec->get_short_name();
-	    }
-
+        std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+        
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
     	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
 		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
