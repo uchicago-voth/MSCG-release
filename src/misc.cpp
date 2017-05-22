@@ -100,7 +100,7 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 	
 }
 
-void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals)
+int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals)
 {
   std::vector<double>::iterator axis_it;
   std::vector<double>::iterator force_it;
@@ -137,7 +137,6 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
   // print a warning to the user 
   // and try again without the positivity requirement.
   if (flag == -1) {
-  	printf("Error encountered when padding the lower end of force! Please check the output tables carefully before using!\n");
   	i = 0;
   	// Go until it is non-decreasing
   	while(force_vals[i]<force_vals[i+1])
@@ -146,7 +145,7 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
       if (i  >= last - 1) {
       	// we are out of room
       	// this time, abort padding front
-      	return;
+      	return flag;
       }
     }
   }
@@ -167,9 +166,10 @@ void pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<doubl
       axis_vals.insert(axis_it, axis_vals[0] - spacing);
       force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
     }
+  return flag;
 }
 
-void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::vector<double>& force_vals)
+int pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::vector<double>& force_vals)
 {
   double spacing = axis_vals[2] - axis_vals[1];
   int last = axis_vals.size() - 1;
@@ -206,14 +206,13 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
   // print a warning to the user 
   // and try again without the negativity requirement.
   if (flag == -1) {
-  	printf("Error encountered when padding force! Please check the output tables carefully before using!\n");
   	i = last;
   	while(force_vals[i]>force_vals[i-1]) {
       i--;
       if (i < 1) {
       	// we are out of room
       	// this time, abort padding back
-      	return;
+      	return flag;
       }
     }
   }
@@ -233,6 +232,7 @@ void pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::v
       force_vals.push_back(2.0*force_vals[last]  - force_vals[last-1]);
       last++;
     }
+  return flag;
 }
 
   

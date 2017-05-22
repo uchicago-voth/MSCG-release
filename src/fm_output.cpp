@@ -300,29 +300,36 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 
 void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff)
 {	
+	int status;
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
 
     if (char_id == 'n')
       {
 	   std::vector<double> padded_potential_vals;
-	   pad_values_front_with_fix(axis_vals,force_vals);
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+  	
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (char_id == 'b')
       {
 	   std::vector<double> padded_potential_vals;
-	   pad_values_front_with_fix(axis_vals,force_vals);
-	   pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+	   status = pad_values_front_with_fix(axis_vals,force_vals);
+	   if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+	   if (status == -1) printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
     else if (char_id == 'a')
       {
     	std::vector<double> padded_potential_vals;
-    	pad_values_front_with_fix(axis_vals,force_vals);
-	    pad_values_back_with_fix(180.0,axis_vals,force_vals);
+    	status = pad_values_front_with_fix(axis_vals,force_vals);
+    	if (status == -1) printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+	    status = pad_values_back_with_fix(180.0,axis_vals,force_vals);
+	    if (status == -1) printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
 	    integrate_force(axis_vals, force_vals, padded_potential_vals);
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
       }
