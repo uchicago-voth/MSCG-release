@@ -303,8 +303,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff)
 {	
 	int status;
-	printf("char %c: name %s\n", char_id, basename.c_str());
-    if (char_id == 'n')
+	if (char_id == 'n')
       {
 	   std::vector<double> padded_potential_vals;
 	   status = pad_values_front_with_fix(axis_vals,force_vals);
@@ -331,7 +330,6 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
       }
     else if (char_id == 'a')
       {
-      	printf("I'm an angle\n");
     	std::vector<double> padded_potential_vals;
     	status = pad_values_front_with_fix(axis_vals,force_vals);
     	if (status == -1) {
@@ -357,7 +355,6 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	       }
       }
     else {
-    	printf("dihedral\n");
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
       }
 }
