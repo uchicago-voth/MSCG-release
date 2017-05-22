@@ -24,7 +24,9 @@
 
 void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const icomp, MATRIX_DATA* const mat, char ** const name);
+
 void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff);
+void pad_and_print_single_table(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff);
 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
 void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
@@ -302,61 +304,40 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 
 void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff)
 {	
-	int status;
-	if (char_id == 'n')
-      {
-	   std::vector<double> padded_potential_vals;
-	   status = pad_values_front_with_fix(axis_vals,force_vals);
-	   if (status == -1) {
-	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-  	   }
-  	   
-	   integrate_force(axis_vals, force_vals, padded_potential_vals);
-	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
-      }
-    else if (char_id == 'b')
-      {
-	   std::vector<double> padded_potential_vals;
-	   status = pad_values_front_with_fix(axis_vals,force_vals);
-	   if (status == -1) {
-	   	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-	   }
-	   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
-	   if (status == -1) {
-	   	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-	   }
-	   integrate_force(axis_vals, force_vals, padded_potential_vals);
-	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
-      }
-    else if (char_id == 'a')
-      {
-    	std::vector<double> padded_potential_vals;
-    	status = pad_values_front_with_fix(axis_vals,force_vals);
-    	if (status == -1) {
-    		printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-    	}
-	    status = pad_values_back_with_fix(180.0,axis_vals,force_vals);
-	    if (status == -1) {
-	    	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
-	    }
-	    integrate_force(axis_vals, force_vals, padded_potential_vals);
-    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
-      }
-    else if (char_id == 'g')
-      {
+	if (char_id == 'n') {
+    	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 0.0);
+	} else if (char_id == 'b') {
+		pad_and_print_single_table(char_id, basename, axis_vals, force_vals, cutoff);
+	} else if (char_id == 'a') {
+    	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 180.0);
+    } else if (char_id == 'g') {
     	int size = axis_vals.size();
     	std::vector<double> rg_potential_vals;
     	std::vector<double> sqrt_axis_vals(size);
-    	for (int i = 0; i < size; i++)
-	       {
+    	for (int i = 0; i < size; i++) {
     		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
     		integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
     		write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
-	       }
-      }
-    else {
+	    }
+    } else {
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
-      }
+    }
+}
+
+void pad_and_print_single_table(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff)
+{
+   int status;
+   std::vector<double> padded_potential_vals;
+   status = pad_values_front_with_fix(axis_vals,force_vals);
+   if (status == -1) {
+	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+   }
+   status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+   if (status == -1) {
+	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
+   }
+   integrate_force(axis_vals, force_vals, padded_potential_vals);
+   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
 }
 
 void write_two_param_bspline_table_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined)
