@@ -361,10 +361,10 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
       }
     else if (icomp->ispec->get_char_id() == 'a')
       {
-    	std::vector<double> padded_potential_vals;
-    	pad_values_front(0.0, axis_vals, force_vals, 0.0);
-    	pad_values_back(180.0, axis_vals, force_vals, 0.0);
-    	integrate_force(axis_vals, force_vals, padded_potential_vals);
+      	std::vector<double> padded_potential_vals;
+    	pad_values_front_with_fix(axis_vals,force_vals);
+	    pad_values_back_with_fix(180.0,axis_vals,force_vals);
+	    integrate_force(axis_vals, force_vals, padded_potential_vals);
     	write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename, axis_vals, padded_potential_vals, force_vals); 
       }
     else if (icomp->ispec->get_char_id() == 'g')
