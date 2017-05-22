@@ -175,7 +175,7 @@ int pad_values_back_with_fix(double high,std::vector<double>& axis_vals, std::ve
   int last = axis_vals.size() - 1;
   int i = last;
   int flag = 1;
-  if(axis_vals[last] > high) return;
+  if(axis_vals[last] > high) return flag;
 
   while(force_vals.size() > axis_vals.size()) {
   	force_vals.pop_back();
