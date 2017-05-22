@@ -359,7 +359,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	//pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
 	int status;
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
-    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
+    write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
     char char_id = icomp->ispec->get_char_id();
 	printf("char %c: name %s\n", char_id, basename.c_str());
     if (char_id == 'n')
