@@ -304,8 +304,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
 	printf("char %c: name %s\n", char_id, basename.c_str());
-	
-    if (strncmp(&char_id, "n", 1) == 0)
+    if (char_id == 'n')
       {
 	   std::vector<double> padded_potential_vals;
 	   status = pad_values_front_with_fix(axis_vals,force_vals);
@@ -316,7 +315,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
-    else if (strncmp(&char_id,"b", 1) == 0)
+    else if (char_id == 'b')
       {
 	   std::vector<double> padded_potential_vals;
 	   status = pad_values_front_with_fix(axis_vals,force_vals);
@@ -330,7 +329,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	   integrate_force(axis_vals, force_vals, padded_potential_vals);
 	   write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
       }
-    else if (strncmp(&char_id, "a", 1) == 0)
+    else if (char_id == 'a')
       {
     	std::vector<double> padded_potential_vals;
     	status = pad_values_front_with_fix(axis_vals,force_vals);
@@ -344,7 +343,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	    integrate_force(axis_vals, force_vals, padded_potential_vals);
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals); 
       }
-    else if (strncmp(&char_id, "g", 1) == 0)
+    else if (char_id == 'g')
       {
     	int size = axis_vals.size();
     	std::vector<double> rg_potential_vals;
@@ -357,7 +356,7 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 	       }
       }
     else {
-    	printf("not pair, bond, angle, or RG\n");
+    	printf("dihedral\n");
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
       }
 }
