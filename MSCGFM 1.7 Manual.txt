@@ -610,8 +610,26 @@ boltzmann (0.0019872041)
      This is the adjustable step size parameter used in the gradient decent routine in 
      newrem. 
 ------------------------------------------------------------------------------------------
+III.C) Interaction Determination
 
-III.C.1) Force-matching
+*Boltzmann inversion
+*Force-Matching
+*Relative entropy minimization
+
+III.C.1) Boltzmann inversion
+~~~~~~~~~~~~~~~~~~~~~
+
+Using the executable "rangefinder.x", a boltzmann inversion interaction can be determined.
+This only requires the files necessary to run rangefinder.x.
+
+To calculate a boltzmann inversion potential, set "primary_output_style" in "control.in"
+to either 0 or 2. Also, for each interaction type that you desire, set the corresponding
+output parameter distribution in "control.in" to 1 or 2 (e.g. output_pair_nonbonded_parameter_distribution).
+For each interaction class that is turned on, the code will output tabulated force files
+and basis set coefficients for each of the interactions. This can be very useful for 
+zeroth iteration of relative entorpy minimization. 
+
+III.C.2) Force-matching
 ~~~~~~~~~~~~~~~~~~~~~
 
 After all of those files have been prepared, use newfm.x or a combination of newfm.x and 
@@ -637,7 +655,7 @@ The way that these inputs is process is the same way that the information from e
 reference for an explanation of this). This allows rudimentary batch-parallel force 
 matching.
 
-III.C.2) Relative entropy minimization
+III.C.3) Relative entropy minimization
 ~~~~~~~~~~~~~~~~~~~~~
 
 Once all of the files have been prepared, newrem.x can be used to calculate interactions
