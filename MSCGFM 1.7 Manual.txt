@@ -610,27 +610,32 @@ boltzmann (0.0019872041)
      This is the adjustable step size parameter used in the gradient decent routine in 
      newrem. 
 ------------------------------------------------------------------------------------------
+
 III.C) Interaction Determination
+~~~~~~~~~~~~~~~~~~~~~
 
 *Boltzmann inversion
 *Force-Matching
 *Relative entropy minimization
 
 III.C.1) Boltzmann inversion
-~~~~~~~~~~~~~~~~~~~~~
+============================
 
-Using the executable "rangefinder.x", a boltzmann inversion interaction can be determined.
+Using the executable "rangefinder.x", a Boltzmann inversion interaction can be determined.
 This only requires the files necessary to run rangefinder.x.
 
-To calculate a boltzmann inversion potential, set "primary_output_style" in "control.in"
+To calculate a potential via Boltzmann inversion, set "primary_output_style" in "control.in"
 to either 0 or 2. Also, for each interaction type that you desire, set the corresponding
 output parameter distribution in "control.in" to 1 or 2 (e.g. output_pair_nonbonded_parameter_distribution).
 For each interaction class that is turned on, the code will output tabulated force files
 and basis set coefficients for each of the interactions. This can be very useful for 
-zeroth iteration of relative entorpy minimization. 
+zeroth iteration of relative entorpy minimization. For an example of how to use rangefinder.x 
+for Boltzmann inversion, please see the "lammps_bi" sub-directory of the examples.
+
+Note: The *.dat files here will contain potentials instead of forces.
 
 III.C.2) Force-matching
-~~~~~~~~~~~~~~~~~~~~~
+=======================
 
 After all of those files have been prepared, use newfm.x or a combination of newfm.x and 
 combinefm.x to finish the force matching.
@@ -646,7 +651,8 @@ To use a combination of newfm.x and combinefm.x, set "primary_output_style" in
 run of newfm.x, the code will output the final matrix equations for the trajectory that 
 was provided to the executable. Then, create a file "res_av.in" that lists the number of 
 matrix equation files on the first line, followed by each of their filenames on 
-subsequent lines. For an example, please see the "batch_fm" sub-directory of the examples.
+subsequent lines. For an example of how to use combinefm.x, please see the "batch_fm" 
+sub-directory of the examples.
 
 When one then runs combinefm.x, all of the matrix equations in those files will be 
 combined, and tabulated forces based on all of these inputs will be the final result. 
@@ -656,7 +662,7 @@ reference for an explanation of this). This allows rudimentary batch-parallel fo
 matching.
 
 III.C.3) Relative entropy minimization
-~~~~~~~~~~~~~~~~~~~~~
+=====================================
 
 Once all of the files have been prepared, newrem.x can be used to calculate interactions
 via relatvie entropy minimization.
@@ -672,6 +678,8 @@ tabulated force file for every interaction in the system, labeled by the CG site
 and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
 for the next iteration of the entropy minimization. The lammps_rem example has a script that
 can be used to perform multiple iterations. 
+
+Note: The *.dat files here will contain potentials instead of forces.
 
 
 III.D) Check results
