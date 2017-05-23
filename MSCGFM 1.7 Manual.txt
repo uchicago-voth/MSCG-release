@@ -611,7 +611,7 @@ boltzmann (0.0019872041)
      newrem. 
 ------------------------------------------------------------------------------------------
 
-III.C) Force-matching
+III.C.1) Force-matching
 ~~~~~~~~~~~~~~~~~~~~~
 
 After all of those files have been prepared, use newfm.x or a combination of newfm.x and 
@@ -636,6 +636,25 @@ The way that these inputs is process is the same way that the information from e
 "frame block" is combined with the information from other "frame blocks" (see the first 
 reference for an explanation of this). This allows rudimentary batch-parallel force 
 matching.
+
+III.C.2) Relative entropy minimization
+~~~~~~~~~~~~~~~~~~~~~
+
+Once all of the files have been prepared, newrem.x can be used to calculate interactions
+via relatvie entropy minimization.
+
+To use newrem.x, set "primary_output_style" in "control.in" to either 0 or 2. The executable
+newrem.x expects two trajectories, a reference trajectory that is made from a mapped atomistic
+trajectory (similar to the trajectory you would give to newfm.x) and a cg trajectory that is
+simulated using either initial guess interactions or the iteractions provided by the previous
+iteration of newrem.x. The executable also expects a file "b-spline-previous.out", which contains
+the basis set coefficients used in creating the cg trajectory (using interactions generated via 
+BI from rangefinder.x is recommended). After the execuatble is run, the code will output a 
+tabulated force file for every interaction in the system, labeled by the CG site types involved 
+and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
+for the next iteration of the entropy minimization. The lammps_rem example has a script that
+can be used to perform multiple iterations. 
+
 
 III.D) Check results
 ~~~~~~~~~~~~~~~~~~~~
