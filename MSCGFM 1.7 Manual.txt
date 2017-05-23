@@ -598,6 +598,15 @@ output_normal_equations_rhs_flag (0)
     Whether or not to output the right hand side of the final FM matrix equations
     * 0: no
     * 1: yes
+temperature (300)
+    This is used in determining the value of relative entropy derivatives.
+    Only used in newrem.
+boltzmann (0.0019872041)
+    Used along with temperature for determining value of relative entropy derivatires.
+    The default value assumes energy units of kcal/mol.
+ REM_iteration_step_size (1.0)
+     This is the adjustable step size parameter used in the gradient decent routine in 
+     newrem. 
 ------------------------------------------------------------------------------------------
 
 III.C) Force-matching
