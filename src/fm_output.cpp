@@ -326,9 +326,8 @@ void pad_and_print_table_files(const char char_id, std::string& basename, std::v
 
 void pad_and_print_single_table(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff)
 {
-   int status;
    std::vector<double> padded_potential_vals;
-   status = pad_values_front_with_fix(axis_vals,force_vals);
+   int status = pad_values_front_with_fix(axis_vals,force_vals);
    if (status == -1) {
 	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }
