@@ -234,8 +234,8 @@ void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
         if (lower_cutoffs[i] < 0.0) lower_cutoffs[i] = 0.0;
         upper_cutoffs[i] = lower_cutoffs[i] + floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) * fm_binwidth;
     } else if ((basis_type == kBSpline) ||  (basis_type == kBSplineAndDeriv)) {
-        upper_cutoffs[i] = (((int)(upper_cutoffs[i] / output_binwidth)) + 1) * output_binwidth;
-        lower_cutoffs[i] = upper_cutoffs[i] - ((int)((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 1) * fm_binwidth;
+        upper_cutoffs[i] = (((int)(upper_cutoffs[i] / output_binwidth)) + 0.5) * output_binwidth;
+        lower_cutoffs[i] = upper_cutoffs[i] - ((int)((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 0.5) * fm_binwidth;
     }
 }
 
@@ -289,12 +289,12 @@ void ThreeBodyNonbondedClassSpec::setup_indices_in_fm_matrix(void)
             if ((get_basis_type() == kBSpline) || (get_basis_type() == kBSplineAndDeriv)) { // Set up a B-spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (get_bspline_k() - 2 + floor(180.0 / get_fm_binwidth() + 0.5));
                 }
             } else if (get_basis_type() == kLinearSpline) { // Set up a linear spline basis for this interaction.
                 for (int i = 1; i < get_n_defined() + 1; i++) {
                 	interaction_column_indices[i] = interaction_column_indices[i - 1] 
-                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5) + 1);
+                		+ i * (floor(180.0 / get_fm_binwidth() + 0.5));
                 }
 			}
 		}

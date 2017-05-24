@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 1.6.6 (May 24,2017)
+	* Fix units on angular interactions
+	* Fix internal rounding issues
+	* Update bayesian_fm example
+
 Version 1.6.5 (May 19,2017)
 	* Rewrite three-body calculations
 	* Add threebody_fm example

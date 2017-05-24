@@ -149,7 +149,6 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
         	bspline_workspaces = new gsl_bspline_workspace*[n_defined];
      		
      		for (unsigned counter = 0; counter < n_defined; counter++) {
-     			//n_to_print_minus_bspline_k = floor(180.0 / cg->three_body_nonbonded_interactions.fm_binwidth + 0.5) + 1;
      			interaction_column_indices = ispec_->interaction_column_indices[counter + 1] - ispec_->interaction_column_indices[counter];
             	n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
             	check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
