@@ -31,8 +31,8 @@ int main(int argc, char* argv[])
     double start_cputime = clock();
 
     // Trajectory frame data; see types.h
-    FrameSource fs_cg;      //CG trajectory
-    FrameSource fs_ref;      //reference trajectory
+    FrameSource fs_cg;      // CG trajectory
+    FrameSource fs_ref;     // reference trajectory
     ControlInputs control_input;
     
     //----------------------------------------------------------------
@@ -117,13 +117,12 @@ int main(int argc, char* argv[])
 	//Bootstraping weights would be set here
     
     printf("starting read-in of CG data\n");
-   construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
+    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
     printf("starting read-in of reference data\n");
     construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
     
     //Read in spline coefficents used in the previous iteration.
-
     printf("Reading in previous iteration's solution\n");
     read_previous_rem_solution(&cg, &mat_cg);
 
