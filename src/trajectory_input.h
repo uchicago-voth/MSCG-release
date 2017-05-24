@@ -134,7 +134,7 @@ struct FrameSource {
     double* frame_weights;                          // A list of weights for statistical reweighting, one per trajectory frame
     double total_frame_weights;                     // The sum of the frame weights.
     double* pressure_constraint_rhs_vector;         // pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
-	
+	double* frame_observables;						// A list of frame-wise observables for relative entropy, one per trajectory frame
 	// Generate data for all frame at once, it at all.
 	double** bootstrapping_weights;
 	
@@ -161,8 +161,8 @@ void copy_control_inputs_to_frd(struct ControlInputs* const control_input, Frame
 // Read statistical weights for all needed frames.
 void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames);
 
-// Read information relating to the virial constraint for all needed frames.
-void read_virial_constraint_vector(FrameSource* const frame_source, const int start_frame, const int n_frames);
+// Read information relating to the virial constraint or frame-wise observable for all needed frames.
+void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &vals);
 
 //-------------------------------------------------------------
 // Auxiliary-trajectory generating functions.

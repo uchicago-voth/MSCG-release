@@ -166,7 +166,7 @@ void* mscg_startup_part2(void* void_in)
     // Read the input virials if the correct flag was set in control.in.
     if (p_frame_source->pressure_constraint_flag == 1) {
         printf("Reading virial constraint target.\n");
-        read_virial_constraint_vector(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames);
+        read_frame_values("p_con.in", p_control_input->starting_frame, p_control_input->n_frames, p_frame_source->pressure_constraint_rhs_vector);
     }
     
     // Use the trajectory type inferred from trajectory file 

@@ -877,30 +877,28 @@ void FrameSource::sampleTypesFromProbs()
 
 void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames)
 {
-    double total = 0.0;
-    std::ifstream weights_in;
-    
-    frame_source->frame_weights = new double[n_frames];
-    check_and_open_in_stream(weights_in, "frame_weights.in");
-    read_stream_into_array(weights_in, start_frame, n_frames, frame_source->frame_weights);
-    weights_in.close();
+    read_frame_values("frame_weights.in", start_frame, n_frames, frame_source->frame_weights);
 	
+    double total = 0.0;
     for (int i = 0; i < n_frames; i++) {
  		total += frame_source->frame_weights[i];
  	}
     frame_source->total_frame_weights = 1.0 / total;
 }
 
-// Read information relating to the virial constraint for all frames from an auxiliary file 'p_con.in'.
-// pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
+// Read framewise information from an auxiliary file.
+// Note: This supports:
+// 1) the virial constraint for all frames in file 'p_con.in'.
+// The pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
+// 2) the framewise relative entropy observable method in file 'observable.in'. 
 
-void read_virial_constraint_vector(FrameSource* const frame_source, const int start_frame, const int n_frames)
+void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &values)
 {
-    std::ifstream pressure_in;
-    frame_source->pressure_constraint_rhs_vector = new double [n_frames];
-    check_and_open_in_stream(pressure_in, "p_con.in");
-    read_stream_into_array(pressure_in, start_frame, n_frames, frame_source->pressure_constraint_rhs_vector);
-    pressure_in.close();
+    std::ifstream vals_in;
+    values = new double[n_frames];
+    check_and_open_in_stream(vals_in, filename);
+    read_stream_into_array(vals_in, start_frame, n_frames, values);
+    vals_in.close();
 }
 
 inline void read_stream_into_array(std::ifstream &in_file, const int start_frame, const int n_frames, double* &values)
