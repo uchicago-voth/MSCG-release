@@ -12,7 +12,6 @@
 
 #include "external_matrix_routines.h"
 
-
 #ifndef DIMENSION
 #define DIMENSION 3
 #endif

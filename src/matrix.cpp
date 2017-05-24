@@ -778,7 +778,6 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 {
   //make sure to overwrite any functions pointers set in constructor
   mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
-  //  mat->accumulate_fm_matrix_element = insert_rem_matrix_element;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy;
 
@@ -793,10 +792,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
     mat->accumulation_matrix_rows = mat->fm_matrix_rows;
     mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
     mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
-    //mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-
-    //mat->finish_fm = solve_rem_equation;
-
+    
     mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
     mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
  
@@ -804,8 +800,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
     mat->rem_chi = control_input->REM_iteration_step_size;
     mat->boltzmann = control_input->boltzmann;
 
-    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
-  
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
 }
 
 // "Initialize" a dummy matrix.
@@ -821,7 +816,6 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->set_fm_matrix_to_zero = set_dummy_matrix_to_zero;
     mat->temperature = control_input->temperature;
     mat->boltzmann = control_input->boltzmann;
-
 }
 
 void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
@@ -1440,7 +1434,6 @@ inline void insert_scalar_accumulation_matrix_element(const int i, const int j, 
 inline void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
     mat->dense_fm_matrix->add_scalar(mat->rows_less_virial_constraint_rows * mat->size_per_vector, n, x);
-
 }
 
 // Add a scalar virial contribution to a sparse matrix.
@@ -2082,12 +2075,11 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
 {
   int i;
-  for(i = 0;i < mat->fm_matrix_columns;i++)
-    {
+  for(i = 0;i < mat->fm_matrix_columns;i++) {
       mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i];
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
       mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i];
-    }
+  }
   mat->dense_fm_matrix->reset_matrix();
 }
 
