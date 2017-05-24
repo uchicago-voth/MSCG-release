@@ -83,6 +83,11 @@ struct XRDData {
 
 // Prototypes for exclusively internal functions.
 
+// Helper for command line to file type setup
+void trr_setup(FrameSource* const frame_source, const char* filename);
+void lammps_setup(FrameSource* const frame_source, const char* filename);
+void xtc_setup(FrameSource* const frame_source, const char* filename1, const char* filename2);
+
 // Misc. small helpers.
 inline void report_traj_input_suffix_error(const char *suffix);
 inline void report_usage_error(const char *exe_name);
@@ -99,6 +104,7 @@ void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_s
 int read_next_trr_frame(FrameSource* const frame_source);
 int read_next_xtc_frame(FrameSource* const frame_source);
 int read_next_lammps_frame(FrameSource* const frame_source);
+int read_junk_lammps_frame(FrameSource* const frame_source);
 
 // Read all frames up until a starting frame.
 void default_move_to_starting_frame(FrameSource* const frame_source);
@@ -107,6 +113,7 @@ void default_move_to_starting_frame(FrameSource* const frame_source);
 inline void read_stream_into_array(std::ifstream &in_file, const int start_frame, const int n_frames, double* &values);
 
 // Finish reading a trajectory by closing relevant files and cleaning up temps.
+inline void finish_general_reading(FrameSource *const frame_source);
 void finish_trr_reading(FrameSource* const frame_source);
 void finish_xtc_reading(FrameSource* const frame_source);
 void finish_lammps_reading(FrameSource* const frame_source);
@@ -179,44 +186,16 @@ void parse_command_line_arguments(const int num_arg, char** arg, FrameSource* co
 {
     if (num_arg != 3 && num_arg != 5) report_usage_error(arg[0]);
     else if (num_arg == 3) {
-        if (strcmp(arg[1], "-f") == 0) {
-            sscanf(arg[2], "%s", frame_source->trajectory_filename);
-            check_file_extension(arg[2], "trr");
-            frame_source->trajectory_type = kGromacsTRR;
-            frame_source->get_first_frame = read_initial_trr_frame;
-            frame_source->get_next_frame = read_next_trr_frame;
-            frame_source->cleanup = finish_trr_reading;
-            #if _exclude_gromacs == 1
-            printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");
-			fflush(stdout);
-			exit(EXIT_FAILURE);
-			#endif
+        if (strcmp(arg[1], "-f") == 0) { 
+        	trr_setup(frame_source, arg[2]); 
         } else if (strcmp(arg[1], "-l") == 0) {
-            sscanf(arg[2], "%s", frame_source->trajectory_filename);
-            frame_source->trajectory_type = kLAMMPSDump;
-            frame_source->get_first_frame = read_initial_lammps_frame;
-            frame_source->get_next_frame = read_next_lammps_frame;
-            frame_source->cleanup = finish_lammps_reading;
+            lammps_setup(frame_source, arg[2]);
         } else {
             report_usage_error(arg[0]);
         }
     } else if (num_arg == 5) {
         if (strcmp(arg[1], "-f") != 0 || strcmp(arg[3], "-f1") != 0) report_usage_error(arg[0]);
-        sscanf(arg[2], "%s", frame_source->trajectory_filename);
-        #if _exclude_gromacs == 1
-       	printf("Cannot read XTC files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");
-		fflush(stdout);
-		exit(EXIT_FAILURE);
-        #else
-        sscanf(arg[4], "%s", frame_source->gromacs_data->extra_trajectory_filename);
-        #endif
-        check_file_extension(arg[2], "xtc");
-        check_file_extension(arg[4], "xtc");
-
-        frame_source->trajectory_type = kGromacsXTC;
-        frame_source->get_first_frame = read_initial_xtc_frame;
-        frame_source->get_next_frame = read_next_xtc_frame;
-        frame_source->cleanup = finish_xtc_reading;
+        xtc_setup(frame_source, arg[2], arg[4]);
     }
     frame_source->move_to_start_frame = default_move_to_starting_frame;
 }
@@ -226,71 +205,91 @@ void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSo
   int checker_cg = 0;
   int checker_ref = 0;
   if (num_arg != 5) report_usage_error(arg[0]);
-  else if (num_arg == 5) {
-    parse_command_line_set(arg[1],arg[2],frame_source_cg,frame_source_ref,checker_cg,checker_ref);
-    parse_command_line_set(arg[3],arg[4],frame_source_cg,frame_source_ref,checker_cg,checker_ref);
+  else {
+    parse_command_line_set(arg[1], arg[2], frame_source_cg, frame_source_ref, checker_cg, checker_ref);
+    parse_command_line_set(arg[3], arg[4], frame_source_cg, frame_source_ref, checker_cg, checker_ref);
   } 
-  if (frame_source_cg->trajectory_filename == frame_source_ref->trajectory_filename){
-	printf("CG and reference trajectory are the same file!");fflush(stdout);
+  if (frame_source_cg->trajectory_filename == frame_source_ref->trajectory_filename) {
+	printf("CG and reference trajectory are the same file: %s!", frame_source_cg->trajectory_filename); fflush(stdout);
 	exit(EXIT_FAILURE);
       }
-  if( checker_cg == 0){
-    printf("CG trajectory is not set. Please set this using -l_cg or -f_cg\n");fflush(stdout);
+  if (checker_cg == 0) {
+    printf("CG trajectory is not set. Please set this using -l_cg or -f_cg\n"); fflush(stdout);
     exit(EXIT_FAILURE);
   }
-  if( checker_ref == 0){
-    printf("Reference trajectory is not set. Please set this using -l_ref or -f_ref\n");fflush(stdout);
+  if (checker_ref == 0) {
+    printf("Reference trajectory is not set. Please set this using -l_ref or -f_ref\n"); fflush(stdout);
     exit(EXIT_FAILURE);
   }
     frame_source_cg->move_to_start_frame = default_move_to_starting_frame;
     frame_source_ref->move_to_start_frame = default_move_to_starting_frame;
 }
 
-void parse_command_line_set(char* arg1, char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref)
+void parse_command_line_set(const char* arg1, const char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref)
 {
     if (strcmp(arg1, "-f_cg") == 0) {
       checker_cg = 1;
-      sscanf(arg2, "%s", frame_source_cg->trajectory_filename);
-      check_file_extension(arg2, "trr");
-      frame_source_cg->trajectory_type = kGromacsTRR;
-      frame_source_cg->get_first_frame = read_initial_trr_frame;
-      frame_source_cg->get_next_frame = read_next_trr_frame;
-      frame_source_cg->cleanup = finish_trr_reading;
-      #if _exclude_gromacs == 1
-      printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");fflush(stdout);
-      exit(EXIT_FAILURE);
-      #endif
+      trr_setup(frame_source_cg, arg2);
     } else if (strcmp(arg1, "-f_ref") ==0){
       checker_ref = 1;
-      sscanf(arg2, "%s", frame_source_ref->trajectory_filename);
-      check_file_extension(arg2, "trr");
-      frame_source_ref->trajectory_type = kGromacsTRR;
-      frame_source_ref->get_first_frame = read_initial_trr_frame;
-      frame_source_ref->get_next_frame = read_next_trr_frame;
-      frame_source_ref->cleanup = finish_trr_reading;
-      #if _exclude_gromacs == 1
-      printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");fflush(stdout);
-      exit(EXIT_FAILURE);
-      #endif
+	  trr_setup(frame_source_ref, arg2);
     } else if (strcmp(arg1, "-l_cg") == 0) {
       checker_cg = 1;
-      sscanf(arg2, "%s", frame_source_cg->trajectory_filename);
-      frame_source_cg->trajectory_type = kLAMMPSDump;
-      frame_source_cg->get_first_frame = read_initial_lammps_frame;
-      frame_source_cg->get_next_frame = read_next_lammps_frame;
-      frame_source_cg->cleanup = finish_lammps_reading;
+	  lammps_setup(frame_source_cg, arg2);
     } else if (strcmp(arg1, "-l_ref") == 0) {
       checker_ref = 1;
-      sscanf(arg2, "%s", frame_source_ref->trajectory_filename);
-      frame_source_ref->trajectory_type = kLAMMPSDump;
-      frame_source_ref->get_first_frame = read_initial_lammps_frame;
-      frame_source_ref->get_next_frame = read_next_lammps_frame;
-      frame_source_ref->cleanup = finish_lammps_reading;
+      lammps_setup(frame_source_ref, arg2);
     } else {
       exit(EXIT_FAILURE);
     }
 }
-  
+ 
+void trr_setup(FrameSource* const frame_source, const char* filename)
+{
+	sscanf(filename, "%s", frame_source->trajectory_filename);
+	check_file_extension(filename, "trr");
+	frame_source->trajectory_type = kGromacsTRR;
+	frame_source->get_first_frame = read_initial_trr_frame;
+	frame_source->get_next_frame = read_next_trr_frame;
+	frame_source->get_junk_frame = read_next_trr_frame;
+	frame_source->cleanup = finish_trr_reading;
+	#if _exclude_gromacs == 1
+	printf("Cannot read TRR files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");
+	fflush(stdout);
+	exit(EXIT_FAILURE);
+	#endif 
+}
+
+void lammps_setup(FrameSource* const frame_source, const char* filename)
+{
+	sscanf(filename, "%s", frame_source->trajectory_filename);
+	frame_source->trajectory_type = kLAMMPSDump;
+	frame_source->get_first_frame = read_initial_lammps_frame;
+	frame_source->get_next_frame = read_next_lammps_frame;
+	frame_source->get_junk_frame = read_junk_lammps_frame;
+	frame_source->cleanup = finish_lammps_reading;
+}
+
+void xtc_setup(FrameSource* const frame_source, const char* filename1, const char* filename2)
+{
+	sscanf(filename1, "%s", frame_source->trajectory_filename);
+	#if _exclude_gromacs == 1
+	printf("Cannot read XTC files when _exclude_gromacs is 1. Please recompile without this option and try again.\n");
+	fflush(stdout);
+	exit(EXIT_FAILURE);
+	#else
+	sscanf(filename2, "%s", frame_source->gromacs_data->extra_trajectory_filename);
+	#endif
+	check_file_extension(filename1, "xtc");
+	check_file_extension(filename2, "xtc");
+
+	frame_source->trajectory_type = kGromacsXTC;
+	frame_source->get_first_frame = read_initial_xtc_frame;
+	frame_source->get_next_frame = read_next_xtc_frame;
+	frame_source->get_junk_frame = read_next_xtc_frame;
+	frame_source->cleanup = finish_xtc_reading;
+}
+
 void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource* const frame_source)
 {
     frame_source->use_statistical_reweighting = control_input->use_statistical_reweighting;
@@ -314,15 +313,20 @@ void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource*
     }
 }
 
+inline void finish_general_reading(FrameSource *const frame_source)
+{
+    delete frame_source->frame_config;
+    if (frame_source->use_statistical_reweighting == 1) delete [] frame_source->frame_weights;
+    if (frame_source->pressure_constraint_flag == 1) delete [] frame_source->pressure_constraint_rhs_vector;
+}
+
 void finish_trr_reading(FrameSource *const frame_source)
 {
  	#if _exclude_gromacs == 1
 	#else
     xdrfile_close(frame_source->gromacs_data->trajectory_filepointer);
-    delete frame_source->frame_config;
     delete frame_source->gromacs_data;
-    if (frame_source->use_statistical_reweighting == 1) delete [] frame_source->frame_weights;
-    if (frame_source->pressure_constraint_flag == 1) delete [] frame_source->pressure_constraint_rhs_vector;
+    finish_general_reading(frame_source);
     #endif
 }
 
@@ -332,10 +336,8 @@ void finish_xtc_reading(FrameSource *const frame_source)
 	#else
 	xdrfile_close(frame_source->gromacs_data->trajectory_filepointer);
     xdrfile_close(frame_source->gromacs_data->extra_trajectory_filepointer);
-    delete frame_source->frame_config;
     delete frame_source->gromacs_data;
-    if (frame_source->use_statistical_reweighting == 1) delete [] frame_source->frame_weights;
-    if (frame_source->pressure_constraint_flag == 1) delete [] frame_source->pressure_constraint_rhs_vector;
+    finish_general_reading(frame_source);
     #endif
 }
 
@@ -345,16 +347,15 @@ void finish_lammps_reading(FrameSource *const frame_source)
     frame_source->lammps_data->trajectory_stream.close();
     
     //cleanup allocated memory
-    if (frame_source->use_statistical_reweighting == 1) delete [] frame_source->frame_weights;
-    if (frame_source->pressure_constraint_flag == 1) delete [] frame_source->pressure_constraint_rhs_vector;
     if ( (frame_source->dynamic_types == 1) || (frame_source->dynamic_state_sampling == 1) ) frame_source->frame_config->cg_site_types = NULL; //undo alias of cg.topo_data.cg_site_types
     if (frame_source->molecule_flag == 1) {
     	frame_source->frame_config->molecule_ids = NULL; //undo alias of cg.topo_data.molecule_ids
     }
     if (frame_source->dynamic_state_sampling == 1) delete [] frame_source->lammps_data->cg_site_state_probabilities;
     delete [] frame_source->lammps_data->elements;
-	delete frame_source->frame_config;
 	delete frame_source->lammps_data;
+	
+	finish_general_reading(frame_source);
 }
 
 
@@ -612,9 +613,35 @@ int read_next_lammps_frame(FrameSource* const frame_source)
  	return return_value;
 }
 
+int read_junk_lammps_frame(FrameSource* const frame_source)
+{
+	int return_value = 1;  
+	int reference_atoms  = frame_source->frame_config->current_n_sites;
+	std::string line;
+
+	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling);    
+
+ 	if (reference_atoms != frame_source->frame_config->current_n_sites) {
+ 		printf("Warning: Number of CG sites defined in top.in is not consistent with trajectory!\n");
+ 		return_value = 0;
+ 	} else {
+ 		// Skip through expected number of lines in frame body without parsing.
+		for(int i=0; i < frame_source->frame_config->current_n_sites; i++) {
+			check_and_read_next_line(frame_source->lammps_data->trajectory_stream, line);
+    	}
+	}
+	 
+    // Finish up by changing information simply determined by the data just read.
+	for (int i = 0; i < DIMENSION; i++) frame_source->frame_config->simulation_box_half_lengths[i] = frame_source->simulation_box_limits[i][i] * 0.5;
+    frame_source->current_frame_n += 1;
+
+ 	// Return 1 if successful, 0 otherwise.
+ 	return return_value;
+}
+
 void default_move_to_starting_frame(FrameSource* const frame_source) {
     for (int i = 0; i < frame_source->starting_frame - 1; i++) {
-        if ((*frame_source->get_next_frame)(frame_source) == 0) {
+        if ((*frame_source->get_junk_frame)(frame_source) == 0) {
             printf("Failure attempting to skip frame %d. Check the trajectory file for errors.\n", i);
             exit(EXIT_FAILURE);
         }
@@ -755,7 +782,7 @@ int read_dimension_lammps_body(LammpsData *const lammps_data, FrameConfig *const
 	for(int i=0; i < frame_config->current_n_sites; i++)
 	{
 		//read in next line and tokenize 
-		std::getline(lammps_data->trajectory_stream, line, '\n');	
+		check_and_read_next_line(lammps_data->trajectory_stream, line);
 		if(  (j = StringSplit(line, " \t", lammps_data->elements)) != lammps_data->header_size ) {	//allow for trailing white space
 			printf("Warning: Number of fields detected in frame body");
 			printf(" (%d) does not agree with number expected from frame header (%d)!\n", j, lammps_data->header_size);
@@ -798,7 +825,7 @@ int read_scalar_lammps_body(LammpsData *const lammps_data, FrameConfig *const fr
 	for(int i=0; i < frame_config->current_n_sites; i++)
 	{
 		//read in next line and tokenize 
-		std::getline(lammps_data->trajectory_stream, line, '\n');	
+		check_and_read_next_line(lammps_data->trajectory_stream, line);	
 		if(  (j = StringSplit(line, " \t", lammps_data->elements)) != lammps_data->header_size ) {	//allow for trailing white space
 			printf("Warning: Number of fields detected in frame body");
 			printf(" (%d) does not agree with number expected from frame header (%d)!\n", j, lammps_data->header_size);

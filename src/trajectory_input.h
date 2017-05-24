@@ -117,6 +117,8 @@ struct FrameSource {
     void (*get_first_frame)(FrameSource * const frame_source, const int n_cg_sites, int* cg_site_types, int* mol_ids);
     // An optionally type-dependent function to skip frames of a given source
     void (*move_to_start_frame)(FrameSource * const frame_source);
+    // Type-dependent function to read but not process the next frame of a given source
+    int (*get_junk_frame)(FrameSource * const frame_source);
     // Type-dependent function to provide the next frame of a given source
     int (*get_next_frame)(FrameSource * const frame_source);
     // Type-dependent function to clean up after reading all desired frames
@@ -149,7 +151,7 @@ void parse_command_line_arguments(const int num_arg, char** arg, FrameSource* co
 void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref);
 
 // Copy trajectory-reading specifications from ControlInputs to FRAME_DATA.
-void parse_command_line_set(char* arg1, char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref);
+void parse_command_line_set(const char* arg1, const char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref);
 void copy_control_inputs_to_frd(struct ControlInputs* const control_input, FrameSource* const frame_source);
 
 //-------------------------------------------------------------
