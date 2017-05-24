@@ -101,7 +101,6 @@ int main(int argc, char* argv[])
     //Frame weights would be set here
     //Bootstraping weights would be set here
     
-    
     printf("starting read-in of CG data\n");
     
    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
@@ -179,7 +178,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
 
     if(fs->pressure_constraint_flag != 0){
-      printf("pressure constraints are not yet supported by newrem\n");
+      printf("pressure constraints are not supported by newrem\n");
       exit(EXIT_FAILURE);
     }
     
@@ -215,7 +214,6 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   }
 
   printf("Finishing frame parsing.\n");
-
   fs->cleanup(fs);
 }
 
@@ -249,36 +247,34 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
-  double beta = 1 / (mat_cg->temperature * mat_cg->boltzmann);
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->rem_chi;
-  double SMALL = 0.001;
+  const double SMALL = 0.001;
 
-  FILE* cg_matrix;
-  FILE* ref_matrix;
-  FILE* cg_vector;
-  FILE* ref_vector;
+  // open files for output
+  FILE* cg_matrix = fopen("cg_matrix.dat","w");
+  FILE* ref_matrix = fopen("reference_matrix.dat","w");
+  FILE* cg_vector = fopen("cg_vector.dat","w");
+  FILE* ref_vector = fopen("reference_vector.dat","w");	// Is this every written to or used?
 
-  cg_matrix = fopen("cg_matrix.dat","w");
-  ref_matrix = fopen("reference_matrix.dat","w");
-  cg_vector = fopen("cg_vecotr.dat","w");
-  ref_vector = fopen("reference_vector.dat","w");
-
+  // Apply normalization to matrices
   for(int i = 0; i < (mat_cg->fm_matrix_columns * mat_cg->fm_matrix_rows); i++)
     {
       mat_ref->dense_fm_normal_matrix->values[i] *= mat_ref->normalization;
       mat_cg->dense_fm_normal_matrix->values[i] *= mat_cg->normalization;
     }
 
+  // Write matrices to file
+  //mat_cg->dense_fm_normal_matrix->print_matrix(cg_matrix);
+  //mat_ref->dense_fm_normal_matrix->print_matrix(ref_matrix);
   for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
     {
       fprintf(cg_matrix,"%e ",mat_cg->dense_fm_normal_matrix->values[i * 2]);
       fprintf(ref_matrix,"%e ",mat_ref->dense_fm_normal_matrix->values[i * 2]);
-      fprintf(cg_vector,"%e ",mat_cg->fm_solution[i]);
     }
 
   fprintf(cg_matrix,"\n");
   fprintf(ref_matrix,"\n");
-    
 
   for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
     {
@@ -289,6 +285,18 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
   fprintf(cg_matrix,"\n");
   fprintf(ref_matrix,"\n");
 
+  //write solution(s) (vectors) to file
+  for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
+    {
+      fprintf(cg_vector,"%e ",mat_cg->fm_solution[i]);
+	}
+
+  // close output file handles
+  fclose(cg_matrix);
+  fclose(ref_matrix);
+  fclose(cg_vector);
+  fclose(ref_vector);
+  
   for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
     {
       mat_ref->previous_rem_solution[j] += mat_ref->dense_fm_normal_matrix->values[j * 2] * beta;
@@ -311,13 +319,13 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
       //Hessian   = mat-ref->fm_solution
       mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - mat_ref->previous_rem_solution[k] / mat_ref->fm_solution[k] * chi;
 
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100)
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0)
 	{
-	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100;
+	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
 	}
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100)
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0)
 	{
-	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100;
+	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
 	}
   }
 }
