@@ -5,6 +5,8 @@
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
 
+// Note: This currently only does reweighting of REF trajectory.
+
 #include <stdio.h>
 #include <cstdio>
 #include <cstdlib>
@@ -70,9 +72,16 @@ int main(int argc, char* argv[])
 	screen_interaction_basis(&cg);
     read_all_interaction_ranges(&cg);
 
-    //frame weighting??? Read in of weights would happen here.
+    // Read statistical weights for each frame if the 
+    // 'use_statistical_reweighting' flag is set in control.in.
+    if (fs_ref.use_statistical_reweighting == 1) {
+    	fs_cg.use_statistical_reweighting = 0; // REM reweighting currently is only implemented to act on REF NOT CG.
+    	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
+    	fflush(stdout);
+    	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames); 
+    }
 
-    //boot straping??? Read in of weights would happen here.
+    //bootstraping??? Read in of weights would happen here.
 
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
@@ -100,8 +109,12 @@ int main(int argc, char* argv[])
     
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
-    //Frame weights would be set here
-    //Bootstraping weights would be set here
+    
+    if (fs_ref.use_statistical_reweighting == 1) {
+        set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
+	}
+
+	//Bootstraping weights would be set here
     
     printf("starting read-in of CG data\n");
    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
@@ -186,14 +199,20 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	    exit(EXIT_FAILURE);
       }
 
-      if (fs->use_statistical_reweighting) {
-	    printf("statistical reweighting is not supported by newrem\n");
-	    exit(EXIT_FAILURE);
+	  // If reweighting is being used, scale the block of the FM matrix for this frame
+	  // by the appropriate weighting factor
+	  if (fs->use_statistical_reweighting) {
+		  int frame_index = mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index;
+		  printf("Reweighting entries for frame %d. ", frame_index);
+		  mat->current_frame_weight = fs->frame_weights[frame_index];
+	  }
+
+	  //Skip processing frame if frame weight is 0.
+      if (fs->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
+      } else {
+        FrameConfig* frame_config = fs->getFrameConfig();
+        calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
       }
-
-      FrameConfig* frame_config = fs->getFrameConfig();
-
-      calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
       
       if(fs->dynamic_state_sampling == 0){
 	    //Read next frame
@@ -277,12 +296,10 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
       mat_ref->fm_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * mat_cg->dense_fm_normal_matrix->values[j * 2] * beta * beta;
     }
 
-  for(int k = 0; k < mat_cg->fm_matrix_columns; k++)
-    {
-      if(mat_ref->fm_solution[k] == 0)
-	{
-	  mat_ref->fm_solution[k] = SMALL;	  	
-        }
+  for(int k = 0; k < mat_cg->fm_matrix_columns; k++) {
+      if(mat_ref->fm_solution[k] == 0) {
+	      mat_ref->fm_solution[k] = SMALL;	  	
+      }
       //This is the gradient decent equation
       //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
       //lamda_new = mat_cg->fm_solution
@@ -291,14 +308,12 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
       //Hessian   = mat-ref->fm_solution
       mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - mat_ref->previous_rem_solution[k] / mat_ref->fm_solution[k] * chi;
 
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0)
-	{
-	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
-	}
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0)
-	{
-	  mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
-	}
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0) {
+	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
+	  }
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0) {
+	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
+	  }
   }
 }
 
