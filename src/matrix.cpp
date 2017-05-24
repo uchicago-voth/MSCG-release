@@ -177,7 +177,7 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	#endif
     
     // Ignore a user's choice to output certain quantities if they will not be calculated.
-    if ( (MatrixType(control_input->matrix_type) != kDense) && (MatrixType(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
+    if ( ((MatrixType)(control_input->matrix_type) != kDense) && ((MatrixType)(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
         printf("Cannot output normal equations if normal equations are not being calculated.\n");
         printf("Use a different FM matrix format.\n");
         exit(EXIT_FAILURE);
@@ -202,13 +202,13 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 		exit(EXIT_FAILURE);
 	}
 
-	if ( (MatrixType(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
+	if ( ((MatrixType)(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
 		printf("Cannot use dense matrix_type (0) with %d frames per trajectory block\n", control_input->frames_per_traj_block);
 		printf("Setting block_size to 1.\n");
 		control_input->frames_per_traj_block = 1;
 	}
 	
-	if( (MatrixType(control_input->matrix_type) == kREM) == 1) {
+	if( ((MatrixType)(control_input->matrix_type) == kREM) && (control_input->frames_per_traj_block == 1) ) {
 	    printf("frame block size must be 1 when doing relative entropy minimization\n");
 	    printf("Setting block_size to 1.\n");
 	    control_input->frames_per_traj_block = 1;

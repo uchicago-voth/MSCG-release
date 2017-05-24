@@ -74,9 +74,6 @@ int main(int argc, char* argv[])
 
     //boot straping??? Read in of weights would happen here.
 
-    //virial constraint??? Read of constraint vector would happen here.
-    //Theoretical development is required for this feature to added in.
-
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
     // read.
@@ -85,8 +82,13 @@ int main(int argc, char* argv[])
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
     printf("In reference trajectory:");
     fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-
-    //dynamic state sampling???
+	
+	//  dynamic state sampling for REM systems
+	if (fs_ref.dynamic_state_sampling == 1) {
+		// Sample the types independently
+		fs_cg.sampleTypesFromProbs();
+		fs_ref.sampleTypesFromProbs();
+	}
 
     // Assign a host of function pointers in 'cg' new definitions
     // based on matrix implementation, basis set type, etc.
@@ -102,16 +104,11 @@ int main(int argc, char* argv[])
     //Bootstraping weights would be set here
     
     printf("starting read-in of CG data\n");
-    
    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
     printf("starting read-in of reference data\n");
-
     construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
     
-    //  dynamic state sampling for REM systems
-    //	if (fs.dynamic_state_sampling == 1) frame_source.sampleTypesFromProbs();
-
     //Read in spline coefficents used in the previous iteration.
 
     printf("Reading in previous iteration's solution\n");
@@ -140,17 +137,15 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   int n_blocks;
   int total_frame_samples = fs->n_frames;
   int traj_frame_num = 0;
-  //  int times_samples=1;
+  int times_sampled=1;
   int read_stat = 1;
 
   //skip the desired number of frames before starting the matrix building loop
   fs->move_to_start_frame(fs);
 
   //Begin the main loop.
-
   if (fs->dynamic_state_sampling == 1) {
-    printf("dynamic state sampling is not supported by newrem currently\n");
-    exit(EXIT_FAILURE);
+		total_frame_samples = fs->n_frames * fs->dynamic_state_samples_per_frame;
   }
 
   if (total_frame_samples % mat->frames_per_traj_block != 0) {
@@ -202,10 +197,26 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
       
       if(fs->dynamic_state_sampling == 0){
 	    //Read next frame
+	    // Only do this if we are not currently process the last frame.
 	    if( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) || ((mat->trajectory_block_index + 1) < n_blocks) ){
 	      read_stat = (*fs->get_next_frame)(fs);
 	    }
 	    traj_frame_num++;
+	  } else if (times_sampled < fs->dynamic_state_samples_per_frame) {
+		// Resample this frame.
+		fs->sampleTypesFromProbs();
+		times_sampled++;
+		
+	  } else {
+		// Read next frame, sample frame, and reset sampling counter.
+		// Only do this if we are not currently process the last frame.
+		if ( ((trajectory_block_frame_index + 1) < mat->frames_per_traj_block) ||
+			 ((mat->trajectory_block_index + 1) < n_blocks) ) {
+			read_stat = (*fs->get_next_frame)(fs);  
+		}
+		fs->sampleTypesFromProbs();
+		times_sampled = 1;
+		traj_frame_num++; 
       }
     }
     printf("\r%d (%d) frames have been sampled. ", fs->current_frame_n, (mat->trajectory_block_index + 1) * mat->frames_per_traj_block);
@@ -251,51 +262,12 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
   double chi = mat_cg->rem_chi;
   const double SMALL = 0.001;
 
-  // open files for output
-  FILE* cg_matrix = fopen("cg_matrix.dat","w");
-  FILE* ref_matrix = fopen("reference_matrix.dat","w");
-  FILE* cg_vector = fopen("cg_vector.dat","w");
-  FILE* ref_vector = fopen("reference_vector.dat","w");	// Is this every written to or used?
-
   // Apply normalization to matrices
   for(int i = 0; i < (mat_cg->fm_matrix_columns * mat_cg->fm_matrix_rows); i++)
     {
       mat_ref->dense_fm_normal_matrix->values[i] *= mat_ref->normalization;
       mat_cg->dense_fm_normal_matrix->values[i] *= mat_cg->normalization;
     }
-
-  // Write matrices to file
-  //mat_cg->dense_fm_normal_matrix->print_matrix(cg_matrix);
-  //mat_ref->dense_fm_normal_matrix->print_matrix(ref_matrix);
-  for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
-    {
-      fprintf(cg_matrix,"%e ",mat_cg->dense_fm_normal_matrix->values[i * 2]);
-      fprintf(ref_matrix,"%e ",mat_ref->dense_fm_normal_matrix->values[i * 2]);
-    }
-
-  fprintf(cg_matrix,"\n");
-  fprintf(ref_matrix,"\n");
-
-  for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
-    {
-      fprintf(cg_matrix,"%e ",mat_cg->dense_fm_normal_matrix->values[(i * 2) + 1]);
-      fprintf(ref_matrix,"%e ",mat_ref->dense_fm_normal_matrix->values[(i * 2) + 1]);
-    }
-
-  fprintf(cg_matrix,"\n");
-  fprintf(ref_matrix,"\n");
-
-  //write solution(s) (vectors) to file
-  for(int i = 0; i < mat_cg->fm_matrix_columns; i++)
-    {
-      fprintf(cg_vector,"%e ",mat_cg->fm_solution[i]);
-	}
-
-  // close output file handles
-  fclose(cg_matrix);
-  fclose(ref_matrix);
-  fclose(cg_vector);
-  fclose(ref_vector);
   
   for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
     {
@@ -329,7 +301,6 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
 	}
   }
 }
-    
 
 inline void screen_interaction_basis(CG_MODEL_DATA* const cg) {
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
