@@ -962,14 +962,14 @@ void InteractionClassSpec::copy_table(const int base_defined, const int target_d
 
 void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 
 {
+    // Calculate forces by iterating over the grid points from low to high.
+    double max = ispec->upper_cutoffs[index_among_defined];
+    double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;//This routine insures that the difference between the output upper cutoff and output lower cutoff is divisible by the output binwidth and that the lower cutoff is always greater than basis lower cutoff.
     // Size the output vectors of positions and forces conservatively.
-    unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    unsigned num_entries = int((max - min)/binwidth) + 1;
     if (num_entries == 0) num_entries = 1;
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);    
-    // Calculate forces by iterating over the grid points from low to high.
-    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
-    double max = ispec->upper_cutoffs[index_among_defined];
     if (min >= max) {
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
     }
@@ -977,7 +977,7 @@ void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_amo
     unsigned counter = 0;
     std::vector<double> junk_vector; // The external spline coefficients are grabeed internally through evaluate_spline and calculate_basis_fn_vals.
     								 // So, they don't need to be converted from double* to std::vector<double> to be passed in here. (junk instead).
-    for (double axis = min; axis < max; axis += binwidth) {
+    for (double axis = min; axis <= max+VERYSMALL_F; axis += binwidth) {
         force_vals[counter] = table_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, junk_vector, axis);
         axis_vals[counter] = axis;
         counter++;
@@ -995,20 +995,19 @@ void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_amo
 
 void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 
 {
+    // Calculate forces by iterating over the grid points from low to high.
+    double max = ispec->upper_cutoffs[index_among_defined];
+    double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;//This routine insures that the difference between the output upper cutoff and output lower cutoff is divisible by the output binwidth and that the lower cutoff is always greater than basis lower cutoff.
     // Size the output vectors of positions and forces conservatively.
-    unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    unsigned num_entries = int((max - min)/binwidth) + 1;
     if (num_entries == 0) num_entries = 1;
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);    
-    // Calculate forces by iterating over the grid points from low to high.
-    double min = (int)((ispec->lower_cutoffs[index_among_defined] / binwidth) + 1.0) * binwidth;
-    double max = ispec->upper_cutoffs[index_among_defined];
     if (min >= max) {
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
     }
-    
     unsigned counter = 0;
-    for (double axis = min; axis < max; axis += binwidth) {
+    for (double axis = min; axis <= max+ VERYSMALL_F; axis += binwidth) {
         force_vals[counter] = fm_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         axis_vals[counter] = axis;
         counter++;
@@ -1039,21 +1038,23 @@ void InteractionClassComputer::calc_one_force_val(const std::vector<double> &spl
 
 void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals)
 {
-    BSplineAndDerivComputer* s_comp_ptr = static_cast<BSplineAndDerivComputer*>(fm_s_comp);
-    unsigned num_entries = (int)( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    BSplineAndDerivComputer* s_comp_ptr = static_cast<BSplineAndDerivComputer*>(fm_s_comp);	
+    // Calculate forces by iterating over the grid points from low to high.
+    double max = ispec->upper_cutoffs[index_among_defined];
+    double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;//This routine insures that the difference between the output upper cutoff and output lower cutoff is divisible by the output binwidth and that the lower cutoff is always greater than basis lower cutoff.
+       // Size the output vectors of positions and forces conservatively.
+    unsigned num_entries = int((max - min)/binwidth) + 1;
+    if (num_entries == 0) num_entries = 1;
     axis_vals = std::vector<double>(num_entries);
     force_vals = std::vector<double>(num_entries);
-	deriv_vals = std::vector<double>(num_entries);
-	
-    // Calculate forces by iterating over the grid points from low to high.
-    double min = (int)((ispec->lower_cutoffs[index_among_defined] / binwidth) + 1.0) * binwidth;
-    double max = ispec->upper_cutoffs[index_among_defined];
+    deriv_vals = std::vector<double>(num_entries);
+
     if (min >= max) {
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
     }
     
     unsigned counter = 0;
-    for (double axis = min; axis < max; axis += binwidth) {
+    for (double axis = min; axis <= max+VERYSMALL_F; axis += binwidth) {
     	axis_vals[counter] = axis;
         force_vals[counter] = s_comp_ptr->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);   
