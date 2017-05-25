@@ -46,6 +46,9 @@ struct MSCG_struct {
     CG_MODEL_DATA *cg;  			// CG model parameters and data
     ControlInputs *control_input;	// Input settings read from control.in
     MATRIX_DATA *mat;				// Matrix storage structure
+
+	FrameSource *ref_frame_source;	// Only used by REM
+	MATRIX_DATA *ref_mat;			// Only used by REM
 };
 
 // This function starts the MSCG process by allocating memory for the mscg_struct
@@ -103,6 +106,51 @@ void* rangefinder_startup_part1(void* void_in)
 
     return void_in;
 }
+
+// This function starts the REM process by allocating memory for the mscg_struct
+// and reading information from the control.in file.
+// It should be called first.
+void* rem_startup_part1(void* void_in)
+{
+    // Begin to compute the total run time
+    MSCG_struct* mscg_struct = new MSCG_struct;
+    mscg_struct->start_cputime = clock();	
+	
+	mscg_struct->frame_source = new FrameSource;
+    mscg_struct->ref_frame_source = new FrameSource;
+    FrameSource *p_frame_source = mscg_struct->frame_source;
+	FrameSource *p_ref_frame_source = mscg_struct->ref_frame_source;
+	
+    //----------------------------------------------------------------
+    // Set up the entropy minimizing procedure
+    //----------------------------------------------------------------
+
+/* TODO */
+    // How do we want to handle REM input from reference???
+    //     printf("Parsing command line arguments.\n");
+	//    parse_entropy_command_line_arguments(argc,argv, &fs_cg, &fs_ref);
+
+    
+    // Parse the command-line arguments of the program; these are 
+    // only used to set the trajectory input files and do nothing 
+    // else.
+	
+	printf("Reading high level control parameters.\n");
+    mscg_struct->control_input = new ControlInputs;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    
+    mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
+    copy_control_inputs_to_frd(p_control_input, p_frame_source);
+	copy_control_inputs_to_frd(p_control_input, p_ref_frame_source);
+    
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
+    	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
+		exit(EXIT_FAILURE);
+    }
+
+	return (void*)(mscg_struct); 
+}
+
 
 // This function continues the setup for MSCG
 // after the mscg_startup_part1, setup_topology_and_frame, and setup_*_topology
@@ -299,6 +347,122 @@ void* rangefinder_startup_part2(void* void_in)
 	return(void*)(mscg_struct);
 }
 
+// This function continues the setup for REM
+// after the rem_startup_part1, setup_topology_and_frame, and setup_*_topology
+// functions have already been called.
+// It reads interaction range information from the rmin*.in files,
+// any frame weights from frame_weights.in.
+// Tabulated interactions and virial constraints do not make sense for relative entropy.
+// Also, the sets up the "ForceComputers" and initializes the matrix.
+// In addition, it will eventually set-up bootstrapping samples, if needed. 
+
+void* rem_startup_part2(void* void_in)
+{
+
+	int total_frame_samples = 0;
+	int n_blocks = 0;
+
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+    // Read the range files rmin.in and rmax.in to determine the
+    // ranges over which the FM basis functions should be defined.
+    // These ranges are also used to record which interactions
+    // should be fit, which should be tabulated, and which are not 
+    // present in the model.
+    printf("Reading interaction ranges.\n");
+    screen_interaction_basis(p_cg);
+    read_all_interaction_ranges(p_cg);
+    
+    // Read statistical weights for each frame if the 
+    // 'use_statistical_reweighting' flag is set in control.in.
+    // Note: This applies to "CG" trajectory (not reference trajectory)
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        printf("Reading per-frame statistical reweighting factors.\n");
+        fflush(stdout);
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames); 
+    }
+    
+    // Generate bootstrapping weights if the
+    // 'bootstrapping_flag' is set in control.in.
+    if (p_frame_source->bootstrapping_flag == 1) {
+		printf("Bootstrapping is not currently supported for REM!\n");
+		p_frame_source->bootstrapping_flag = 0;
+		/*
+    	printf("Generating bootstrapping frame weights.\n");
+    	fflush(stdout);
+    	generate_bootstrapping_weights(p_frame_source, p_control_input->n_frames);
+    	*/
+    }
+    
+    // Use the trajectory type inferred from trajectory file 
+    // extensions to specify how the trajectory files should be 
+    // read.
+	/*
+    if (p_frame_source->bootstrapping_flag == 1) {
+		p_frame_source->mt_rand_gen = std::mt19937(p_frame_source->random_num_seed);
+	}
+	*/
+	
+	if (p_frame_source->dynamic_state_sampling == 1) p_frame_source->sampleTypesFromProbs();
+	
+    // Assign a host of function pointers in 'cg' new definitions
+    // based on matrix implementation, basis set type, etc.
+    set_up_force_computers(p_cg);
+
+    // Initialize the entropy minimizing matrix.
+    printf("Initializing up REM\n");
+    p_control_input->matrix_type = kREM;
+    mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
+    mscg_struct->ref_mat = new MATRIX_DATA(p_control_input, p_cg);
+    
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
+    }
+
+    // Initialize the force-matching matrix.
+    /*
+    if (p_frame_source->bootstrapping_flag == 1) {
+    	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
+    	// net frame weights and normalizations.
+    	if(p_frame_source->use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(p_frame_source);
+    	}
+    	set_bootstrapping_normalization(mscg_struct->mat, p_frame_source->bootstrapping_weights, p_frame_source->n_frames);
+    }
+    */
+    
+    // Set up the loop index limits for the inner and outer loops.
+	if (p_frame_source->dynamic_state_sampling == 1) {
+		total_frame_samples = p_frame_source->n_frames * p_frame_source->dynamic_state_samples_per_frame;
+	}
+
+//
+
+	if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+    	printf("Total number of frames samples %d is not divisible by block size %d.\n",total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+    	exit(EXIT_FAILURE);
+  	}
+  	n_blocks = total_frame_samples / mscg_struct->mat->frames_per_traj_block;
+
+	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);  
+  	
+  	//Initialize other data
+	p_frame_source->cleanup = finish_fix_reading;
+	p_frame_source->current_frame_n = 1;
+    
+	mscg_struct->nblocks = n_blocks;
+	mscg_struct->curr_frame = 0;
+	mscg_struct->mat->accumulation_row_shift = 0;
+	mscg_struct->mat->trajectory_block_index = 0;
+    mscg_struct->trajectory_block_frame_index = 0;
+	mscg_struct->traj_frame_num = 0;
+    
+	return(void*)(mscg_struct);
+}
+
 //----------------------------------------------------------------
 // Do the force matching
 //----------------------------------------------------------------
@@ -345,7 +509,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
     
     // If reweighting is being used, scale the block of the FM matrix for this frame
     // by the appropriate weighting factor
-    if (p_frame_source->use_statistical_reweighting) {
+    if (p_frame_source->use_statistical_reweighting == 1) {
        printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
        mscg_struct->mat->current_frame_weight = p_frame_source->frame_weights[traj_frame_num];
 	}
@@ -462,9 +626,97 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 
     } else {
     
-    	// Apply virial constraint, if appropriate.
-        add_target_virials_from_trajectory(mscg_struct->mat, mscg_struct->frame_source->pressure_constraint_rhs_vector);
+    	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
+    	do {    
+			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
+	    	calculate_frame_fm_matrix(p_cg, mscg_struct->mat, p_frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
+    		times_sampled++;
+    		traj_frame_num++;
+    		trajectory_block_frame_index++;
+    		
+     		if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    			// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        		printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        		fflush(stdout);
+        		(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        		(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        		trajectory_block_frame_index=0;
+        		mscg_struct->mat->trajectory_block_index++;
+        	}
+		} while ( (p_frame_source->dynamic_state_sampling != 0) && (times_sampled < p_frame_source->dynamic_state_samples_per_frame) );
+    }
+	p_frame_source->current_frame_n++;
+	mscg_struct->traj_frame_num = traj_frame_num;
+	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
+    
+	return (void*)(mscg_struct);
+}
 
+// Process each frame of the trajectory to build the REM "matrix".
+// This function should be called after rem_setup_part2, but before
+// rem_solve_and_output.
+void* rem_process_frame(void* void_in, double* const x, double* const f)
+{       		
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+	// Convert 1D x and f arrays into rvec array
+	FrameConfig* p_frame_config = p_frame_source->frame_config;
+	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
+		for(int j = 0; j < 3; j++) {
+			p_frame_config->x[i][j] = x[i*3 + j];
+			p_frame_config->f[i][j] = f[i*3 + j];
+		}
+	}	
+	
+	// Initialize the cell linked lists for finding neighbors in the provided frames;
+    // NVT trajectories are assumed, so this only needs to be done once.
+    PairCellList pair_cell_list = PairCellList();
+    ThreeBCellList three_body_cell_list = ThreeBCellList();
+    pair_cell_list.init(p_cg->pair_nonbonded_interactions.cutoff, p_frame_source);
+    if (p_cg->three_body_nonbonded_interactions.class_subtype > 0) {
+        double max_cutoff = 0.0;
+        for (int i = 0; i < p_cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+            max_cutoff = fmax(max_cutoff, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        }
+        three_body_cell_list.init(max_cutoff, p_frame_source);
+    }
+
+    // The trajectory_block_frame_index is incremented for each frame-sample processed.
+    // When this index reaches the block size (frames_per_traj_block),
+    // The end-of-frame-block routines are called.
+    // Then, the trajectory_block_index is incremented.
+    mscg_struct->curr_frame++;
+ 	int traj_frame_num = mscg_struct->traj_frame_num;
+	int trajectory_block_frame_index = mscg_struct->trajectory_block_frame_index;
+	int times_sampled = 1;
+    
+    // If reweighting is being used, scale the block of the FM matrix for this frame
+    // by the appropriate weighting factor
+    if (p_frame_source->use_statistical_reweighting == 1) {
+       printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
+       mscg_struct->mat->current_frame_weight = p_frame_source->frame_weights[traj_frame_num];
+	}
+            
+    //Skip processing frame if frame weight is 0.
+    if (p_frame_source->use_statistical_reweighting && mscg_struct->mat->current_frame_weight == 0.0) {
+    	traj_frame_num++;
+    	if (p_frame_source->dynamic_state_sampling != 0) times_sampled = p_frame_source->dynamic_state_samples_per_frame;
+    	mscg_struct->trajectory_block_frame_index += times_sampled;
+    	
+    	if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    		// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        	printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        	fflush(stdout);
+        	(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        	trajectory_block_frame_index=0;
+        	mscg_struct->mat->trajectory_block_index++;
+        }
+
+    } else {
+    
     	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
     	do {    
 			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
@@ -582,6 +834,80 @@ void* rangefinder_solve_and_output(void* void_in)
 	}
 	
     delete mscg_struct->mat;
+    
+    // Record the time and print total elapsed time for profiling purposes.
+    double end_cputime = clock();
+    double elapsed_cputime = ((double)(end_cputime - mscg_struct->start_cputime)) / CLOCKS_PER_SEC;
+    printf("%lf seconds used.\n", elapsed_cputime);
+	return (void*)(mscg_struct);
+}
+
+// Solve the REM matrix to generate interactions
+// and output those interactions.
+// This function should be called last, after all frames
+// have been processed using rem_process_frame.
+void* rem_solve_and_output(void* void_in) 
+{
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    MATRIX_DATA *mat = mscg_struct->mat;
+    CG_MODEL_DATA *p_cg = mscg_struct->cg;
+    
+    // Free the space used to build the force-matching matrix that is
+    // not necessary for finding a solution to the final matrix
+    // equations.
+
+    // Close the trajectory and free the relevant temp variables.
+    p_frame_source->cleanup(p_frame_source);
+
+    printf("Finished constructing REM equations.\n");
+    if (p_frame_source->bootstrapping_flag == 1) {
+		free_bootstrapping_weights(p_frame_source);
+	}
+	
+	// Check that the actual number of frames read matches
+	// the number specified in control.in
+	if (mscg_struct->curr_frame != p_control_input->n_frames) {
+		printf("Warning: The number of frames processed does not match the number of frames specified in the control.in file!\n");
+		printf("Please set the number of frames in the control.in file (%d) to match the actual number of frames read (%d).\n", mscg_struct->curr_frame, p_control_input->n_frames);
+		fflush(stdout);
+		
+		// See if this caused some frames not to be converted to normal form.
+		int total_frame_samples = mscg_struct->curr_frame;
+		if (p_frame_source->dynamic_state_sampling == 1) {
+			total_frame_samples *= p_frame_source->dynamic_state_samples_per_frame;
+		}
+		if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+			printf("Warning: Total number of actual frame samples %d is not divisible by block size %d.\n", total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+			printf("This can cause some frames to be excluded from the calculation of interactions.\n"); 
+			fflush(stdout);
+		}
+
+	}
+	
+    // Find the solution to the force-matching equations set up in
+    // previous steps. The solution routines may also print out
+    // singular values, residuals, raw matrix equations, etc. as
+    // necessary.
+    printf("Calculating new REM parameters\n");
+    calculate_new_rem_parameters(mscg_struct->mat, mscg_struct->ref_mat);
+
+    // Write tabulated interaction files resulting from the basis set
+    // coefficients found in the solution step.
+    printf("Writing final output.\n"); fflush(stdout);
+    write_fm_interaction_output_files(p_cg, mat);
+	
+	/*
+	if (p_frame_source->bootstrapping_flag == 1) {
+		delete [] mat->bootstrap_solutions;
+    	delete [] mat->bootstrapping_normalization;
+    }
+	*/
+	
+    delete mscg_struct->mat;
+    delete mscg_struct->ref_mat;
+    delete mscg_struct->ref_frame_source; // Is this going to do all the necessary clean-up?
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();

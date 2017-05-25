@@ -1065,3 +1065,13 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     axis_vals.resize(counter);
     force_vals.resize(counter);
 }
+
+void screen_interaction_basis(CG_MODEL_DATA* const cg) 
+{
+	std::list<InteractionClassSpec*>::iterator iclass_iterator;
+	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+		if ((*iclass_iterator)->class_type != kOneBody) {
+	        (*iclass_iterator)->set_basis_type(kBSplineAndDeriv);
+    	}
+    }
+}

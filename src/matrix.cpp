@@ -3650,6 +3650,50 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     delete [] mat->bootstrapping_dense_fm_normal_matrices;
 }
 
+// Finish REM by finding new CG parameters
+
+void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  double chi = mat_cg->rem_chi;
+  const double SMALL = 0.001;
+
+  // Apply normalization to matrices
+  for(int i = 0; i < (mat_cg->fm_matrix_columns * mat_cg->fm_matrix_rows); i++)
+    {
+      mat_ref->dense_fm_normal_matrix->values[i] *= mat_ref->normalization;
+      mat_cg->dense_fm_normal_matrix->values[i] *= mat_cg->normalization;
+    }
+  
+  for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
+    {
+      mat_ref->previous_rem_solution[j] += mat_ref->dense_fm_normal_matrix->values[j * 2] * beta;
+      mat_ref->previous_rem_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * beta;
+      mat_ref->fm_solution[j] += mat_cg->dense_fm_normal_matrix->values[(j*2) + 1] * beta * beta;
+      mat_ref->fm_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * mat_cg->dense_fm_normal_matrix->values[j * 2] * beta * beta;
+    }
+
+  for(int k = 0; k < mat_cg->fm_matrix_columns; k++) {
+      if(mat_ref->fm_solution[k] == 0) {
+	      mat_ref->fm_solution[k] = SMALL;	  	
+      }
+      //This is the gradient decent equation
+      //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
+      //lamda_new = mat_cg->fm_solution
+      //lamda_old = mat_cg->previous_rem_solution
+      //dS/dlamda = mat_ref->previous_rem_solution
+      //Hessian   = mat-ref->fm_solution
+      mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - mat_ref->previous_rem_solution[k] / mat_ref->fm_solution[k] * chi;
+
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0) {
+	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
+	  }
+      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0) {
+	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
+	  }
+  }
+}
+
 // All the individual frame-block matrices have now been accumulated into a single matrix
 // with the condition number of the full-trajectory sparse matrix, as have the
 // individual target vectors, so the equations are in a final, solvable form. 

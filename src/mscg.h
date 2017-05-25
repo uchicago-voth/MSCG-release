@@ -48,12 +48,19 @@
 
 void* mscg_startup_part1(void* void_in);
 void* rangefinder_startup_part1(void* void_in);
+void* rem_startup_part1(void* void_in);
+
 void* mscg_startup_part2(void* void_in);
 void* rangefinder_startup_part2(void* void_in);
+void* rem_startup_part2(void* void_in);
+
 void* rangefinder_process_frame(void* void_in, double* const x, double* const f);
 void* mscg_process_frame(void* void_in, double* const x, double* const f);
+void* rem_process_frame(void* void_in, double* const x, double* const f);
+
 void* mscg_solve_and_output(void* void_in);
 void* rangefinder_solve_and_output(void* void_in);
+void* rem_solve_and_output(void* void_in);
 
 void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths);
 void* update_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths);

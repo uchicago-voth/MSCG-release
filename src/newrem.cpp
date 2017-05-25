@@ -23,7 +23,6 @@
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
-inline void screen_interaction_basis(CG_MODEL_DATA* const cg);
 
 int main(int argc, char* argv[])
 {
@@ -104,7 +103,7 @@ int main(int argc, char* argv[])
     set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
-    printf("setting up REM\n");
+    printf("Initializing up REM matrix\n");
     control_input.matrix_type = kREM;
     
     MATRIX_DATA mat_cg(&control_input, &cg);
@@ -116,10 +115,10 @@ int main(int argc, char* argv[])
 
 	//Bootstraping weights would be set here
     
-    printf("starting read-in of CG data\n");
+    printf("Starting read-in of CG data\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    printf("starting read-in of reference data\n");
+    printf("Starting read-in of reference data\n");
     construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
     
     //Read in spline coefficents used in the previous iteration.
@@ -272,55 +271,4 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	}
   }
   fclose(spline_input_file);
-}		    	 
-
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
-{
-  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
-  double chi = mat_cg->rem_chi;
-  const double SMALL = 0.001;
-
-  // Apply normalization to matrices
-  for(int i = 0; i < (mat_cg->fm_matrix_columns * mat_cg->fm_matrix_rows); i++)
-    {
-      mat_ref->dense_fm_normal_matrix->values[i] *= mat_ref->normalization;
-      mat_cg->dense_fm_normal_matrix->values[i] *= mat_cg->normalization;
-    }
-  
-  for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
-    {
-      mat_ref->previous_rem_solution[j] += mat_ref->dense_fm_normal_matrix->values[j * 2] * beta;
-      mat_ref->previous_rem_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * beta;
-      mat_ref->fm_solution[j] += mat_cg->dense_fm_normal_matrix->values[(j*2) + 1] * beta * beta;
-      mat_ref->fm_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * mat_cg->dense_fm_normal_matrix->values[j * 2] * beta * beta;
-    }
-
-  for(int k = 0; k < mat_cg->fm_matrix_columns; k++) {
-      if(mat_ref->fm_solution[k] == 0) {
-	      mat_ref->fm_solution[k] = SMALL;	  	
-      }
-      //This is the gradient decent equation
-      //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
-      //lamda_new = mat_cg->fm_solution
-      //lamda_old = mat_cg->previous_rem_solution
-      //dS/dlamda = mat_ref->previous_rem_solution
-      //Hessian   = mat-ref->fm_solution
-      mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - mat_ref->previous_rem_solution[k] / mat_ref->fm_solution[k] * chi;
-
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0) {
-	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
-	  }
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0) {
-	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
-	  }
-  }
-}
-
-inline void screen_interaction_basis(CG_MODEL_DATA* const cg) {
-	std::list<InteractionClassSpec*>::iterator iclass_iterator;
-	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		if ((*iclass_iterator)->class_type != kOneBody) {
-	        (*iclass_iterator)->set_basis_type(kBSplineAndDeriv);
-    	}
-    }
 }
