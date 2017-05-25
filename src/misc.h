@@ -51,6 +51,9 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals);
 int pad_values_back_with_fix(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals);
 
+// Add two sets of "forces" based on their axis values
+void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &force_vals, const std::vector<double> &tab_axis_vals, const std::vector<double> &tab_force_vals);
+
 // Find the index of the minimum value in a vector.
 unsigned get_min_index(const std::vector<double> &potential_vals);
 

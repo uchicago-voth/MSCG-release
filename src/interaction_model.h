@@ -246,6 +246,7 @@ struct InteractionClassComputer {
 
 	void calc_external_spline_interaction(void);
 	void calc_one_force_val(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &pot_vals);
+	void calc_grid_of_table_force_vals(const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals);
 	

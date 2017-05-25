@@ -242,7 +242,33 @@ int pad_values_back_with_fix(const double high, std::vector<double>& axis_vals, 
   return flag;
 }
 
-  
+// Add two sets of "forces" based on their axis values
+
+void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &force_vals, const std::vector<double> &tab_axis_vals, const std::vector<double> &tab_force_vals)
+{
+	// Search for the first common axis value between the splines
+	int axis_index = 0;
+	int tab_index  = 0;
+	int last_axis  = axis_vals.size() - 1;
+	int last_tab   = tab_axis_vals.size() - 1;
+	
+	// If tab is lower
+	while (axis_vals[axis_index] > tab_axis_vals[tab_index] + VERYSMALL_F) {
+		tab_index++;
+		if (tab_index >= last_tab) return; // There is no overlap
+	}
+	// If axis is lower
+	while (axis_vals[axis_index] + VERYSMALL_F < tab_axis_vals[tab_index]) {
+		axis_index++;
+		if (axis_index >= last_axis) return; // There is no overlap
+	}
+	
+	// Now add values until the end
+	for ( ; (axis_index < last_axis) && (tab_index < last_tab); axis_index++, tab_index++) {
+		force_vals[axis_index] += tab_force_vals[tab_index];
+	}
+}
+    		  
 // Find the index of the minimum value in a vector.
 
 unsigned get_min_index(const std::vector<double> &potential_vals) 

@@ -960,6 +960,39 @@ void InteractionClassSpec::copy_table(const int base_defined, const int target_d
 	}
 }
 
+void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 
+{
+    // Size the output vectors of positions and forces conservatively.
+    unsigned num_entries = int( (ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / binwidth  + 1.0);
+    if (num_entries == 0) num_entries = 1;
+    axis_vals = std::vector<double>(num_entries);
+    force_vals = std::vector<double>(num_entries);    
+    // Calculate forces by iterating over the grid points from low to high.
+    double min = ((int)(ispec->lower_cutoffs[index_among_defined] / binwidth) + 1) * binwidth;
+    double max = ispec->upper_cutoffs[index_among_defined];
+    if (min >= max) {
+    	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
+    }
+    
+    unsigned counter = 0;
+    std::vector<double> junk_vector; // The external spline coefficients are grabeed internally through evaluate_spline and calculate_basis_fn_vals.
+    								 // So, they don't need to be converted from double* to std::vector<double> to be passed in here. (junk instead).
+    for (double axis = min; axis < max; axis += binwidth) {
+        force_vals[counter] = table_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, junk_vector, axis);
+        axis_vals[counter] = axis;
+        counter++;
+    }
+    if (counter == 0) {
+    	double axis = (ispec->upper_cutoffs[index_among_defined] + ispec->lower_cutoffs[index_among_defined]) * 0.5;
+    	force_vals[counter] = table_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, junk_vector, axis);
+        axis_vals[counter] = axis;
+        counter++;
+    }
+    // Set the correct size for the output vectors of positions and forces.
+    axis_vals.resize(counter);
+    force_vals.resize(counter);
+}
+
 void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 
 {
     // Size the output vectors of positions and forces conservatively.
