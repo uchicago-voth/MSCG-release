@@ -25,7 +25,7 @@
 void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void write_three_body_interaction_data(ThreeBodyNonbondedClassComputer* const icomp, MATRIX_DATA* const mat, char ** const name);
 
-void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff);
+void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff, const int index_among_tabulated);
 void pad_and_print_single_table(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff);
 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff);
@@ -263,7 +263,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
-	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff, icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns]);
 }
 				 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, double cutoff) 
@@ -299,18 +299,18 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
-    pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+    pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff, icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns]);
 }
 
-void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff)
+void pad_and_print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals, const double cutoff, const int index_among_tabulated)
 {	
-	if (char_id == 'n') {
+	if ( (char_id == 'n') && (index_among_tabulated == 0) ) {
     	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 0.0);
-	} else if (char_id == 'b') {
+	} else if ( (char_id == 'b') && (index_among_tabulated == 0) ) {
 		pad_and_print_single_table(char_id, basename, axis_vals, force_vals, cutoff);
-	} else if (char_id == 'a') {
+	} else if ( (char_id == 'a') && (index_among_tabulated == 0) ) {
     	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 180.0);
-    } else if (char_id == 'g') {
+    } else if ( (char_id == 'g') && (index_among_tabulated == 0) ) {
     	int size = axis_vals.size();
     	std::vector<double> rg_potential_vals;
     	std::vector<double> sqrt_axis_vals(size);

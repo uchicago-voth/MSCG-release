@@ -53,6 +53,54 @@ void make_negative(std::vector<double> &force_vals)
       force_vals[k] = -force_vals[k];
     }
 }
+
+
+// Function to pad 2 vectors so that the first runs between low and high values with fpad
+
+void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+	std::vector<double>::iterator axis_it;
+  	std::vector<double>::iterator force_it;
+ 
+	double spacing = axis_vals[1] - axis_vals[0];
+	while (axis_vals[0] - spacing > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, axis_vals[0] - spacing);
+		force_vals.insert(force_it, fpad);	
+	}
+	
+	if (axis_vals[0] - 0.01 > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, low);
+		force_vals.insert(force_it, fpad);
+	}
+}
+
+void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+  double spacing = axis_vals[2] - axis_vals[1];
+  int last = axis_vals.size() - 1;
+	
+  while(force_vals.size() > axis_vals.size()) {
+  	force_vals.pop_back();
+  }
+
+  while (axis_vals[last] + spacing < high) {
+	axis_vals.push_back(axis_vals[last] + spacing);
+	force_vals.push_back(fpad);
+	last++;
+  }
+	
+  if (axis_vals[last] + 0.01 < high) { 
+	axis_vals.push_back(high);
+	force_vals.push_back(fpad);
+  }	
+}
+
 // Function to pad vectors so that the first runs between low and high values after checking
 // that the signs and slopes are reasonable for the front and back.
 
