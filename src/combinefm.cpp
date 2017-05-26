@@ -21,10 +21,31 @@ int main(int argc, char* argv[])
 {
     double start_cputime = clock();
 
+    
+    printf("Reading high level control parameters.\n");
     ControlInputs control_input;
     CG_MODEL_DATA cg(&control_input); // CG model parameters and data; put here to initialize without default constructor
+
+    printf("Reading topology file.\n");
     read_topology_file(&cg.topo_data, &cg);
+
+    printf("Reading interaction ranges.\n");
     read_all_interaction_ranges(&cg);
+
+    if (cg.one_body_interactions.n_tabulated > 0 ||
+    	cg.pair_nonbonded_interactions.n_tabulated > 0 ||
+        cg.pair_bonded_interactions.n_tabulated > 0 ||
+        cg.angular_interactions.n_tabulated > 0 ||
+        cg.dihedral_interactions.n_tabulated > 0 ||
+        cg.r13_interactions.n_tabulated > 0 ||
+        cg.r14_interactions.n_tabulated > 0 ||
+        cg.r15_interactions.n_tabulated > 0 ||
+        cg.helical_interactions.n_tabulated > 0 || 
+        cg.radius_of_gyration_interactions.n_tabulated > 0 ||
+		cg.density_interactions.n_tabulated > 0) {
+        printf("Reading tabulated reference potentials.\n");
+        read_tabulated_interaction_file(&cg, cg.topo_data.n_cg_types);
+    } 
 
     MATRIX_DATA mat(&control_input, &cg);
 
