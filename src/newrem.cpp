@@ -80,8 +80,15 @@ int main(int argc, char* argv[])
     	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames); 
     }
 
-    //bootstraping??? Read in of weights would happen here.
-
+    // Generate bootstrapping weights if the
+    // 'bootstrapping_flag' is set in control.in.
+/*    
+	if (frame_source.bootstrapping_flag == 1) {
+    	printf("Generating bootstrapping frame weights.\n");
+    	fflush(stdout);
+    	generate_bootstrapping_weights(&frame_source, control_input.n_frames);
+    }
+*/
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
     // read.
@@ -113,7 +120,16 @@ int main(int argc, char* argv[])
         set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
 	}
 
-	//Bootstraping weights would be set here
+/*
+    if (frame_source.bootstrapping_flag == 1) {
+    	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
+    	// net frame weights and normalizations.
+    	if(frame_source.use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(&frame_source);
+    	}
+    	set_bootstrapping_normalization(&mat, frame_source.bootstrapping_weights, frame_source.n_frames);
+    }
+*/      
     
     printf("Starting read-in of CG data\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
@@ -130,6 +146,12 @@ int main(int argc, char* argv[])
     //testing has been completed. (??)
     printf("Calculating new REM parameters\n");
     calculate_new_rem_parameters(&mat_cg, &mat_ref);
+
+/*
+    if (frame_source.bootstrapping_flag == 1) {
+		free_bootstrapping_weights(&frame_source);
+	}
+*/
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
