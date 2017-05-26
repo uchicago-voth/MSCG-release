@@ -88,7 +88,7 @@ BSplineComputer::BSplineComputer(InteractionClassSpec* ispec) : SplineComputer(i
             n_to_print_minus_bspline_k = interaction_column_indices - n_coef + 2;
             check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
             bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-            gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
+            gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i] - VERYSMALL_F, ispec_->upper_cutoffs[i] + VERYSMALL_F, bspline_workspaces[counter]);
             counter++;
         }
     }
