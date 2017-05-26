@@ -19,7 +19,6 @@
 #include "misc.h"
 
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
-inline void screen_interaction_basis(CG_MODEL_DATA* const cg);
 
 int main(int argc, char* argv[])
 {
@@ -222,13 +221,4 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 
   printf("Finishing frame parsing.\n");
   fs->cleanup(fs);
-}
-
-inline void screen_interaction_basis(CG_MODEL_DATA* const cg) {
-	std::list<InteractionClassSpec*>::iterator iclass_iterator;
-	for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		if ((*iclass_iterator)->class_type != kOneBody) {
-	        (*iclass_iterator)->set_basis_type(kBSplineAndDeriv);
-    	}
-    }
 }
