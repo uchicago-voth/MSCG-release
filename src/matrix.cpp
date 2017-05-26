@@ -104,6 +104,7 @@ void solve_sparse_matrix(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA* const mat);
 void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat);
+void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA* const mat);
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat);
 
 // Helper solver routines
@@ -787,16 +788,11 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
   // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
 
-  // This is how bootstrapping is handled by FM
-  /*
-    if (control_input->bootstrapping_flag == 1) {
-    	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
-		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
-    } else { 
-	    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
-		mat->finish_fm = solve_dense_fm_normal_equations;
-	}
-  */
+  // Handle bootstrapping function pointer
+  if (control_input->bootstrapping_flag == 1) {
+    	mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
+//		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
+  }
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
@@ -2118,12 +2114,48 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 
 void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
 {
-  int i;
-  for(i = 0;i < mat->fm_matrix_columns;i++) {
-      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i];
+  double frame_weight = mat->get_frame_weight() * mat->normalization; 
+  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  	  // Add the value to the first row of normal matrix
+      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
+      // Add the squared value to the second row of normal matrix
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
-      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i];
+      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
   }
+  // set matrix to zero to start the next block
+  mat->dense_fm_matrix->reset_matrix();
+}
+
+void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA* const mat)
+{
+  double frame_weight = mat->get_frame_weight() * mat->normalization; 
+  double boot_weight;
+  
+  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  	  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
+      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
+
+	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+		boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+		if(boot_weight == 0.0) continue;
+		boot_weight *= mat->bootstrapping_normalization[j];
+		mat->bootstrapping_dense_fm_normal_matrices[j]->values[i*2] += mat->dense_fm_matrix->values[i] * boot_weight;
+	 }
+  }
+  
+  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  	  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
+      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
+      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
+
+	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+	    boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+		if(boot_weight == 0.0) continue;
+		boot_weight *= mat->bootstrapping_normalization[j];
+		mat->bootstrapping_dense_fm_normal_matrices[j]->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * boot_weight;
+	  }
+  }
+  // set matrix to zero to start the next block
   mat->dense_fm_matrix->reset_matrix();
 }
 
@@ -3701,13 +3733,6 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->rem_chi;
   const double SMALL = 0.001;
-
-  // Apply normalization to matrices
-  for(int i = 0; i < (mat_cg->fm_matrix_columns * mat_cg->fm_matrix_rows); i++)
-    {
-      mat_ref->dense_fm_normal_matrix->values[i] *= mat_ref->normalization;
-      mat_cg->dense_fm_normal_matrix->values[i] *= mat_cg->normalization;
-    }
   
   for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
     {
