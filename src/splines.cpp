@@ -378,10 +378,10 @@ inline void check_matching_istart(const int first_nonzero_basis_index, const siz
 inline double check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff)
 {
     if (axis < lower_cutoff) {
-    	fprintf(stderr, "Value to evaluate (%lf) is below this spline's lower cutoff (%lf)!\n\n", axis, lower_cutoff);
+    	if (axis + VERYSMALL_F < lower_cutoff) fprintf(stderr, "Value to evaluate (%lf) is below this spline's lower cutoff (%lf)!\n\n", axis, lower_cutoff);
     	return lower_cutoff + VERYSMALL_F;
 	} else if (axis > upper_cutoff) {
-    	fprintf(stderr, "Value to evaluate (%lf) is above this spline's upper cutoff (%lf)!\n\n", axis, upper_cutoff);
+    	if (axis > upper_cutoff + VERYSMALL_F) fprintf(stderr, "Value to evaluate (%lf) is above this spline's upper cutoff (%lf)!\n\n", axis, upper_cutoff);
     	return upper_cutoff - VERYSMALL_F;
 	}
 	return axis;
