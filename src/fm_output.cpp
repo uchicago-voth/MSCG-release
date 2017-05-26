@@ -361,10 +361,16 @@ void pad_and_print_single_table(const char char_id, const std::string& basename,
 {
    std::vector<double> padded_potential_vals;
    int status = pad_values_front_with_fix(axis_vals,force_vals);
+   if(char_id == 'a'){
+     pad_values_front(0.0,axis_vals,force_vals,force_vals[0]);
+   }
    if (status == -1) {
 	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }
    status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
+   if(char_id == 'a'){
+     pad_values_back(180.0,axis_vals,force_vals,force_vals[force_vals.size()-1]);
+   }
    if (status == -1) {
 	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }

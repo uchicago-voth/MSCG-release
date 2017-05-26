@@ -95,7 +95,7 @@ void pad_values_back(const double high, std::vector<double>& axis_vals, std::vec
 	last++;
   }
 	
-  if (axis_vals[last] + 0.01 < high) { 
+  if (axis_vals[last] + VERYSMALL_F < high) { 
 	axis_vals.push_back(high);
 	force_vals.push_back(fpad);
   }	
