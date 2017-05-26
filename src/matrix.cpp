@@ -776,31 +776,61 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
-  //make sure to overwrite any functions pointers set in constructor
+  // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy;
+  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+ 
+  // These commented out function pointers are set in FM
+  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
+  // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
+  // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
 
+  // This is how bootstrapping is handled by FM
+  /*
+    if (control_input->bootstrapping_flag == 1) {
+    	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
+		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
+    } else { 
+	    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
+		mat->finish_fm = solve_dense_fm_normal_equations;
+	}
+  */
+  
+  // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 
   mat->fm_matrix_rows = 2;
-
+  
   printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
   printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
 
+	// Set the appropriate matrix variables
     mat->accumulation_matrix_columns = mat->fm_matrix_columns;
-    mat->accumulation_matrix_rows = mat->fm_matrix_rows;
-    mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
-    mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
-    
-    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
- 
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
     mat->temperature = control_input->temperature;
     mat->rem_chi = control_input->REM_iteration_step_size;
     mat->boltzmann = control_input->boltzmann;
 
+	// Allocate the basic relative entropy matrix parts
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+	mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
     mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
+    
+  	// Allocate for bootstrapping, if appropriate
+  	/*
+  	if (control_input->bootstrapping_flag == 1) {
+    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
+    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
+    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
+    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
+			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
+		}
+    }
+    */
+    printf("Initialized a relative entropy matrix.\n");
 }
 
 // "Initialize" a dummy matrix.
@@ -926,6 +956,20 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
         mat->virial_constraint_rows = frames_per_traj_block;
     }
 }
+
+void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
+{
+  int num_entries = 0;
+  // Skip if it does not have a parameter distribution to use
+  if (icomp->ispec->output_parameter_distribution !=  0) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      num_entries += (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth());
+    }
+  }
+  mat->fm_matrix_rows = num_entries;
+  mat->fm_matrix_columns = icomp->ispec->get_num_basis_func();
+}
     
 // Estimate upper and lower bounds for the number of non-zero elements in normal matrix
 
@@ -960,7 +1004,7 @@ void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* c
 		}
 	}
 }	
-	
+
 //--------------------------------------------------------------------
 // Matrix reset routines
 //--------------------------------------------------------------------
@@ -4151,18 +4195,4 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 	fprintf(sol_fp, "\n");
 
 	fprintf(res_fp, "Iteration %d: %lf\n", iteration, residual);
-}
-
-void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
-{
-  int num_entries = 0;
-  // Skip if it does not have a parameter distribution to use
-  if (icomp->ispec->output_parameter_distribution !=  0) {
-    // For every defined interaction,
-    for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth());
-    }
-  }
-  mat->fm_matrix_rows = num_entries;
-  mat->fm_matrix_columns = icomp->ispec->get_num_basis_func();
 }
