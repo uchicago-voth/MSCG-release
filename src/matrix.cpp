@@ -766,11 +766,6 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
   // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
   // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
-
-  // Handle bootstrapping function pointer
-  if (control_input->bootstrapping_flag == 1) {
-    	mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
-  }
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
@@ -940,6 +935,8 @@ void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input
 		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
 		mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	}
+	
+	if (mat->matrix_type == kREM) mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
 }    
 // Estimate upper and lower bounds for the number of non-zero elements in normal matrix
 

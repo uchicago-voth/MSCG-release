@@ -54,7 +54,9 @@ int main(int argc, char* argv[])
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(&control_input, &fs_cg);
     copy_control_inputs_to_frd(&control_input, &fs_ref);
-
+    fs_cg.use_statistical_reweighting = 0;
+    fs_ref.bootstrapping_flag = 0;
+    
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 
     // construct all bond lists, angle lists, and dihedral lists. 
@@ -73,17 +75,16 @@ int main(int argc, char* argv[])
 
     // Read statistical weights for each frame if the 
     // 'use_statistical_reweighting' flag is set in control.in.
-    if (fs_ref.use_statistical_reweighting == 1) {
-    	fs_cg.use_statistical_reweighting = 0; // REM reweighting currently is only implemented to act on REF NOT CG.
+    if (fs_ref.use_statistical_reweighting == 1) { // REM reweighting currently is only implemented to act on REF NOT CG.
     	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
-    	fflush(stdout);
+    	fflush(setdout);
     	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames); 
     }
 
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
     
-	if (fs_cg.bootstrapping_flag == 1) {
+	if (fs_cg.bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
     	generate_bootstrapping_weights(&fs_cg, control_input.n_frames);
@@ -112,24 +113,25 @@ int main(int argc, char* argv[])
     // Initialize the entropy minimizing matrix.
     printf("Initializing up REM matrix\n");
     control_input.matrix_type = kREM;
-    
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
     
     if (fs_ref.use_statistical_reweighting == 1) {
         set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
+        mat_cg->use_statistical_reweighting = 0;  
 	}
 
 
     if (fs_cg.bootstrapping_flag == 1) {
     	// Allocate for bootstrapping only for cg and only if appropriate
   		allocate_bootstrapping(&mat_cg, &control_input);
-    
+  		mat_ref.bootstrapping_flag = 0;
+    	
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
-    	if(fs_cg.use_statistical_reweighting == 1) {
-    		combine_reweighting_and_boostrapping_weights(&fs_cg);
-    	}
+    	//if(fs_cg.use_statistical_reweighting == 1) {
+    	//	combine_reweighting_and_boostrapping_weights(&fs_cg);
+    	//}
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
       
@@ -149,7 +151,6 @@ int main(int argc, char* argv[])
     //testing has been completed. (??)
     printf("Calculating new REM parameters\n");
     calculate_new_rem_parameters(&mat_cg, &mat_ref);
-
 
     if (fs_cg.bootstrapping_flag == 1) {
 		free_bootstrapping_weights(&fs_cg);
