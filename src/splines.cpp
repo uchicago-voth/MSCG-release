@@ -53,11 +53,11 @@ double SplineComputer::get_param_less_lower_cutoff(const int index_among_defined
     double cutoff_range = ispec_->upper_cutoffs[index_among_defined] - ispec_->lower_cutoffs[index_among_defined] - VERYSMALL;
     double param_less_lower_cutoff = param_val - ispec_->lower_cutoffs[index_among_defined];
     if (param_less_lower_cutoff < 0.0) {
-    	fprintf(stderr, "Value passed to spline computer (%lf) is below its lower cutoff (%lf)!\n\n", param_val, ispec_->lower_cutoffs[index_among_defined]);
+    	if (param_less_lower_cutoff < VERYSMALL_F) fprintf(stderr, "Value passed to spline computer (%lf) is below its lower cutoff (%lf)!\n\n", param_val, ispec_->lower_cutoffs[index_among_defined]);
     	param_less_lower_cutoff = 0.0;
     }
     else if (param_less_lower_cutoff > cutoff_range) {
-    	fprintf(stderr, "Value passed to spline computer %lf is above its cutoff %lf!\n\n", param_val, ispec_->upper_cutoffs[index_among_defined]);
+    	if (param_less_lower_cutoff > cutoff_range + VERYSMALL_F) fprintf(stderr, "Value passed to spline computer %lf is above its cutoff %lf!\n\n", param_val, ispec_->upper_cutoffs[index_among_defined]);
 	    param_less_lower_cutoff = cutoff_range;
     }
     return param_less_lower_cutoff;
