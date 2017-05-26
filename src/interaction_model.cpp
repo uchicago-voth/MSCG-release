@@ -1007,7 +1007,7 @@ void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double>
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
     }
     unsigned counter = 0;
-    for (double axis = min; axis <= max+ VERYSMALL_F; axis += binwidth) {
+    for (double axis = min; axis <= max + VERYSMALL_F; axis += binwidth) {
         force_vals[counter] = fm_s_comp->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         axis_vals[counter] = axis;
         counter++;

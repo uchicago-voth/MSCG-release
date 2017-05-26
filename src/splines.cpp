@@ -12,7 +12,7 @@
 // Helper function to print a sizing error message.
 inline void check_bspline_size(const int control_points, const int order);
 inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart);
-inline void check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff);
+inline double check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff);
 inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart);
 
 SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
@@ -127,8 +127,8 @@ double BSplineComputer::evaluate_spline(const int index_among_defined, const int
     int ici_index = 0;
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
-    check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    gsl_bspline_eval_nonzero(axis, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
+    double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
+    gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
@@ -228,8 +228,8 @@ double BSplineAndDerivComputer::evaluate_spline(const int index_among_defined, c
     int ici_index = 0;
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
-	check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    gsl_bspline_eval_nonzero(axis, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
+	double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
+    gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
@@ -246,8 +246,8 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
     size_t istart, iend;
     int ici_index = 0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
-    check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-	gsl_bspline_deriv_eval_nonzero(axis, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
+    double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
+	gsl_bspline_deriv_eval_nonzero(axis_val, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
 		ici_index = ispec_->interaction_column_indices[index_among_matched_interactions - 1];
     }
@@ -375,13 +375,16 @@ inline void check_matching_istart(const int first_nonzero_basis_index, const siz
     }
 }
 
-inline void check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff)
+inline double check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff)
 {
     if (axis < lower_cutoff) {
     	fprintf(stderr, "Value to evaluate (%lf) is below this spline's lower cutoff (%lf)!\n\n", axis, lower_cutoff);
+    	return lower_cutoff + VERYSMALL_F;
 	} else if (axis > upper_cutoff) {
     	fprintf(stderr, "Value to evaluate (%lf) is above this spline's upper cutoff (%lf)!\n\n", axis, upper_cutoff);
+    	return upper_cutoff - VERYSMALL_F;
 	}
+	return axis;
 }
 
 inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart)
