@@ -381,7 +381,10 @@ inline double check_against_cutoffs(const double axis, const double lower_cutoff
     	if (axis + VERYSMALL_F < lower_cutoff) fprintf(stderr, "Value to evaluate (%lf) is below this spline's lower cutoff (%lf)!\n\n", axis, lower_cutoff);
     	return lower_cutoff + VERYSMALL_F;
 	} else if (axis > upper_cutoff) {
-    	if (axis > upper_cutoff + VERYSMALL_F) fprintf(stderr, "Value to evaluate (%lf) is above this spline's upper cutoff (%lf)!\n\n", axis, upper_cutoff);
+    	if (axis > upper_cutoff + VERYSMALL_F) {
+    		fprintf(stderr, "Difference is %d x 10E-6\n", (int)( (axis - upper_cutoff) * 10E6));
+    		fprintf(stderr, "Value to evaluate (%lf) is above this spline's upper cutoff (%lf)!\n\n", axis, upper_cutoff);
+    		}
     	return upper_cutoff - VERYSMALL_F;
 	}
 	return axis;
