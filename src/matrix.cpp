@@ -2122,8 +2122,6 @@ void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
       mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
   }
-  // set matrix to zero to start the next block
-  mat->dense_fm_matrix->reset_matrix();
 }
 
 void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA* const mat)
@@ -2155,8 +2153,6 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
 		mat->bootstrapping_dense_fm_normal_matrices[j]->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * boot_weight;
 	  }
   }
-  // set matrix to zero to start the next block
-  mat->dense_fm_matrix->reset_matrix();
 }
 
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat) {}
