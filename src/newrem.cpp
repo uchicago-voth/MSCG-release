@@ -122,6 +122,9 @@ int main(int argc, char* argv[])
 
 
     if (fs_cg.bootstrapping_flag == 1) {
+    	// Allocate for bootstrapping only for cg and only if appropriate
+  		allocate_bootstrapping(&mat_cg, &control_input);
+    
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
     	if(fs_cg.use_statistical_reweighting == 1) {

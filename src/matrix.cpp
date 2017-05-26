@@ -400,12 +400,7 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
     
     if (control_input->bootstrapping_flag == 1) {
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+		allocate_bootstrapping(mat, control_input);
     }
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
@@ -457,12 +452,7 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
     if (control_input->bootstrapping_flag == 1) {
 		printf("Bootstrapping is not currently supported for accumulation matrix type.\n");
 		exit(EXIT_FAILURE);
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+ 		allocate_bootstrapping(mat, control_input);
     }
 	mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_rows, mat->accumulation_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->accumulation_matrix_columns]();
@@ -651,12 +641,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
 	
     // These matrices are used for accumulation of normal form before solving
     if (control_input->bootstrapping_flag == 1) {
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+		allocate_bootstrapping(mat, control_input);
     }
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
@@ -759,15 +744,9 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     // Chapt 25 for details.
     mat->h = new double[mat->fm_matrix_columns]();
     
-	// These matrices are used for acculation of sparse normal form before solving
+	// These matrices are used for accumulation of sparse normal form before solving
 	if (control_input->bootstrapping_flag == 1) {
-   		mat->bootstrapping_sparse_fm_normal_matrices = new csr_matrix*[mat->bootstrapping_num_estimates];
-   		mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[mat->bootstrapping_num_estimates]();
-   		
-   		for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
-   			mat->bootstrapping_sparse_fm_normal_matrices[i] = new csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, mat->max_nonzero_normal_elements);
-			mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-   		}
+		allocate_bootstrapping(mat, control_input);
 	}
 	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     mat->sparse_matrix = new csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, mat->max_nonzero_normal_elements);
@@ -791,12 +770,10 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   // Handle bootstrapping function pointer
   if (control_input->bootstrapping_flag == 1) {
     	mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
-//		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
   }
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-
   mat->fm_matrix_rows = 2;
   
   printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
@@ -814,18 +791,6 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
     mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
 	mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
     mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
-    
-  	// Allocate for bootstrapping, if appropriate
-  	/*
-  	if (control_input->bootstrapping_flag == 1) {
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
-    }
-    */
     printf("Initialized a relative entropy matrix.\n");
 }
 
@@ -966,7 +931,16 @@ void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassCo
   mat->fm_matrix_rows = num_entries;
   mat->fm_matrix_columns = icomp->ispec->get_num_basis_func();
 }
-    
+
+void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input)
+{
+	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
+  	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
+  	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
+		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
+		mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
+	}
+}    
 // Estimate upper and lower bounds for the number of non-zero elements in normal matrix
 
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)

@@ -447,21 +447,18 @@ struct MATRIX_DATA {
 	}
 };
 
-// Set FM normalization constant.
-
+// Set FM and bootstrapping normalization constants.
 inline void set_normalization(MATRIX_DATA* mat, const double new_normalization_constant) {
     mat->normalization = new_normalization_constant;
 }
-
 void set_bootstrapping_normalization(MATRIX_DATA* mat, double** const bootstrapping_weights, int const n_frames);
+void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input);
 
 // Target (RHS) vector calculation routines
-
 void add_target_virials_from_trajectory(MATRIX_DATA* const mat, double *pressure_constraint_rhs_vector);
 void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &f);
 
 // Read serialized, partially-completed post-frameblock matrix calculation intermediates
-
 void read_binary_matrix(MATRIX_DATA* const mat);
 
 // "Finish FM" for REM
