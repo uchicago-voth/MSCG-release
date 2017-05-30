@@ -543,15 +543,6 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     // Read "Solving lest square problems" by Lawson CL and Hanson RJ, 
     // Chapt 25 for details.
     mat->h = new double[mat->fm_matrix_columns]();
-  
-	// These matrices would be used for acculation of normal form before solving
-	// Allocate and initialize space for the solution to a block's equations
-	if (control_input->bootstrapping_flag == 1) {
-		mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-		for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-			mat->bootstrap_solutions[i] = std::vector<double>(mat->fm_matrix_columns);
-		}
-	}
 	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
 
     mat->block_fm_solution = new double[mat->fm_matrix_columns]();
@@ -730,13 +721,6 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     }
     if (control_input->pressure_constraint_flag == 1) mat->dense_fm_matrix = new dense_matrix(control_input->frames_per_traj_block, mat->fm_matrix_columns);
 
-    // Set up the temps and parameters for solving the sparse normal equations.
-   	if (control_input->bootstrapping_flag == 1) {
-		mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-		for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-			mat->bootstrap_solutions[i] = std::vector<double>(mat->fm_matrix_columns);
-		}
-	}
 	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
     
     // Allocate a preconditioning temp array.
@@ -930,10 +914,8 @@ void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassCo
 void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input)
 {
 	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-  	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
   	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
 		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-		mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	}
 	
 	if (mat->matrix_type == kREM) mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
@@ -3584,11 +3566,6 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
             if (mat->output_style == 3) exit(EXIT_SUCCESS);
         }
     }
-
-	mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-   	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
-  		mat->bootstrap_solutions[k] = std::vector<double>(mat->fm_matrix_columns);
-	}
 	
     for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
     
@@ -3699,19 +3676,12 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->rem_chi;
+  // update for bootstrap copies
   const double SMALL = 0.001;
   
-  for(int j = 0; j < mat_cg->fm_matrix_columns; j++) 
     {
-      mat_ref->previous_rem_solution[j] += mat_ref->dense_fm_normal_matrix->values[j * 2] * beta;
-      mat_ref->previous_rem_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * beta;
-      mat_ref->fm_solution[j] += mat_cg->dense_fm_normal_matrix->values[(j*2) + 1] * beta * beta;
-      mat_ref->fm_solution[j] -= mat_cg->dense_fm_normal_matrix->values[j * 2] * mat_cg->dense_fm_normal_matrix->values[j * 2] * beta * beta;
     }
 
-  for(int k = 0; k < mat_cg->fm_matrix_columns; k++) {
-      if(mat_ref->fm_solution[k] == 0) {
-	      mat_ref->fm_solution[k] = SMALL;	  	
       }
       //This is the gradient decent equation
       //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
@@ -3719,12 +3689,8 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
       //lamda_old = mat_cg->previous_rem_solution
       //dS/dlamda = mat_ref->previous_rem_solution
       //Hessian   = mat-ref->fm_solution
-      mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - mat_ref->previous_rem_solution[k] / mat_ref->fm_solution[k] * chi;
 
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) > 100.0) {
-	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] + 100.0;
 	  }
-      if((mat_cg->fm_solution[k] - mat_cg->previous_rem_solution[k]) < -100.0) {
 	    mat_cg->fm_solution[k] = mat_cg->previous_rem_solution[k] - 100.0;
 	  }
   }
@@ -3855,12 +3821,6 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
     	fclose(mat_out);
 	    if (mat->output_style == 3) exit(EXIT_SUCCESS);
 	}
-    
-    mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-   	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
-   		mat->bootstrap_solutions[k] = std::vector<double>(mat->fm_matrix_columns);
-	}
-	
    	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
 
     	double resid = mat->bootstrapping_dense_fm_normal_matrices[k]->values[(mat->accumulation_matrix_columns - 1) * mat->accumulation_matrix_rows + mat->accumulation_matrix_columns - 1];

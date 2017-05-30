@@ -463,5 +463,6 @@ void read_binary_matrix(MATRIX_DATA* const mat);
 
 // "Finish FM" for REM
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 
 #endif
