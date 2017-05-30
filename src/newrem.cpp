@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
     // 'use_statistical_reweighting' flag is set in control.in.
     if (fs_ref.use_statistical_reweighting == 1) { // REM reweighting currently is only implemented to act on REF NOT CG.
     	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
-    	fflush(setdout);
+    	fflush(stdout);
     	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames); 
     }
 
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
     
     if (fs_ref.use_statistical_reweighting == 1) {
         set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
-        mat_cg->use_statistical_reweighting = 0;  
+        mat_cg.use_statistical_reweighting = 0;  
 	}
 
 
@@ -150,11 +150,12 @@ int main(int argc, char* argv[])
     //previous steps. The solution routine will be moved to matrix after
     //testing has been completed. (??)
     printf("Calculating new REM parameters\n");
-    calculate_new_rem_parameters(&mat_cg, &mat_ref);
-
     if (fs_cg.bootstrapping_flag == 1) {
+    	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
 		free_bootstrapping_weights(&fs_cg);
-	}
+	} else {
+		calculate_new_rem_parameters(&mat_cg, &mat_ref);
+	} 
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
