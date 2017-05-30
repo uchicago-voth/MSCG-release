@@ -83,62 +83,62 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
             // If that interaction is being matched (includes forces and symmetric/DOOM),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
-	      if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
-	      	 if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
-		 write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);	      
-		     if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
-		       write_one_param_bspline_file(*icomp_iterator, name, mat, i);
-	         } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	        	if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
+	      	 		if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
+		         	write_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);	      
+		     		if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
+            	 		(*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+		         		write_one_param_bspline_file(*icomp_iterator, name, mat, i);
+	         		} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 					   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
-				write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
-			 } else {
-				printf("Unrecognized basis type.\n");
-				exit(EXIT_FAILURE);
-			 }
-	      } else {
-            	// Select the correct type name array for the interaction.
-                 if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-					name = dspec->density_group_names;
-				 } else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-				 	name = rg_spec->molecule_group_names;
-				 } else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-				 	name = h_spec->molecule_group_names;
-				 } else {
-					name = cg->name;
-				 }
+						write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
+			 		} else {
+						printf("Unrecognized basis type.\n");
+						exit(EXIT_FAILURE);
+			 		}
+	      		} else {
+             		// Select the correct type name array for the interaction.
+        	 		if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
+			 		    name = dspec->density_group_names;
+					} else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
+						 name = rg_spec->molecule_group_names;
+					} else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
+						 name = h_spec->molecule_group_names;
+					} else {
+							name = cg->name;
+					}
 				
-   				if (mat->bootstrapping_flag == 1) {
-	                // Write tabular output, regardless of spline type.
- 	   	            write_bootstrapping_one_param_table_files(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
-        	        // Write special output files for the specific spline types.
-            	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
-                	    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
-	                } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
-	                		   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
-    	                write_bootstrapping_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
-        	        } else {
-            	        printf("Unrecognized basis type.\n");
-                	    exit(EXIT_FAILURE);
-                	}
-   				} else {
-	                // Write tabular output, regardless of spline type.
-				  write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
-        	        // Write special output files for the specific spline types.
-            	    if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	        (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
-                	    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
-		    } else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
-	                		   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
-    	                write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
-    	            } else {
-            	        printf("Unrecognized basis type.\n");
-                	    exit(EXIT_FAILURE);
-                	}
-				}
-	      }
-	    }
+   					if (mat->bootstrapping_flag == 1) {
+	                	// Write tabular output, regardless of spline type.
+ 	   	            	write_bootstrapping_one_param_table_files(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
+        	        	// Write special output files for the specific spline types.
+            	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+                		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
+	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
+    	            	    write_bootstrapping_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
+        	        	} else {
+            	    	    printf("Unrecognized basis type.\n");
+                		    exit(EXIT_FAILURE);
+                		}
+   					} else {
+	                	// Write tabular output, regardless of spline type.
+				  		write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
+        	        	// Write special output files for the specific spline types.
+            	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+                		    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
+		    			} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
+    	                	write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
+    	            	} else {
+            	        	printf("Unrecognized basis type.\n");
+                	    	exit(EXIT_FAILURE);
+                		}
+					}
+	      		}
+	    	}
         }
 	}
 
