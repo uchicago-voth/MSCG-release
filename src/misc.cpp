@@ -71,7 +71,7 @@ void pad_values_front(const double low, std::vector<double>& axis_vals, std::vec
 		force_vals.insert(force_it, fpad);	
 	}
 	
-	if (axis_vals[0] - 0.01 > low) {
+	if (axis_vals[0] - VERYSMALL_F > low) {
 		axis_it = axis_vals.begin();
  		force_it = force_vals.begin();
  
