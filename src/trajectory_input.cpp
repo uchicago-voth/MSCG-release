@@ -91,6 +91,7 @@ void xtc_setup(FrameSource* const frame_source, const char* filename1, const cha
 // Misc. small helpers.
 inline void report_traj_input_suffix_error(const char *suffix);
 inline void report_usage_error(const char *exe_name);
+inline void report_rem_usage_error(const char *exe_name);
 inline void report_invalid_setting(const char *flag, const char* suffix);
 inline void check_molecule_sites(const int n_expected, const int n_read);
 inline void check_file_extension(const char* name, const char* suffix);
@@ -133,6 +134,12 @@ inline void set_random_number_seed(const uint_fast32_t random_num_seed);
 inline void report_usage_error(const char *exe_name)
 {
     printf("Usage: %s -f file.trr OR %s -f file.xtc -f1 file1.xtc OR %s -l file.lammpstrj\n", exe_name, exe_name, exe_name);
+    exit(EXIT_SUCCESS);
+}
+
+inline void report_rem_usage_error(const char *exe_name)
+{
+    printf("Usage: %s -f_ref file1.trr -f_cg file2.trr OR %s -l_ref file1.lammpstrj -l_cg file2.lammpstrj\n", exe_name, exe_name);
     exit(EXIT_SUCCESS);
 }
 
@@ -204,7 +211,7 @@ void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSo
 {
   int checker_cg = 0;
   int checker_ref = 0;
-  if (num_arg != 5) report_usage_error(arg[0]);
+  if (num_arg != 5) report_rem_usage_error(arg[0]);
   else {
     parse_command_line_set(arg[1], arg[2], frame_source_cg, frame_source_ref, checker_cg, checker_ref);
     parse_command_line_set(arg[3], arg[4], frame_source_cg, frame_source_ref, checker_cg, checker_ref);
