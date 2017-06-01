@@ -882,9 +882,10 @@ void FrameSource::sampleTypesFromProbs()
 
 // Read information to reweight all frames from an auxiliary file 'frame_weights.in'.
 
-void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames)
+void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames, const std::string &extension)
 {
-    read_frame_values("frame_weights.in", start_frame, n_frames, frame_source->frame_weights);
+	std::string filename = "frame_weights." + extension;
+    read_frame_values(filename.c_str(), start_frame, n_frames, frame_source->frame_weights);
 	
     double total = 0.0;
     for (int i = 0; i < n_frames; i++) {

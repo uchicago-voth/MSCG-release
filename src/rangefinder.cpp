@@ -47,10 +47,11 @@ int main(int argc, char* argv[])
     if (fs.use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(&fs, control_input.starting_frame, control_input.n_frames); 
+        read_frame_weights(&fs, control_input.starting_frame, control_input.n_frames, "in"); 
     }
 
     printf("Reading first frame.\n");
+    printf("Finding first frame ...\n");
     fs.get_first_frame(&fs, cg.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 
     printf("Reading interaction ranges.\n");

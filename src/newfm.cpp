@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
     if (frame_source.use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(&frame_source, control_input.starting_frame, control_input.n_frames); 
+        read_frame_weights(&frame_source, control_input.starting_frame, control_input.n_frames, "in"); 
     }
         
     // Generate bootstrapping weights if the
@@ -105,6 +105,7 @@ int main(int argc, char* argv[])
     // extensions to specify how the trajectory files should be 
     // read.
     printf("Beginning to read frames.\n");
+    printf("Finding first frame...\n");
     frame_source.get_first_frame(&frame_source, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 	if (frame_source.dynamic_state_sampling == 1) frame_source.sampleTypesFromProbs();
 	

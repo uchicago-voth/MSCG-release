@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
     if (fs_cg.use_statistical_reweighting == 1) {
     	printf("Reading per-frame statistical reweighting factors for trajectory.\n");
     	fflush(stdout);
-    	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames); 
+    	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames, "in"); 
     }
 
     //bootstraping??? Read in of weights would happen here.

@@ -21,6 +21,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
 {
     if (strcmp("block_size", parameter_name) == 0) sscanf(val, "%d", &control_input->frames_per_traj_block);
     else if (strcmp("use_statistical_reweighting", parameter_name) == 0) sscanf(val, "%d", &control_input->use_statistical_reweighting);
+    else if (strcmp("reference_statistical_reweighting", parameter_name) == 0) sscanf(val, "%d", &control_input->reference_statistical_reweighting);
     else if (strcmp("dynamic_types", parameter_name) == 0) sscanf(val, "%d", &control_input->dynamic_types);
     else if (strcmp("molecule_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->molecule_flag);
     else if (strcmp("dynamic_state_sampling", parameter_name) == 0) sscanf(val, "%d", &control_input->dynamic_state_sampling);
@@ -132,6 +133,7 @@ ControlInputs::ControlInputs(void)
     
     frames_per_traj_block = 10;
     use_statistical_reweighting = 0;
+    reference_statistical_reweighting = 0;
     pressure_constraint_flag = 0;
     volume_weighting_flag = 0;
     position_dimension = 3;

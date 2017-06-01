@@ -200,7 +200,7 @@ void* mscg_startup_part2(void* void_in)
     if (p_frame_source->use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames); 
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "in"); 
     }
     
     // Generate bootstrapping weights if the
@@ -312,7 +312,7 @@ void* rangefinder_startup_part2(void* void_in)
     if (mscg_struct->frame_source->use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(mscg_struct->frame_source, mscg_struct->control_input->starting_frame, mscg_struct->control_input->n_frames); 
+        read_frame_weights(mscg_struct->frame_source, mscg_struct->control_input->starting_frame, mscg_struct->control_input->n_frames, "in"); 
     }
     
     // Initialize the force-matching matrix.
@@ -382,7 +382,7 @@ void* rem_startup_part2(void* void_in)
     if (p_frame_source->use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames); 
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "in"); 
     }
     
     // Generate bootstrapping weights if the

@@ -20,6 +20,7 @@
 #include "fm_output.h"
 #include "misc.h"
 
+inline void copy_control_inputs_to_frds(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg);
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
@@ -52,10 +53,7 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
-    copy_control_inputs_to_frd(&control_input, &fs_cg);
-    copy_control_inputs_to_frd(&control_input, &fs_ref);
-    fs_cg.use_statistical_reweighting = 0;
-    fs_ref.bootstrapping_flag = 0;
+	copy_control_inputs_to_frds(&control_input, &fs_ref, &fs_cg);
     
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 
@@ -74,11 +72,17 @@ int main(int argc, char* argv[])
     read_all_interaction_ranges(&cg);
 
     // Read statistical weights for each frame if the 
-    // 'use_statistical_reweighting' flag is set in control.in.
-    if (fs_ref.use_statistical_reweighting == 1) { // REM reweighting currently is only implemented to act on REF NOT CG.
+    // 'use_statistical_reweighting' or 'reference_statistical_reweighting'
+    // flag is set in control.in.
+    if (fs_ref.use_statistical_reweighting == 1) {
     	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
     	fflush(stdout);
-    	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames); 
+    	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames, "ref"); 
+    }
+    if (fs_cg.use_statistical_reweighting == 1) {
+    	printf("Reading per-frame statistical reweighting factors for CG trajectory.\n");
+    	fflush(stdout);
+    	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames, "cg"); 
     }
 
     // Generate bootstrapping weights if the
@@ -94,9 +98,9 @@ int main(int argc, char* argv[])
     // extensions to specify how the trajectory files should be 
     // read.
     printf("Beginning to read frames.\n");
-    printf("In CG trajectory:");
+    printf("Finding first CG frame ....\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-    printf("In reference trajectory:");
+    printf("Finding first reference frame ...\n");
     fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 	
 	//  dynamic state sampling for REM systems
@@ -111,16 +115,19 @@ int main(int argc, char* argv[])
     set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
-    printf("Initializing up REM matrix\n");
+    printf("Initializing up REM matrix.\n");
     control_input.matrix_type = kREM;
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
     
+	if (fs_cg.use_statistical_reweighting == 1) {
+        set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
+        mat_cg.use_statistical_reweighting = 0;  
+	}
     if (fs_ref.use_statistical_reweighting == 1) {
         set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
         mat_cg.use_statistical_reweighting = 0;  
 	}
-
 
     if (fs_cg.bootstrapping_flag == 1) {
     	// Allocate for bootstrapping only for cg and only if appropriate
@@ -129,27 +136,27 @@ int main(int argc, char* argv[])
     	
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
-    	//if(fs_cg.use_statistical_reweighting == 1) {
-    	//	combine_reweighting_and_boostrapping_weights(&fs_cg);
-    	//}
+    	if(fs_cg.use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(&fs_cg);
+    	}
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
       
     
-    printf("Starting read-in of CG data\n");
+    printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    printf("Starting read-in of reference data\n");
+    printf("Reading reference frames.\n");
     construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
     
     //Read in spline coefficents used in the previous iteration.
-    printf("Reading in previous iteration's solution\n");
+    printf("Reading in previous iteration's solution.\n");
     read_previous_rem_solution(&cg, &mat_cg);
 
     //Find the solution to the entropy minimization equations set up in
     //previous steps. The solution routine will be moved to matrix after
     //testing has been completed. (??)
-    printf("Calculating new REM parameters\n");
+    printf("Calculating new REM parameters.\n");
     if (fs_cg.bootstrapping_flag == 1) {
     	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
 		free_bootstrapping_weights(&fs_cg);
@@ -215,7 +222,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     }
     
     //for each frame in this block
-    for(int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++){
+    for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++) {
 
       //chck that the last frame read was successful
       if (read_stat == 0){
@@ -232,7 +239,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  }
 
 	  //Skip processing frame if frame weight is 0.
-      if (fs->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
+      if (fs->use_statistical_reweighting == 1 && mat->current_frame_weight == 0.0) {
       } else {
         FrameConfig* frame_config = fs->getFrameConfig();
         calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
@@ -297,4 +304,18 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	}
   }
   fclose(spline_input_file);
+}
+
+inline void copy_control_inputs_to_frds(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg)
+{
+	// Do basic calls for each frame source copy
+    copy_control_inputs_to_frd(control_input, fs_cg);
+    copy_control_inputs_to_frd(control_input, fs_ref);
+    
+    // The use_statistical_reweighting option acts on the CG frame source and is already copied
+    // The reference_statistical_reweighting option acts on the reference frame source 
+    fs_ref->use_statistical_reweighting = control_input->reference_statistical_reweighting;
+
+	// Bootstrapping is only for CG trajectory
+	fs_ref->bootstrapping_flag = 0;
 }

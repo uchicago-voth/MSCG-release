@@ -159,7 +159,7 @@ void copy_control_inputs_to_frd(struct ControlInputs* const control_input, Frame
 //-------------------------------------------------------------
 
 // Read statistical weights for all needed frames.
-void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames);
+void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames, const std::string &extension);
 
 // Read information relating to the virial constraint or frame-wise observable for all needed frames.
 void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &vals);
