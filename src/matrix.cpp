@@ -3172,7 +3172,6 @@ void solve_sparse_fm_bootstrapping_equations(MATRIX_DATA* const mat)
       }
    }
    delete [] mat->h;
-   //delete [] mat->dense_fm_normal_rhs_vector;
    delete [] mat->bootstrapping_sparse_fm_normal_matrices;
    delete [] mat->bootstrapping_dense_fm_normal_rhs_vectors;
 }
