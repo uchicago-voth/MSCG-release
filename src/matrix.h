@@ -400,6 +400,15 @@ struct MATRIX_DATA {
 	 	if  (output_raw_frame_blocks == 1) {
  			fclose(frame_block_fh);
  		}
+ 		
+ 		if (bootstrapping_flag == 1 && matrix_type == kREM) {
+			for (int k = 0; k < bootstrapping_num_estimates; k++) {
+				delete bootstrapping_dense_fm_normal_matrices[k];
+				delete [] bootstrapping_dense_fm_normal_rhs_vectors[k];
+			}
+			delete [] bootstrapping_dense_fm_normal_rhs_vectors;
+			delete [] bootstrapping_dense_fm_normal_matrices;
+ 		}
 	}
    
     // Modification function for matrix.
