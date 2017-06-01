@@ -151,9 +151,7 @@ int main(int argc, char* argv[])
     printf("Reading in previous iteration's solution.\n");
     read_previous_rem_solution(&cg, &mat_cg);
 
-    //Find the solution to the entropy minimization equations set up in
-    //previous steps. The solution routine will be moved to matrix after
-    //testing has been completed. (??)
+    //Find the solution to the entropy minimization equations.
     printf("Calculating new REM parameters.\n");
     if (fs_cg.bootstrapping_flag == 1) {
     	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
@@ -208,14 +206,14 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     exit(EXIT_FAILURE);
   }
 
-  printf("entering expectation calculator\n");fflush(stdout);
+  printf("Entering expectation calculator.\n");fflush(stdout);
 
   (*mat->set_fm_matrix_to_zero)(mat);
   
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
 
     if(fs->pressure_constraint_flag != 0){
-      printf("pressure constraints are not supported by newrem\n");
+      printf("Pressure constraints are not supported by newrem!\n");
       exit(EXIT_FAILURE);
     }
     
@@ -313,8 +311,8 @@ inline void copy_control_inputs_to_frds(ControlInputs * const control_input, Fra
     // The use_statistical_reweighting option acts on the CG frame source and is already copied
     // The reference_statistical_reweighting option acts on the reference frame source 
     fs_ref->use_statistical_reweighting = control_input->reference_statistical_reweighting;
-	fs_cg->use_statistical_reweighting  = control_input->use_statistical_reweighting;
-
-	// Bootstrapping is only for CG trajectory
+	
+	// Bootstrapping is only for CG trajectory (which is already copied)
+	// so set the ref bootstrapping flag to 0
 	fs_ref->bootstrapping_flag = 0;
 }
