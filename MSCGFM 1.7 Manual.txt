@@ -317,8 +317,13 @@ constrain_pressure_flag (0)
     * 1: yes
 use_statistical_reweighting (0) 
     Whether or not to use frame weights to reweight the frames
+    Note: For relative entropy drivers (newrem), this is for reweighting the CG trajectory
     * 0: no
     * 1: yes.
+reference_statistical_reweighting (0)
+	(Relative Entropy only) Whether or not to use frame weights to reweight the reference frames.
+	* 0: no
+	* 1: yes.
 dynamic_types(0) 
     (LAMMPS only) Whether or not types should be read from the trajectory 
     * 0: use top.in info for the ordering of types in the trajectory

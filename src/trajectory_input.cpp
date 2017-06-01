@@ -899,6 +899,7 @@ void read_frame_weights(FrameSource* const frame_source, const int start_frame, 
 // 1) the virial constraint for all frames in file 'p_con.in'.
 // The pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
 // 2) the framewise relative entropy observable method in file 'observable.in'. 
+// 3) frame weights for statistical reweighting through 'frame_weights.in', 'frame_weights.ref', and 'frame_weights.cg'
 
 void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &values)
 {
