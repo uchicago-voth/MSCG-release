@@ -165,14 +165,11 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 	    	}
         }
 	}
-
-        
+      
     // Write three body nonbonded interaction data.
 	write_three_body_interaction_data(&cg->three_body_nonbonded_computer, mat, cg->name);
 	
-	// Free data after output.
-    if (mat->matrix_type == kDense || mat->matrix_type == kSparseNormal || mat->matrix_type == kREM ) delete [] mat->dense_fm_normal_rhs_vector;
-    printf("Done with output.\n"); fflush(stdout);
+	printf("Done with output.\n"); fflush(stdout);
 
     for (int i = 0; i < cg->n_cg_types; i++) delete [] cg->name[i];
     delete [] cg->name;

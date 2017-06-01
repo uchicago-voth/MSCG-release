@@ -371,6 +371,7 @@ struct MATRIX_DATA {
     	if (matrix_type == kDense) {
 			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 			delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
 		} else if (matrix_type == kSparse) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] block_fm_solution;
@@ -382,6 +383,7 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kSparseNormal) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
 			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kSparseSparse) {
 			delete [] ll_sparse_matrix_row_heads;
@@ -392,6 +394,8 @@ struct MATRIX_DATA {
 			delete [] dense_fm_normal_rhs_vector;
 		} else if (matrix_type == kREM) {
 	    	delete dense_fm_matrix;
+	    	delete dense_fm_normal_matrix;
+			//delete [] dense_fm_normal_rhs_vector;
 	 	}
 	 	if  (output_raw_frame_blocks == 1) {
  			fclose(frame_block_fh);
