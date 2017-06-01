@@ -122,11 +122,9 @@ int main(int argc, char* argv[])
     
 	if (fs_cg.use_statistical_reweighting == 1) {
         set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
-        mat_cg.use_statistical_reweighting = 0;  
 	}
     if (fs_ref.use_statistical_reweighting == 1) {
         set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
-        mat_cg.use_statistical_reweighting = 0;  
 	}
 
     if (fs_cg.bootstrapping_flag == 1) {
@@ -315,6 +313,7 @@ inline void copy_control_inputs_to_frds(ControlInputs * const control_input, Fra
     // The use_statistical_reweighting option acts on the CG frame source and is already copied
     // The reference_statistical_reweighting option acts on the reference frame source 
     fs_ref->use_statistical_reweighting = control_input->reference_statistical_reweighting;
+	fs_cg->use_statistical_reweighting  = control_input->use_statistical_reweighting;
 
 	// Bootstrapping is only for CG trajectory
 	fs_ref->bootstrapping_flag = 0;
