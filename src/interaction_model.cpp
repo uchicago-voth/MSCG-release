@@ -968,7 +968,7 @@ void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_amo
     double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;
 
     // Size the output vectors of positions and forces conservatively.
-    unsigned num_entries = int((max - min)/binwidth) + 1;
+    unsigned num_entries = int((max - min)/binwidth) + 2;
     if (num_entries <= 0) { 
     	num_entries = 1;
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
@@ -992,8 +992,11 @@ void InteractionClassComputer::calc_grid_of_table_force_vals(const int index_amo
         counter++;
     }
     // Set the correct size for the output vectors of positions and forces.
-    axis_vals.resize(counter);
-    force_vals.resize(counter);
+    if (counter > num_entries) printf("Grid evaluation vector was undersized\n"); 
+    else {
+    	axis_vals.resize(counter);
+    	force_vals.resize(counter);
+    }
 }
 
 void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals) 
@@ -1004,7 +1007,7 @@ void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double>
     double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;
     
     // Size the output vectors of positions and forces conservatively.
-    unsigned num_entries = int((max - min)/binwidth) + 1;
+    unsigned num_entries = int((max - min)/binwidth) + 2;
     if (num_entries <= 0) { 
     	num_entries = 1;
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
@@ -1025,8 +1028,11 @@ void InteractionClassComputer::calc_grid_of_force_vals(const std::vector<double>
         counter++;
     }
     // Set the correct size for the output vectors of positions and forces.
-    axis_vals.resize(counter);
-    force_vals.resize(counter);
+    if (counter > num_entries) printf("Grid evaluation vector was undersized\n"); 
+    else {
+    	axis_vals.resize(counter);
+    	force_vals.resize(counter);
+	}
 }
 
 void InteractionClassComputer::calc_one_force_val(const std::vector<double> &spline_coeffs, const int index_among_defined, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &pot_vals) 
@@ -1052,7 +1058,7 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     double min = max - ((int)((max - ispec->lower_cutoffs[index_among_defined]) / binwidth)) * binwidth;
     
     // Size the output vectors of positions and forces conservatively.
-    unsigned num_entries = int((max - min)/binwidth) + 1;
+    unsigned num_entries = int((max - min)/binwidth) + 2;
     if (num_entries <= 0) { 
     	num_entries = 1;
     	fprintf(stderr, "No output will be generated for this interaction since the rounded lower cutoff is greater than or equal to the upper cutoff!\n");
@@ -1065,14 +1071,17 @@ void InteractionClassComputer::calc_grid_of_force_and_deriv_vals(const std::vect
     unsigned counter = 0;
     for (double axis = min; axis <= max+VERYSMALL_F; axis += binwidth) {
     	axis_vals[counter] = axis;
-        force_vals[counter] = s_comp_ptr->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
+   		force_vals[counter] = s_comp_ptr->evaluate_spline(index_among_defined, interaction_class_column_index, spline_coeffs, axis);
         deriv_vals[counter] = s_comp_ptr->evaluate_spline_deriv(index_among_defined, interaction_class_column_index, spline_coeffs, axis);   
     	counter++;
     }
     
     // Set the correct size for the output vectors of positions and forces.
-    axis_vals.resize(counter);
-    force_vals.resize(counter);
+    if (counter > num_entries) printf("Grid evaluation vector was undersized\n"); 
+    else {
+    	axis_vals.resize(counter);
+    	force_vals.resize(counter);
+    }
 }
 
 void screen_interaction_basis(CG_MODEL_DATA* const cg) 
