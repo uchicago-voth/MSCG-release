@@ -452,7 +452,7 @@ inline void set_normalization(MATRIX_DATA* mat, const double new_normalization_c
     mat->normalization = new_normalization_constant;
 }
 void set_bootstrapping_normalization(MATRIX_DATA* mat, double** const bootstrapping_weights, int const n_frames);
-void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input);
+void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input, const int rows, const int cols);
 
 // Target (RHS) vector calculation routines
 void add_target_virials_from_trajectory(MATRIX_DATA* const mat, double *pressure_constraint_rhs_vector);
