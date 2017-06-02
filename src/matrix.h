@@ -92,7 +92,7 @@ struct csr_matrix {
     	row_sizes = copy_row_sizes; 
     }
 
-	inline void write_file(FILE* fh) {
+	inline void write_file(FILE* fh) const {
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, max_entries);
 		for (int i = 0; i < row_sizes[n_rows]; i++) {
 			fprintf(fh, "%lf ", values[i]);
@@ -108,7 +108,7 @@ struct csr_matrix {
 		fprintf(fh, "\n");
 	}
 	
-	inline void print_matrix(FILE* fh) {
+	inline void print_matrix(FILE* fh) const {
 /*	
 		fprintf(fh, "Printing Matrix:\n");
 		for (int i = 0; i < n_rows; i++) {
@@ -152,7 +152,7 @@ struct dense_matrix {
     	n_rows(new_n_rows), n_cols(new_n_cols), values(copy_values) {
     }
 
-	inline void print_matrix(FILE* fh) {
+	inline void print_matrix(FILE* fh) const {
 		fprintf(fh, "Rows: %d\nColumns: %d\n", n_rows,  n_cols);
 		for (int i = 0; i < n_rows; i++) {
 			fprintf(fh, "Row %d: ", i);
@@ -163,7 +163,7 @@ struct dense_matrix {
 		}
 	}
 	
-	inline void print_matrix_csr(FILE* fh) {
+	inline void print_matrix_csr(FILE* fh) const {
 		
 		//Allocate this CSR
 		int nnz = get_nnz();
@@ -199,7 +199,7 @@ struct dense_matrix {
 		fprintf(fh,"\n");
 	}
 	
-	inline int get_nnz() {
+	inline int get_nnz() const {
 		int nnz = 0;
 		for (int i = 0; i < n_rows; i++) {
 			for (int j = 0; j < n_cols; j++) {
@@ -236,7 +236,7 @@ struct dense_matrix {
 		values[ col * n_rows + row] = x;
 	}
 	
-	inline double get_scalar(const int row, const int col) {
+	inline double get_scalar(const int row, const int col) const {
 		return values[ col * n_rows + row];
 	}
 	

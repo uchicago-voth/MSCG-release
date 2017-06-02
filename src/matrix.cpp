@@ -2091,10 +2091,10 @@ void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
   double frame_weight = mat->get_frame_weight() * mat->normalization; 
   for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the value to the first row of normal matrix
-      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
+      mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->values[i] * frame_weight);
       // Add the squared value to the second row of normal matrix
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
-      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
+      mat->dense_fm_normal_matrix->add_scalar(1, i, mat->dense_fm_matrix->values[i] * frame_weight);
   }
 }
 
@@ -2105,26 +2105,26 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
   
   for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
-      mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
+      mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->values[i] * frame_weight);
 
 	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
 		boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
 		if(boot_weight == 0.0) continue;
 		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->values[i*2] += mat->dense_fm_matrix->values[i] * boot_weight;
+		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->values[i] * boot_weight);
 	 }
   }
   
   for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
-      mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
+      mat->dense_fm_normal_matrix->add_scalar(1, 2, mat->dense_fm_matrix->values[i] * frame_weight);
 
 	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
 	    boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
 		if(boot_weight == 0.0) continue;
 		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * boot_weight;
+		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->values[i] * boot_weight);
 	  }
   }
 }
@@ -3731,8 +3731,8 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
   
   for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
     {
-      ref_previous_solution[j] += (ref_normal_matrix->values[j * 2] - cg_normal_matrix->values[j * 2]) * beta;
-      ref_new_solution[j] += (cg_normal_matrix->values[(j*2) + 1] - cg_normal_matrix->values[j * 2] * cg_normal_matrix->values[j * 2]) * beta * beta;
+      ref_previous_solution[j] += (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
+      ref_new_solution[j] += (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
     }
 
 
