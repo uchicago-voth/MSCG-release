@@ -70,7 +70,7 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
 void insert_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
-void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* const mat);
+void insert_rem_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 inline void insert_BI_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 
 void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
@@ -775,7 +775,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 	// Allocate the basic relative entropy matrix parts
     mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
     mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-	mat->dense_fm_matrix = new dense_matrix(1, mat->fm_matrix_columns);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns);
     mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
     printf("Initialized a relative entropy matrix.\n");
 }
@@ -1172,12 +1172,12 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
 
 void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
-
+   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+   int n_cg_sites = mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-     insert_rem_matrix_element(ref_column + k, basis_fn_vals[k], mat);    
+     insert_rem_matrix_element(frame_row, ref_column + k, basis_fn_vals[k], mat);    
    }
-  
 }
 
 void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
@@ -1414,9 +1414,9 @@ inline void insert_accumulation_matrix_element(const int i, const int j, double*
     mat->dense_fm_matrix->add_vector(mat->size_per_vector * i + mat->accumulation_row_shift, j, x);
 }
 
-inline void insert_rem_matrix_element(const int i, double const x, MATRIX_DATA* const mat)
+inline void insert_rem_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
 {
-  mat->dense_fm_matrix->add_scalar(0,i,x);
+  mat->dense_fm_matrix->add_scalar(i,j,x);
 }  
 
 inline void insert_BI_matrix_element(const int i, const int j,double const x, MATRIX_DATA* const mat)
@@ -2088,12 +2088,14 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
 {
   double frame_weight = mat->get_frame_weight() * mat->normalization; 
-  for (int i = 0; i < mat->fm_matrix_columns; i++) {
-  	  // Add the value to the first row of normal matrix
-      mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->values[i] * frame_weight);
-      // Add the squared value to the second row of normal matrix
-      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
-      mat->dense_fm_normal_matrix->add_scalar(1, i, mat->dense_fm_matrix->values[i] * frame_weight);
+  for (int frame = 0; frame < mat->frames_per_traj_block; frame++) {
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the value to the first row of normal matrix
+		  mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+		  // Add the squared value to the second row of normal matrix
+		  mat->dense_fm_matrix->assign_scalar(frame, i, mat->dense_fm_matrix->get_scalar(frame, i) *  mat->dense_fm_matrix->get_scalar(frame, i));
+		  mat->dense_fm_normal_matrix->add_scalar(1, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+	  }
   }
 }
 
@@ -2101,29 +2103,30 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
 {
   double frame_weight = mat->get_frame_weight() * mat->normalization; 
   double boot_weight;
-  
-  for (int i = 0; i < mat->fm_matrix_columns; i++) {
-  	  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
-      mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->values[i] * frame_weight);
+  for (int frame = 0; frame < mat->frames_per_traj_block; frame++) {
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
+		  mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
 
-	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
-		boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
-		if(boot_weight == 0.0) continue;
-		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(0,i) * boot_weight);
-	 }
-  }
+		  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+			boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+			if(boot_weight == 0.0) continue;
+			boot_weight *= mat->bootstrapping_normalization[j];
+			mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame,i) * boot_weight);
+		 }
+	  }
   
-  for (int i = 0; i < mat->fm_matrix_columns; i++) {
-  	  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
-      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->get_scalar(0,i);
-      mat->dense_fm_normal_matrix->add_scalar(1, 2, mat->dense_fm_matrix->values[i] * frame_weight);
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
+		  mat->dense_fm_matrix->assign_scalar(frame, i, mat->dense_fm_matrix->get_scalar(frame, i) *  mat->dense_fm_matrix->get_scalar(frame, i));
+		  mat->dense_fm_normal_matrix->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
 
-	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
-	    boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
-		if(boot_weight == 0.0) continue;
-		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(0,i) * boot_weight);
+		  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+			boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+			if(boot_weight == 0.0) continue;
+			boot_weight *= mat->bootstrapping_normalization[j];
+			mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(frame,i) * boot_weight);
+		  }
 	  }
   }
 }
