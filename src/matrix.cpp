@@ -4189,6 +4189,34 @@ void read_regularization_vector(MATRIX_DATA* const mat)
     lambda_in.close();
 }
 
+void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
+{
+  FILE* spline_input_file = open_file("b-spline-previous.out","r");
+
+  std::string type_name;
+  char stringjunk[100];
+  int counter = 0;
+
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+        // If that interaction is being matched,
+        if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
+	      int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
+          int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	      fgets(stringjunk, 100, spline_input_file); // skip header line
+	      for (int k = 0; k < n_basis_funcs; k++) {  // read associated coefficients
+		    fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
+		    counter ++;
+	      }
+	      fscanf(spline_input_file, "\n");
+        }
+	}
+  }
+  fclose(spline_input_file);
+}
+
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp)
 {
 	int size = fm_solution.size();

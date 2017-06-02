@@ -20,7 +20,6 @@
 #include "fm_output.h"
 #include "misc.h"
 
-void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
 
@@ -61,7 +60,7 @@ int main(int argc, char* argv[])
     printf("Reading topology file.\n");
     read_topology_file(&cg.topo_data, &cg);
 
-    // Read the range files rmin.in and rmax.in to determine the
+    // Read the range files rmin.in to determine the
     // ranges over which the FM basis functions should be defined.
     // These ranges are also used to record which interactions
     // should be fit, which should be tabulated, and which are not 
@@ -211,13 +210,13 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   printf("Entering expectation calculator.\n");fflush(stdout);
 
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
-    
+ 
+ 	// reset the matrix to 0.
+	(*mat->set_fm_matrix_to_zero)(mat);
+   
     //for each frame in this block
     for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++) {
-	  
-	  // reset the matrix to 0.
-	  (*mat->set_fm_matrix_to_zero)(mat);
-	  
+	  	  
       // check that the last frame read was successful
       if (read_stat == 0){
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
@@ -270,32 +269,4 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 
   printf("Finishing frame parsing.\n");
   fs->cleanup(fs);
-}
-
-void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
-{
-  FILE* spline_input_file = open_file("b-spline-previous.out","r");
-
-  std::string type_name;
-  char stringjunk[100];
-  int counter = 0;
-
-  std::list<InteractionClassComputer*>::iterator icomp_iterator;
-  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
-    // For every defined interaction,
-    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-        // If that interaction is being matched,
-        if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
-	      int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
-          int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
-	      fgets(stringjunk, 100, spline_input_file); // skip header line
-	      for (int k = 0; k < n_basis_funcs; k++) {  // read associated coefficients
-		    fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
-		    counter ++;
-	      }
-	      fscanf(spline_input_file, "\n");
-        }
-	}
-  }
-  fclose(spline_input_file);
 }

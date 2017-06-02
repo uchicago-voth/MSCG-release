@@ -474,6 +474,9 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
 // Read serialized, partially-completed post-frameblock matrix calculation intermediates
 void read_binary_matrix(MATRIX_DATA* const mat);
 
+// Read text file of previous iteration b-spline coefficients for relative entropy.
+void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
+
 // "Finish FM" for REM
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);

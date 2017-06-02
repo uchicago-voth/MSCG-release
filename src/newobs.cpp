@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
     printf("Reading topology file.\n");
     read_topology_file(&cg.topo_data, &cg);
 
-    // Read the range files rmin.in and rmax.in to determine the
+    // Read the range files rmin.in to determine the
     // ranges over which the FM basis functions should be defined.
     // These ranges are also used to record which interactions
     // should be fit, which should be tabulated, and which are not 
@@ -73,7 +73,14 @@ int main(int argc, char* argv[])
     	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames, "in"); 
     }
 
-    //bootstraping??? Read in of weights would happen here.
+    // Generate bootstrapping weights if the
+    // 'bootstrapping_flag' is set in control.in.
+    
+	if (fs_cg.bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
+    	printf("Generating bootstrapping frame weights.\n");
+    	fflush(stdout);
+    	generate_bootstrapping_weights(&fs_cg, control_input.n_frames);
+    }
 
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
@@ -99,20 +106,31 @@ int main(int argc, char* argv[])
         set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
 	}
 
-	//Bootstraping weights would be set here
+    if (fs_cg.bootstrapping_flag == 1) {
+    	// Allocate for bootstrapping only for cg and only if appropriate
+  		allocate_bootstrapping(&mat_cg, &control_input, 2, mat_cg.fm_matrix_columns);
+
+    	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
+    	// net frame weights and normalizations.
+    	if(fs_cg.use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(&fs_cg);
+    	}
+    	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
+    }
     
     printf("Constructing RE observable equations.\n");
-    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
+    construct_full_fm_matrix(&cg, &mat_cg, &fs_cg);
         
     //Find the solution to the entropy observable equations set up in
     //previous steps. 
     printf("Finishing RE Observable matching.\n");
-    mat_cg.finish_fm(&mat_cg);
+    mat_cg.finish_fm(&mat_cg); /* Does this take into account bootstrapping? */
+    						   /* Does the eventual function pointer do the right REM observable stuff */
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n");
-    write_fm_interaction_output_files(&cg,&mat_cg);
+    write_fm_interaction_output_files(&cg, &mat_cg);
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
@@ -150,26 +168,28 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   PairCellList pair_cell_list = PairCellList();
   ThreeBCellList three_body_cell_list = ThreeBCellList();
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
+  
   if( cg->three_body_nonbonded_interactions.class_subtype > 0){
     printf("three body non-bonded interactions are not yet supported by newrem\n");
     exit(EXIT_FAILURE);
   }
+  
+  if (fs->pressure_constraint_flag != 0){
+      printf("Pressure constraints are not supported by newobs!\n");
+      exit(EXIT_FAILURE);
+  }
 
   printf("entering expectation calculator\n");fflush(stdout);
 
-  (*mat->set_fm_matrix_to_zero)(mat);
-  
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
 
-    if(fs->pressure_constraint_flag != 0){
-      printf("pressure constraints are not supported by newrem\n");
-      exit(EXIT_FAILURE);
-    }
+	// reset the matrix to 0.
+	(*mat->set_fm_matrix_to_zero)(mat);
     
     //for each frame in this block
-    for(int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++){
+    for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++){
 
-      //chck that the last frame read was successful
+      // check that the last frame read was successful
       if (read_stat == 0){
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
@@ -184,7 +204,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  }
 
 	  //Skip processing frame if frame weight is 0.
-      if (fs->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
+      if (fs->use_statistical_reweighting == 1 && mat->current_frame_weight == 0.0) {
       } else {
         FrameConfig* frame_config = fs->getFrameConfig();
         calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
