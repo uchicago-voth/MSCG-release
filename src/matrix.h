@@ -283,7 +283,7 @@ struct MATRIX_DATA {
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
 	// REM variables
-	std::vector<double> previous_rem_solution;        // Previous splie coeffs to be used in REM iteration
+	std::vector<double> previous_rem_solution;        // Previous spline coeffs to be used in REM iteration
     double temperature;
     double rem_chi;
     double boltzmann;

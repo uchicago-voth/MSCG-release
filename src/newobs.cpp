@@ -88,6 +88,10 @@ int main(int argc, char* argv[])
     printf("Beginning to read frames.\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
     
+    // Read in reference and CG observable values (1 value per frame).
+    read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
+    read_frame_values("observables.cg", control_input.starting_frame, control_input.n_frames, fs_cg.cg_observables);
+    
 	//  dynamic state sampling for REM systems
 	if (fs_cg.dynamic_state_sampling == 1) {
 		fs_cg.sampleTypesFromProbs();
@@ -95,7 +99,7 @@ int main(int argc, char* argv[])
 
     // Assign a host of function pointers in 'cg' new definitions
     // based on matrix implementation, basis set type, etc.
-    set_up_force_computers(&cg); /* CHECK */
+    set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
     printf("setting up RE observable matrix\n");
@@ -131,6 +135,10 @@ int main(int argc, char* argv[])
     // coefficients found in the solution step.
     printf("Writing final output.\n");
     write_fm_interaction_output_files(&cg, &mat_cg);
+    
+    // Clean-up special data
+    delete [] fs_cg.ref_observables;
+    delete [] fs_cg.cg_observables;
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();

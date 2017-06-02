@@ -134,7 +134,9 @@ struct FrameSource {
     double* frame_weights;                          // A list of weights for statistical reweighting, one per trajectory frame
     double total_frame_weights;                     // The sum of the frame weights.
     double* pressure_constraint_rhs_vector;         // pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
-	double* frame_observables;						// A list of frame-wise observables for relative entropy, one per trajectory frame
+	double* cg_observables;							// A list of frame-wise observables for relative entropy, one per trajectory frame for CG observable
+	double* ref_observables;						// A list of frame-wise observables for relative entropy, one per trajectory frame for reference observable
+	
 	// Generate data for all frame at once, it at all.
 	double** bootstrapping_weights;
 	
