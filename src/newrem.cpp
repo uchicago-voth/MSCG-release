@@ -136,11 +136,23 @@ int main(int argc, char* argv[])
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
 
+	// Process CG data
     printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    printf("Reading reference frames.\n");
-    construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
+    // Process FG data
+    // The manner of constructing the reference matrix depends on REM_reference_style.
+	if (control_input.REM_reference_style == 0) {
+    	printf("Reading reference frames.\n");
+    	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
+	} else if (control_input.REM_reference_style == 1) {
+		printf("Reading reference matrix from file.\n");
+    	construct_rem_matrix_from_input_matrix(&mat_ref);
+    } else {
+   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
+   		fflush(stdout);
+   		exit(EXIT_FAILURE);
+    }
     
     //Read in spline coefficents used in the previous iteration.
     printf("Reading in previous iteration's solution.\n");

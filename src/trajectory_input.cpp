@@ -100,12 +100,14 @@ inline void check_file_extension(const char* name, const char* suffix);
 void read_initial_trr_frame(FrameSource* const frame_source, const int n_cg_sites, int* cg_site_types, int* mol_ids);
 void read_initial_xtc_frame(FrameSource* const frame_source, const int n_cg_sites,  int* cg_site_types, int* mol_ids);
 void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_sites, int* cg_site_types, int* mol_ids);
+void initial_nothing(FrameSource* const frame_source, const int n_cg_sites, int* cg_site_types, int* mol_ids);
 
 // Read a frame of a trajectory after the first has been read.
 int read_next_trr_frame(FrameSource* const frame_source);
 int read_next_xtc_frame(FrameSource* const frame_source);
 int read_next_lammps_frame(FrameSource* const frame_source);
 int read_junk_lammps_frame(FrameSource* const frame_source);
+int next_nothing(FrameSource* const frame_source);
 
 // Read all frames up until a starting frame.
 void default_move_to_starting_frame(FrameSource* const frame_source);
@@ -333,6 +335,16 @@ void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource
 	// Bootstrapping is only for CG trajectory (which is already copied)
 	// so set the ref bootstrapping flag to 0
 	fs_ref->bootstrapping_flag = 0;
+	
+	// Handle non-trajectory reference input.
+	if (control_input->REM_reference_style == 1) {
+		fs_ref;
+		fs_ref->trajectory_type = kRef;
+		fs_ref->get_first_frame = initial_nothing;
+		fs_ref->get_next_frame = next_nothing;
+		fs_ref->get_junk_frame = next_nothing;
+		fs_ref->cleanup = finish_general_reading;
+	}
 }
 
 inline void finish_general_reading(FrameSource *const frame_source)
@@ -379,7 +391,6 @@ void finish_lammps_reading(FrameSource *const frame_source)
 	
 	finish_general_reading(frame_source);
 }
-
 
 //-------------------------------------------------------------
 // Frame-by-frame trajectory reading functions
@@ -560,6 +571,10 @@ void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_s
     return;
 }
 
+void initial_nothing(FrameSource* const frame_source, const int n_cg_sites, int* cg_site_types, int* mol_ids)
+{
+}
+
 // Read a frame of a .trr-format trajectory after the first has been read.
 
 int read_next_trr_frame(FrameSource* const frame_source)
@@ -659,6 +674,11 @@ int read_junk_lammps_frame(FrameSource* const frame_source)
 
  	// Return 1 if successful, 0 otherwise.
  	return return_value;
+}
+
+int next_nothing(FrameSource* const frame_source)
+{
+	return 1;
 }
 
 void default_move_to_starting_frame(FrameSource* const frame_source) {

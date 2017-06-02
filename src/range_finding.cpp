@@ -52,7 +52,6 @@ void read_density_parameter_file(DensityClassSpec* const ispec);
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* const topo_data);
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
-double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns);
 double calculate_volume(const matrix simulation_box_lengths);
 
 // Output parameter distribution functions
@@ -942,27 +941,6 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   delete [] derivatives;
   fclose(curr_dist_input_file);
   fclose(rdf_file);
-}
-
-double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
-{
-  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
-  FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
-
-  int i, counts;
-  int count_summ = 0;
-  double r;
-  char buffer[100];
-  fgets(buffer,100,curr_dist_input_file);
-  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
-  for(i = 0; i< num_entries; i++)
-    {
-      fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
-      count_summ += counts;
-    }
-  int num_bonds = (double)( count_summ * mat->normalization );
-
-  return num_bonds;
 }
 
 void free_name(CG_MODEL_DATA* const cg)

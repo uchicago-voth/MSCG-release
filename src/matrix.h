@@ -110,9 +110,7 @@ struct csr_matrix {
 	
 	inline void print_matrix(FILE* fh) const {
 /*	
-		fprintf(fh, "Printing Matrix:\n");
 		for (int i = 0; i < n_rows; i++) {
-			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
 				fprintf(fh, "%lf\t", values[j*n_rows + i]);
 			}
@@ -153,9 +151,7 @@ struct dense_matrix {
     }
 
 	inline void print_matrix(FILE* fh) const {
-		fprintf(fh, "Rows: %d\nColumns: %d\n", n_rows,  n_cols);
 		for (int i = 0; i < n_rows; i++) {
-			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
 				fprintf(fh, "%lf\t", values[j*n_rows + i]);
 			}
@@ -163,6 +159,18 @@ struct dense_matrix {
 		}
 	}
 	
+	inline void read_dense_matrix(std::string filename) {
+		std::ifstream mat_in;
+		check_and_open_in_stream(mat_in, filename.c_str());
+		for (int i = 0; i < n_rows; i++) {
+			for (int j = 0; j < n_cols; j++) {
+				mat_in >> values[j*n_rows + i];
+			}
+		}
+		mat_in.close();
+	}
+	
+
 	inline void print_matrix_csr(FILE* fh) const {
 		
 		//Allocate this CSR
@@ -226,7 +234,6 @@ struct dense_matrix {
     		values[ col * n_rows + row + i] = x[i];
     	}
     }
-
 
 	inline void add_scalar(const int row, const int col, const double x) {
 		values[ col * n_rows + row] += x;
@@ -473,6 +480,9 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
 
 // Read serialized, partially-completed post-frameblock matrix calculation intermediates
 void read_binary_matrix(MATRIX_DATA* const mat);
+
+// Methods of constructing reference data for relative entropy.
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat);
 
 // Read text file of previous iteration b-spline coefficients for relative entropy.
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);

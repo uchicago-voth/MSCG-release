@@ -33,7 +33,7 @@ struct XRDData;
 
 typedef real matrix[3][3];
 
-enum TrajectoryType {kGromacsTRR = 0, kGromacsXTC = 1, kLAMMPSDump = 2};
+enum TrajectoryType {kGromacsTRR = 0, kGromacsXTC = 1, kLAMMPSDump = 2, kRef = -1};
 
 typedef void (*dimension_neighbor_action)(const std::vector<int> &cell_number, std::vector<int> &indices, std::vector<int> &stencil, const std::vector<int> &hash_offset);
 typedef int (*add_stencil_element)(const std::vector<int> &cell_number, const std::vector<int> &cell_indices, std::vector<int> &shift_indices, std::vector<int> &stencil, const std::vector<int> &hash_offset, int stencil_counter);

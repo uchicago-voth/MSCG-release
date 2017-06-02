@@ -155,6 +155,10 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat);
 void read_regularization_vector(MATRIX_DATA* const mat);
+
+// Output functions.
+
+void write_reference_matrix(dense_matrix* const mat_ref);
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp);
 
 //--------------------------------------------------------------------
@@ -3697,6 +3701,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   update_these_rem_parameters(beta, mat_cg->rem_chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
 }
 
@@ -3705,6 +3710,7 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->rem_chi;
   std::vector<double> back_previous_rem_solution(mat_ref->fm_matrix_columns);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   // copy previous_rem_solution to bootstrapping copies
   for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
     back_previous_rem_solution[l] = mat_ref->previous_rem_solution[l];
@@ -4192,6 +4198,11 @@ void read_regularization_vector(MATRIX_DATA* const mat)
     lambda_in.close();
 }
 
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat)
+{
+	mat->dense_fm_normal_matrix->read_dense_matrix("reference_matrix.out");
+}
+
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 {
   FILE* spline_input_file = open_file("b-spline-previous.out","r");
@@ -4218,6 +4229,13 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	}
   }
   fclose(spline_input_file);
+}
+
+void write_reference_matrix(dense_matrix* const ref_normal_matrix)
+{
+	FILE* fh = fopen("reference_matrix.out", "w");
+	ref_normal_matrix->print_matrix(fh);
+	fclose(fh);
 }
 
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp)

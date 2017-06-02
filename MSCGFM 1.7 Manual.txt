@@ -611,9 +611,14 @@ boltzmann (0.0019872041)
     The default value assumes energy units of kcal/mol.
     The value needs to be adjusted so that the units match those of the interaction energy.
     Only used in newrem.
- REM_iteration_step_size (1.0)
+REM_iteration_step_size (1.0)
      This is the adjustable step size parameter used in the gradient decent routine in 
      newrem. 
+REM_reference_style (0)
+	What format information about the reference model is provided in.
+	* 0: trajectory (usual command line options, e.g. -l_ref ref.lammpstrj)
+	* 1: matrix from previous iteration (reference_matrix.out)
+
 ------------------------------------------------------------------------------------------
 
 III.C) Interaction Determination
