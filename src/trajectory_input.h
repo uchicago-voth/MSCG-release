@@ -153,6 +153,7 @@ void parse_entropy_command_line_arguments(const int num_arg, char** arg, FrameSo
 // Copy trajectory-reading specifications from ControlInputs to FRAME_DATA.
 void parse_command_line_set(const char* arg1, const char* arg2, FrameSource* const frame_source_cg, FrameSource* const frame_source_ref, int& checker_cg, int& checker_ref);
 void copy_control_inputs_to_frd(struct ControlInputs* const control_input, FrameSource* const frame_source);
+void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg);
 
 //-------------------------------------------------------------
 // Auxiliary-trajectory reading functions.

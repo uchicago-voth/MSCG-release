@@ -20,7 +20,6 @@
 #include "fm_output.h"
 #include "misc.h"
 
-inline void copy_control_inputs_to_frds(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg);
 void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
@@ -53,7 +52,7 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
-	copy_control_inputs_to_frds(&control_input, &fs_ref, &fs_cg);
+	copy_control_inputs_to_frd(&control_input, &fs_ref, &fs_cg);
     
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 
@@ -299,19 +298,4 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	}
   }
   fclose(spline_input_file);
-}
-
-inline void copy_control_inputs_to_frds(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg)
-{
-	// Do basic calls for each frame source copy
-    copy_control_inputs_to_frd(control_input, fs_cg);
-    copy_control_inputs_to_frd(control_input, fs_ref);
-    
-    // The use_statistical_reweighting option acts on the CG frame source and is already copied
-    // The reference_statistical_reweighting option acts on the reference frame source 
-    fs_ref->use_statistical_reweighting = control_input->reference_statistical_reweighting;
-	
-	// Bootstrapping is only for CG trajectory (which is already copied)
-	// so set the ref bootstrapping flag to 0
-	fs_ref->bootstrapping_flag = 0;
 }

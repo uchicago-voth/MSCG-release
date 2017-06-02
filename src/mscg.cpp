@@ -140,9 +140,8 @@ void* rem_startup_part1(void* void_in)
     ControlInputs *p_control_input = mscg_struct->control_input;
     
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
-    copy_control_inputs_to_frd(p_control_input, p_frame_source);
-	copy_control_inputs_to_frd(p_control_input, p_ref_frame_source);
-    
+    copy_control_inputs_to_frd(p_control_input, p_ref_frame_source, p_frame_source);
+	 
     if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
     	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
 		exit(EXIT_FAILURE);
@@ -364,6 +363,7 @@ void* rem_startup_part2(void* void_in)
 
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
+    FrameSource *p_ref_frame_source = mscg_struct->ref_frame_source;
     ControlInputs *p_control_input = mscg_struct->control_input;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
 
@@ -380,31 +380,31 @@ void* rem_startup_part2(void* void_in)
     // 'use_statistical_reweighting' flag is set in control.in.
     // Note: This applies to "CG" trajectory (not reference trajectory)
     if (p_frame_source->use_statistical_reweighting == 1) {
-        printf("Reading per-frame statistical reweighting factors.\n");
+        printf("Reading per-frame statistical reweighting factors for CG trajectory.\n");
         fflush(stdout);
-        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "in"); 
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "cg"); 
     }
     
+    if (p_ref_frame_source->use_statistical_reweighting == 1) {
+    	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
+    	fflush(stdout);
+    	read_frame_weights(p_ref_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "ref"); 
+    }
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
-    if (p_frame_source->bootstrapping_flag == 1) {
-		printf("Bootstrapping is not currently supported for REM!\n");
-		p_frame_source->bootstrapping_flag = 0;
-		/*
+    
+	if (p_frame_source->bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
     	generate_bootstrapping_weights(p_frame_source, p_control_input->n_frames);
-    	*/
     }
     
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
     // read.
-	/*
     if (p_frame_source->bootstrapping_flag == 1) {
 		p_frame_source->mt_rand_gen = std::mt19937(p_frame_source->random_num_seed);
 	}
-	*/
 	
 	if (p_frame_source->dynamic_state_sampling == 1) p_frame_source->sampleTypesFromProbs();
 	
@@ -417,13 +417,17 @@ void* rem_startup_part2(void* void_in)
     p_control_input->matrix_type = kREM;
     mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
     mscg_struct->ref_mat = new MATRIX_DATA(p_control_input, p_cg);
-    
+
+    // Initialize the force-matching matrix.
+          
     if (p_frame_source->use_statistical_reweighting == 1) {
         set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
     }
 
-    // Initialize the force-matching matrix.
-    /*
+     if (p_ref_frame_source->use_statistical_reweighting == 1) {
+        set_normalization(mscg_struct->ref_mat, 1.0 / p_ref_frame_source->total_frame_weights);
+	}
+
     if (p_frame_source->bootstrapping_flag == 1) {
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
@@ -431,15 +435,12 @@ void* rem_startup_part2(void* void_in)
     		combine_reweighting_and_boostrapping_weights(p_frame_source);
     	}
     	set_bootstrapping_normalization(mscg_struct->mat, p_frame_source->bootstrapping_weights, p_frame_source->n_frames);
-    }
-    */
-    
+    }  
+ 
     // Set up the loop index limits for the inner and outer loops.
 	if (p_frame_source->dynamic_state_sampling == 1) {
 		total_frame_samples = p_frame_source->n_frames * p_frame_source->dynamic_state_samples_per_frame;
 	}
-
-//
 
 	if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
     	printf("Total number of frames samples %d is not divisible by block size %d.\n",total_frame_samples, mscg_struct->mat->frames_per_traj_block);
@@ -891,23 +892,27 @@ void* rem_solve_and_output(void* void_in)
     // singular values, residuals, raw matrix equations, etc. as
     // necessary.
     printf("Calculating new REM parameters\n");
-    calculate_new_rem_parameters(mscg_struct->mat, mscg_struct->ref_mat);
-
+    if (p_frame_source->bootstrapping_flag == 1) {
+		calculate_new_rem_parameters_and_bootstrap(mscg_struct->mat, mscg_struct->ref_mat);
+		free_bootstrapping_weights(p_frame_source);
+	} else {
+		calculate_new_rem_parameters(mscg_struct->mat, mscg_struct->ref_mat);
+	} 
+	
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n"); fflush(stdout);
     write_fm_interaction_output_files(p_cg, mat);
 	
-	/*
 	if (p_frame_source->bootstrapping_flag == 1) {
 		delete [] mat->bootstrap_solutions;
     	delete [] mat->bootstrapping_normalization;
     }
-	*/
 	
     delete mscg_struct->mat;
     delete mscg_struct->ref_mat;
-    delete mscg_struct->ref_frame_source; // Is this going to do all the necessary clean-up?
+    delete mscg_struct->frame_source;
+    delete mscg_struct->ref_frame_source;
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();

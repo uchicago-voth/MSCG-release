@@ -320,6 +320,21 @@ void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource*
     }
 }
 
+void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg)
+{
+	// Do basic calls for each frame source copy
+    copy_control_inputs_to_frd(control_input, fs_cg);
+    copy_control_inputs_to_frd(control_input, fs_ref);
+    
+    // The use_statistical_reweighting option acts on the CG frame source and is already copied
+    // The reference_statistical_reweighting option acts on the reference frame source 
+    fs_ref->use_statistical_reweighting = control_input->reference_statistical_reweighting;
+	
+	// Bootstrapping is only for CG trajectory (which is already copied)
+	// so set the ref bootstrapping flag to 0
+	fs_ref->bootstrapping_flag = 0;
+}
+
 inline void finish_general_reading(FrameSource *const frame_source)
 {
     delete frame_source->frame_config;
