@@ -98,9 +98,7 @@ int main(int argc, char* argv[])
     // extensions to specify how the trajectory files should be 
     // read.
     printf("Beginning to read frames.\n");
-    printf("Finding first CG frame ....\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-    printf("Finding first reference frame ...\n");
     fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 	
 	//  dynamic state sampling for REM systems
@@ -139,8 +137,7 @@ int main(int argc, char* argv[])
     	}
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
-      
-    
+
     printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
@@ -163,7 +160,7 @@ int main(int argc, char* argv[])
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n");
-    write_fm_interaction_output_files(&cg,&mat_cg);
+    write_fm_interaction_output_files(&cg, &mat_cg);
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
@@ -201,26 +198,28 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   PairCellList pair_cell_list = PairCellList();
   ThreeBCellList three_body_cell_list = ThreeBCellList();
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
+  
   if( cg->three_body_nonbonded_interactions.class_subtype > 0){
-    printf("three body non-bonded interactions are not yet supported by newrem\n");
+    printf("Three body non-bonded interactions are not yet supported by newrem!\n");
     exit(EXIT_FAILURE);
   }
 
-  printf("Entering expectation calculator.\n");fflush(stdout);
-
-  (*mat->set_fm_matrix_to_zero)(mat);
-  
-  for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
-
-    if(fs->pressure_constraint_flag != 0){
+  if (fs->pressure_constraint_flag != 0){
       printf("Pressure constraints are not supported by newrem!\n");
       exit(EXIT_FAILURE);
-    }
+  }
+  
+  printf("Entering expectation calculator.\n");fflush(stdout);
+
+  for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
     
     //for each frame in this block
     for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++) {
-
-      //chck that the last frame read was successful
+	  
+	  // reset the matrix to 0.
+	  (*mat->set_fm_matrix_to_zero)(mat);
+	  
+      // check that the last frame read was successful
       if (read_stat == 0){
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
@@ -290,13 +289,13 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
         if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	      int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
           int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
-	      fgets(stringjunk, 100, spline_input_file);
-	      for (int k = 0; k < n_basis_funcs; k++) {
+	      fgets(stringjunk, 100, spline_input_file); // skip header line
+	      for (int k = 0; k < n_basis_funcs; k++) {  // read associated coefficients
 		    fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
-		    counter += 1;
+		    counter ++;
 	      }
-	    fscanf(spline_input_file, "\n");
-      }
+	      fscanf(spline_input_file, "\n");
+        }
 	}
   }
   fclose(spline_input_file);

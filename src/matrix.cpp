@@ -2089,7 +2089,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
 {
   double frame_weight = mat->get_frame_weight() * mat->normalization; 
-  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the value to the first row of normal matrix
       mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
       // Add the squared value to the second row of normal matrix
@@ -2103,7 +2103,7 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
   double frame_weight = mat->get_frame_weight() * mat->normalization; 
   double boot_weight;
   
-  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
       mat->dense_fm_normal_matrix->values[i*2] += mat->dense_fm_matrix->values[i] * frame_weight;
 
@@ -2115,7 +2115,7 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
 	 }
   }
   
-  for(int i = 0;i < mat->fm_matrix_columns;i++) {
+  for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
       mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
       mat->dense_fm_normal_matrix->values[(i*2) + 1] += mat->dense_fm_matrix->values[i] * frame_weight;
@@ -3702,12 +3702,21 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->rem_chi;
+  std::vector<double> back_previous_rem_solution(mat_ref->fm_matrix_columns);
+  // copy previous_rem_solution to bootstrapping copies
+  for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    back_previous_rem_solution[l] = mat_ref->previous_rem_solution[l];
+  }
   
   // update for master
   update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
 
   // update for bootstrap copies
   for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
+  	// Restore original previous_rem_solution
+  	for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    	mat_ref->previous_rem_solution[l] = back_previous_rem_solution[l];
+  	}
     // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
     update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k]);
   }
@@ -3722,11 +3731,10 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
   
   for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
     {
-      ref_previous_solution[j] += ref_normal_matrix->values[j * 2] * beta;
-      ref_previous_solution[j] -= cg_normal_matrix->values[j * 2] * beta;
-      ref_new_solution[j] += cg_normal_matrix->values[(j*2) + 1] * beta * beta;
-      ref_new_solution[j] -= cg_normal_matrix->values[j * 2] * cg_normal_matrix->values[j * 2] * beta * beta;
+      ref_previous_solution[j] += (ref_normal_matrix->values[j * 2] - cg_normal_matrix->values[j * 2]) * beta;
+      ref_new_solution[j] += (cg_normal_matrix->values[(j*2) + 1] - cg_normal_matrix->values[j * 2] * cg_normal_matrix->values[j * 2]) * beta * beta;
     }
+
 
   for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
       if(ref_new_solution[k] == 0) {
