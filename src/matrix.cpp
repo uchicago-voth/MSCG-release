@@ -2111,20 +2111,20 @@ void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA*
 		boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
 		if(boot_weight == 0.0) continue;
 		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->values[i] * boot_weight);
+		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(0,i) * boot_weight);
 	 }
   }
   
   for (int i = 0; i < mat->fm_matrix_columns; i++) {
   	  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
-      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->values[i];
+      mat->dense_fm_matrix->values[i] *= mat->dense_fm_matrix->get_scalar(0,i);
       mat->dense_fm_normal_matrix->add_scalar(1, 2, mat->dense_fm_matrix->values[i] * frame_weight);
 
 	  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
 	    boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
 		if(boot_weight == 0.0) continue;
 		boot_weight *= mat->bootstrapping_normalization[j];
-		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->values[i] * boot_weight);
+		mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(0,i) * boot_weight);
 	  }
   }
 }
@@ -3243,7 +3243,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	// Assign the upper diagonal to the lower lower diagonal (symmetric matrix)
     for (i = 0; i < mat->fm_matrix_columns; i++) {
         for (j = 0; j < i; j++) {
-            mat->dense_fm_normal_matrix->assign_scalar(i, j, mat->dense_fm_normal_matrix->values[i * mat->fm_matrix_columns + j]);
+            mat->dense_fm_normal_matrix->assign_scalar(i, j, mat->dense_fm_normal_matrix->get_scalar(j, i));
         }
     }
 
@@ -3592,7 +3592,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 		// Copy over symmetric off-diagonal values in normal matrix;
 	    for (i = 0; i < mat->fm_matrix_columns; i++) {
 	        for (j = 0; j < i; j++) {
-    	        mat->bootstrapping_dense_fm_normal_matrices[k]->assign_scalar(i, j, mat->bootstrapping_dense_fm_normal_matrices[k]->values[i * mat->fm_matrix_columns + j]);
+    	        mat->bootstrapping_dense_fm_normal_matrices[k]->assign_scalar(i, j, mat->bootstrapping_dense_fm_normal_matrices[k]->get_scalar(j , i));
         	}
     	}
 
