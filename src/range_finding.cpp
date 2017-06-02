@@ -849,10 +849,16 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
   }
 }
 
+// Read this hist file to process into Boltzmann inverted potential.
+// At the same time, output an RDF file (r, g(r)).
+
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
-  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
+  std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".hist";
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
+  FILE* rdf_file = open_file(rdf_name.c_str(), "w");
+  fprintf(rdf_file, "# r gofr\n"); // header.
   
   int i, counts;
   int *junk;
@@ -866,31 +872,40 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
   for(i = 0; i < num_entries; i++)
     {
       int first_nonzero_basis_index;
+      double normalized_counts;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       if (counts > 0) {
-      	double normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
+      	normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) );
       	normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
       	potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       } else {
+      	normalized_counts = 0.0;
       	potential = 100.0;
       }
       if (potential > VERYLARGE || potential < - VERYLARGE) {
       	potential = VERYLARGE;
       }
       
+      fprintf(rdf_file, "%lf %lf\n", r, normalized_counts);
+
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
       counter++;
     }
   delete [] derivatives;
+  fclose(curr_dist_input_file);
+  fclose(rdf_file);
 }
 
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
 {
   std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
-
+  FILE* rdf_file = open_file(rdf_name.c_str(), "w");
+  fprintf(rdf_file, "# r gofr\n"); // header.
+  
   int i, counts;
   int *junk;
   double r;
@@ -903,23 +918,30 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   for(i = 0; i < num_entries; i++)
     {
 	  int first_nonzero_basis_index;
+	  double normalized_counts;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       if (counts > 0) {
-	      double normalized_counts = (double)(counts);
+	      normalized_counts = (double)(counts);
     	  normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
     	  potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       } else {
+      	normalized_counts = 0.0;
       	potential = 100.0;
       }
 	  if (potential > VERYLARGE || potential < - VERYLARGE) {
       	potential = VERYLARGE;
       }
+      
+      fprintf(rdf_file, "%lf %lf\n", r, normalized_counts);
+
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
       counter++;
     }
   delete [] derivatives;
+  fclose(curr_dist_input_file);
+  fclose(rdf_file);
 }
 
 double count_bonded_interaction(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns)
