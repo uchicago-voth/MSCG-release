@@ -1172,7 +1172,6 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
 
 void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
-  
     int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
 
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
@@ -3984,7 +3983,6 @@ void read_binary_matrix(MATRIX_DATA* const mat)
         exit(EXIT_FAILURE);
     }
 }
-
 
 // Read the results of a batch of dense-matrix-based FM
 // calculations and add them together as if they were the
