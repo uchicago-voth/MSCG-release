@@ -184,6 +184,19 @@ void check_file_extension(const char* name, const char* suffix)
     if (strcmp(&name[pos + 1], suffix) != 0) report_traj_input_suffix_error(suffix);
 }
 
+// helper function to calculate volume
+
+double calculate_volume(const matrix simulation_box_lengths)
+{
+  double volume = 1.0;
+  int i;
+  for(i = 0;i < DIMENSION; i++)
+    {
+      volume *= simulation_box_lengths[i][i];
+    }
+  return volume;
+}
+
 //-------------------------------------------------------------
 // Generic trajectory reading and control functions
 //-------------------------------------------------------------
@@ -337,8 +350,7 @@ void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource
 	fs_ref->bootstrapping_flag = 0;
 	
 	// Handle non-trajectory reference input.
-	if (control_input->REM_reference_style == 1) {
-		fs_ref;
+	if (control_input->REM_reference_style != 0) {
 		fs_ref->trajectory_type = kRef;
 		fs_ref->get_first_frame = initial_nothing;
 		fs_ref->get_next_frame = next_nothing;

@@ -180,6 +180,9 @@ void combine_reweighting_and_boostrapping_weights(FrameSource* const frame_sourc
 // Clean-up bootstrapping weights at end.
 void free_bootstrapping_weights(FrameSource* const frame_source);
 
+// Calculate volume from simulation_box_half_lengths
+double calculate_volume(const matrix simulation_box_lengths);
+
 //--------------------------------------------------------------------
 // Cell list routines for two- or three-body nonbonded interactions.
 //--------------------------------------------------------------------

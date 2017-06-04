@@ -372,7 +372,6 @@ void check_and_read_next_line(std::ifstream &in_stream, std::string &line, int &
 	line_num++;	
 }
 
-
 void swap_pair(int& a, int& b) 
 {
 	int tn = b;

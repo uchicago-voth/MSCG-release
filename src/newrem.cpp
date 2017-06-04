@@ -148,7 +148,10 @@ int main(int argc, char* argv[])
 	} else if (control_input.REM_reference_style == 1) {
 		printf("Reading reference matrix from file.\n");
     	construct_rem_matrix_from_input_matrix(&mat_ref);
-    } else {
+    } else if (control_input.REM_reference_style == 2) {
+    	printf("Reading reference distribution functions.\n");
+    	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
+	} else {
    		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
    		fflush(stdout);
    		exit(EXIT_FAILURE);

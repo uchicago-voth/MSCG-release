@@ -52,7 +52,6 @@ void read_density_parameter_file(DensityClassSpec* const ispec);
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* const topo_data);
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
-double calculate_volume(const matrix simulation_box_lengths);
 
 // Output parameter distribution functions
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
@@ -795,17 +794,6 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
     // restore icci
     (*icomp_iterator)->interaction_class_column_index = icci;
   }
-}
-
-double calculate_volume(const matrix simulation_box_lengths)
-{
-  double volume = 1.0;
-  int i;
-  for(i = 0;i < DIMENSION; i++)
-    {
-      volume *= simulation_box_lengths[i][i];
-    }
-  return volume;
 }
 
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data)

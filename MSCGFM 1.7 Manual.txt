@@ -618,6 +618,9 @@ REM_reference_style (0)
 	What format information about the reference model is provided in.
 	* 0: trajectory (usual command line options, e.g. -l_ref ref.lammpstrj)
 	* 1: matrix from previous iteration (reference_matrix.out)
+	* 2: distribution functions (i.e., RDFs for each interaction). 
+	Note: Distribution functions can be generated from rangefinder using the 
+	  output_*_parameter_distribution options.
 
 ------------------------------------------------------------------------------------------
 

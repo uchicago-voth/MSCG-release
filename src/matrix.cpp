@@ -155,6 +155,9 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat);
 void read_regularization_vector(MATRIX_DATA* const mat);
+void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data);
+void read_pair_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
+void read_other_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
 
 // Output functions.
 
@@ -4229,6 +4232,134 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 	}
   }
   fclose(spline_input_file);
+}
+
+void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, const double volume)
+{
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+
+    // Reference distributions for these interactions are not supported.
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
+
+    // Only for interactions that are to be determined...
+    if ( (*icomp_iterator)->ispec->n_to_force_match == 0) continue;
+      
+  	// Read and build matrix section for this interaction
+    read_rdf_file_and_build_rem_matrix(mat, (*icomp_iterator), volume, &cg->topo_data);
+  }
+}
+
+void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data)
+{ 
+  int counter = 0;
+  int* sitecounter;
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    sitecounter = new int[topo_data->n_cg_types]();
+    for(unsigned j = 0; j < topo_data->n_cg_sites; j++){
+      int type = topo_data->cg_site_types[j];
+      sitecounter[type-1]++;
+    }
+  }
+
+  icomp->fm_basis_fn_vals = std::vector<double>(icomp->fm_s_comp->get_n_coef());
+  for (int i = 0; i < icomp->ispec->n_defined; i++) {
+  	icomp->index_among_defined_intrxns = i;
+  	icomp->set_indices();
+  	
+  	if (icomp->index_among_matched_interactions == 0) continue;
+  	
+	if( icomp->ispec->class_type == kPairNonbonded ) {
+	  std::vector <int> type_vector = icomp->ispec->get_interaction_types(i);
+	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	  if( type_vector[0] == type_vector[1]){
+	    num_pairs -= sitecounter[type_vector[0]-1];
+	  }
+	  read_pair_distribution(icomp, topo_data->name, mat, i, counter,num_pairs, volume);
+	} else if ( icomp->ispec->class_type == kPairBonded ) {
+	  read_pair_distribution(icomp, topo_data->name, mat, i, counter, 2.0, 1.0);
+	} else if( icomp->ispec->class_type == kDensity ){
+	  DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
+	  read_other_distribution(icomp, dspec->density_group_names, mat, i, counter, 1.0);
+	} else if ( icomp->ispec->class_type == kRadiusofGyration || icomp->ispec->class_type == kHelical) {
+	  read_other_distribution(icomp, topo_data->molecule_group_names, mat, i, counter, 1.0);
+	} else {
+	  read_other_distribution(icomp, topo_data->name, mat, i, counter,1.0);
+	}
+  }  
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    delete [] sitecounter;
+  }
+}
+
+void read_pair_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
+{
+  const double PI = 3.1415926;
+  double r = 0;
+  double rdf_value, normalized_counts;  
+  int first_nonzero_basis_index = 0;
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+  std::ifstream rdf_file;
+  std::string line;
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
+  
+  check_and_open_in_stream(rdf_file, rdf_name.c_str());
+  
+  check_and_read_next_line(rdf_file, line); // read header line
+  
+  while ( r <= icomp->ispec->upper_cutoffs[index_among_defined_intrxns] ) {
+  	  // Read actual content
+      // Leave the loop only if we go beyond the upper cutoff or we reach the end of the file
+  	  if(!std::getline(rdf_file, line))  break;
+  	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
+      
+      if (rdf_value > 0.0) {
+  	  
+		  normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / 3.0;
+		  normalized_counts /= (2.0 * volume / num_of_pairs);
+
+		  // Get values for matrix elements
+		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
+		  	mat->dense_fm_normal_matrix->assign_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  }
+	  }
+  }
+  rdf_file.close();
+}
+
+void read_other_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
+{
+  double rdf_value, normalized_counts;
+  double r = 0;
+  int first_nonzero_basis_index = 0;
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+  std::ifstream rdf_file;
+  std::string line;
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
+  check_and_open_in_stream(rdf_file, rdf_name.c_str());
+  
+  check_and_read_next_line(rdf_file, line); // read header line
+ 
+  while (r <= icomp->ispec->upper_cutoffs[index_among_defined_intrxns]) {
+  	  // Read actual content
+      // Leave the loop only if we go beyond the upper cutoff or we reach the end of the file
+  	  if(!std::getline(rdf_file, line))  break;
+      sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
+      
+      if (rdf_value > 0.0) {
+	  
+		  // Convert from rdf_value to distribution value
+		  normalized_counts =  rdf_value * num_of_pairs * 0.5;
+	  
+		  // Get values for matrix elements
+		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
+		  	mat->dense_fm_normal_matrix->assign_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  }
+  	  }
+  }
+  rdf_file.close();
 }
 
 void write_reference_matrix(dense_matrix* const ref_normal_matrix)
