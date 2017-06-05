@@ -31,6 +31,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
 void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
 
@@ -321,14 +322,18 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     	matrix_type = kSparseSparse;
         initialize_sparse_sparse_normal_matrix(this, control_input, cg);
         break;
-	case kDummy:
+	case kDummy: // Used as a placeholder (e.g., rangefinder)
         matrix_type = kDummy;
         initialize_dummy_matrix(this, control_input, cg);
         break;
-    case kREM:
+    case kREM: // Used for relative entropy interaction determination (e.g., newrem)
         matrix_type = kREM;
         initialize_rem_matrix(this, control_input, cg);
         break;
+    case kObs: // Used for relative entropy framewise observables (e.g., newobs)
+    	matrix_type = kObs;
+    	initialize_frame_observable_matrix(this, control_input, cg);
+    	break;
     default:
         printf("Invalid matrix type.");
         exit(EXIT_FAILURE);
@@ -752,12 +757,14 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 	printf("Initialized a sparse-sparse normal FM matrix.\n");
 }
 
+// Initialize a matrix for relative entropy determination/update of interactions.
+
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
  
   // These commented out function pointers are set in FM
@@ -782,9 +789,56 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 	// Allocate the basic relative entropy matrix parts
     mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
     mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
     mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
     printf("Initialized a relative entropy matrix.\n");
+}
+
+// Initialize a matrix for relative entropy determination/update of framewise observables.
+
+void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
+  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  
+  /* TODO */
+  // This function pointer needs to be updated for framewise observables
+  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+ 
+  // These commented out function pointers are set in FM
+  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
+  // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
+  // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
+  
+  // Size the relative entropy matrix
+  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+  
+  /* TODO */
+  // I am not sure that this is right for this application.
+  // If we do it by regression, then the normal matrix should be cols x cols.
+  // If we are doing something more complicated than the usual RE, then 2 rows is not right either.
+  mat->fm_matrix_rows = 2;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+	// Set the appropriate matrix variables
+    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+    mat->temperature = control_input->temperature;
+    mat->rem_chi = control_input->REM_iteration_step_size;
+    mat->boltzmann = control_input->boltzmann;
+
+	// Allocate the basic relative entropy matrix parts
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
+    /* TODO */
+    // I am not sure that this is right for this.
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
+    printf("Initialized a relative entropy matrix for framewise observables.\n");
 }
 
 // "Initialize" a dummy matrix.

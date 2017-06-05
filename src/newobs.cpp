@@ -75,7 +75,6 @@ int main(int argc, char* argv[])
 
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
-    
 	if (fs_cg.bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
