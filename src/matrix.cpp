@@ -4314,11 +4314,8 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
       
       if (rdf_value > 0.0) {
-  	  
-  	  	  printf("r %lf: rdf %lf, Vr %lf - Vdr %lf, volume %lf, pairs %lf\n", r, rdf_value, r*r*r, (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth()), volume, num_of_pairs); fflush(stdout);
-		  normalized_counts = rdf_value * 4.0 * PI * r*r*r * num_of_pairs / (3.0 * volume);
-		  // normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / 3.0;
-		  //normalized_counts /= (2.0 * volume / num_of_pairs);
+  	  	  normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / 3.0;
+		  normalized_counts /= (2.0 * volume / num_of_pairs);
 
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
