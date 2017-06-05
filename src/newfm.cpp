@@ -189,6 +189,8 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     // Initialize the cell linked lists for finding neighbors in the provided frames;
     PairCellList pair_cell_list = PairCellList();
     ThreeBCellList three_body_cell_list = ThreeBCellList();
+    
+    // Populate the cell linked lists.
     pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
     if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
     	double max_cutoff = 0.0;
