@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
-	copy_control_inputs_to_frd(&control_input, &fs_ref, &fs_cg);
+	copy_control_inputs_to_frd(&control_input, &fs_cg, &fs_ref);
     
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 

@@ -335,7 +335,7 @@ void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource*
     }
 }
 
-void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource* fs_ref, FrameSource* fs_cg)
+void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource* fs_cg, FrameSource* fs_ref)
 {
 	// Do basic calls for each frame source copy
     copy_control_inputs_to_frd(control_input, fs_cg);
