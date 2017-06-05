@@ -12,7 +12,7 @@
 ------------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------
-   Contributing authors: Lauren Abbott (Sandia)
+   Contributing authors: Lauren Abbott (Sandia), Jacob Wagner (UChicago)
 ------------------------------------------------------------------------- */
 
 #include <mpi.h>
@@ -80,6 +80,14 @@ FixMSCG::FixMSCG(LAMMPS *lmp, int narg, char **arg) :
         range_flag = 0;
       else error->all(FLERR,"Illegal fix mscg command");
       iarg += 2;
+    else if (strcmp(arg[iarg],"rem") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix mscg command");
+      if (strcmp(arg[iarg+1],"on") == 0)
+        rem_flag = 1;
+      else if (strcmp(arg[iarg+1],"off") == 0)
+        rem_flag = 0;
+      else error->all(FLERR,"Illegal fix mscg command");
+      iarg += 2;
     } else if (strcmp(arg[iarg],"name") == 0) {
       if (iarg+ntypes+1 > narg)
         error->all(FLERR,"Illegal fix mscg command");
@@ -105,6 +113,8 @@ FixMSCG::FixMSCG(LAMMPS *lmp, int narg, char **arg) :
       type_names[i] = strcat(strdup(str.c_str()),"\0");
     }
   }
+  
+  if (range_flag == 1 && rem_flag == 1) error->all(FLERR, "Cannot set range and rem on at the same time");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -234,7 +244,9 @@ void FixMSCG::post_constructor()
   fprintf(screen,"Initializing MSCG with topology data ...\n");
   if (range_flag)
     mscg_struct = rangefinder_startup_part1(mscg_struct);
-  else
+  else if (rem_flag)
+  	mscg_struct = rem_startup_part1(mscg_struct);
+  else 
     mscg_struct = mscg_startup_part1(mscg_struct);
 
   n_frames = get_n_frames(mscg_struct);
@@ -254,6 +266,8 @@ void FixMSCG::post_constructor()
 
   if (range_flag)
     mscg_struct = rangefinder_startup_part2(mscg_struct);
+  else if (rem_flag)
+  	mscg_struct = rem_startup_part2(mscg_struct);
   else
     mscg_struct = mscg_startup_part2(mscg_struct);
 }
@@ -305,6 +319,8 @@ void FixMSCG::end_of_step()
   nframes++;
   if (range_flag)
     mscg_struct = rangefinder_process_frame(mscg_struct,x1d,f1d);
+  else if (rem_flag)
+  	mscg_struct = rem_process_frame(mscg_struct,x1d,f1d);
   else
     mscg_struct = mscg_process_frame(mscg_struct,x1d,f1d);
 }
@@ -325,6 +341,8 @@ void FixMSCG::post_run()
 
   if (range_flag)
     rangefinder_solve_and_output(mscg_struct);
+  else if (rem_flag)
+  	mscg_struct = rem_solve_and_output(mscg_struct);
   else
     mscg_solve_and_output(mscg_struct);
 }
