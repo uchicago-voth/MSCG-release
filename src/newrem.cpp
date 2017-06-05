@@ -150,6 +150,7 @@ int main(int argc, char* argv[])
     	construct_rem_matrix_from_input_matrix(&mat_ref);
     } else if (control_input.REM_reference_style == 2) {
     	printf("Reading reference distribution functions.\n");
+    	// The CG box size is used for volume since there is no box size specified for the reference system.
     	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
 	} else {
    		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);

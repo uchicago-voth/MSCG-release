@@ -29,6 +29,15 @@
 // rangefinder_process_frame for each frame
 // rangefinder_solve_and output.
 
+// The order in which functions are intended to be called for relative entropy is the following:
+// rem_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// rem_startup_part2
+// rem_process_frame for each CG frame
+// rem_solve_and output.
+
 #include "mscg.h"
 
 // Prototype function definition for functions called internal to this file
@@ -47,7 +56,6 @@ struct MSCG_struct {
     ControlInputs *control_input;	// Input settings read from control.in
     MATRIX_DATA *mat;				// Matrix storage structure
 
-	FrameSource *ref_frame_source;	// Only used by REM
 	MATRIX_DATA *ref_mat;			// Only used by REM
 };
 
@@ -117,30 +125,27 @@ void* rem_startup_part1(void* void_in)
     mscg_struct->start_cputime = clock();	
 	
 	mscg_struct->frame_source = new FrameSource;
-    mscg_struct->ref_frame_source = new FrameSource;
     FrameSource *p_frame_source = mscg_struct->frame_source;
-	FrameSource *p_ref_frame_source = mscg_struct->ref_frame_source;
 	
     //----------------------------------------------------------------
     // Set up the entropy minimizing procedure
     //----------------------------------------------------------------
 
-/* TODO */
-    // How do we want to handle REM input from reference???
-    //     printf("Parsing command line arguments.\n");
-	//    parse_entropy_command_line_arguments(argc,argv, &fs_cg, &fs_ref);
-
-    
-    // Parse the command-line arguments of the program; these are 
-    // only used to set the trajectory input files and do nothing 
-    // else.
-	
+    // It is assumed that the trajectory run through LAMMPS is the "CG" trajectory.
+    // Information about the reference trajectory must be input as a pre-processed
+    // matrix or rdf using either option 1 or 2 for REM_reference_style in control.in.
+    // Note: Rangefinder will generate *.rdf files when the output_*_parameter_distribution
+    // options are enabled.
+        	
 	printf("Reading high level control parameters.\n");
     mscg_struct->control_input = new ControlInputs;
     ControlInputs *p_control_input = mscg_struct->control_input;
     
-    mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
-    copy_control_inputs_to_frd(p_control_input, p_ref_frame_source, p_frame_source);
+    // CG model parameters and data; put here to initialize without default constructor
+    // This is only copied to the CG frame source since reference information will not
+    // be read from a trajectory.
+    mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   
+    copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	 
     if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
     	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
@@ -363,7 +368,6 @@ void* rem_startup_part2(void* void_in)
 
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
 	FrameSource *p_frame_source = mscg_struct->frame_source;
-    FrameSource *p_ref_frame_source = mscg_struct->ref_frame_source;
     ControlInputs *p_control_input = mscg_struct->control_input;
 	CG_MODEL_DATA *p_cg = mscg_struct->cg;
 
@@ -385,15 +389,14 @@ void* rem_startup_part2(void* void_in)
         read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "cg"); 
     }
     
-    if (p_ref_frame_source->use_statistical_reweighting == 1) {
-    	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
-    	fflush(stdout);
-    	read_frame_weights(p_ref_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "ref"); 
-    }
+    // No reweighting for reference since it is assumed that it is already pre-processed
+    // into a matrix or RDFs.
+
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
     
-	if (p_frame_source->bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
+    // REM bootstrapping only acts on CG here.
+	if (p_frame_source->bootstrapping_flag == 1) {
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
     	generate_bootstrapping_weights(p_frame_source, p_control_input->n_frames);
@@ -412,21 +415,16 @@ void* rem_startup_part2(void* void_in)
     // based on matrix implementation, basis set type, etc.
     set_up_force_computers(p_cg);
 
-    // Initialize the entropy minimizing matrix.
+    // Initialize the entropy minimizing matrices.
     printf("Initializing up REM\n");
     p_control_input->matrix_type = kREM;
     mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
     mscg_struct->ref_mat = new MATRIX_DATA(p_control_input, p_cg);
 
-    // Initialize the force-matching matrix.
-          
+
     if (p_frame_source->use_statistical_reweighting == 1) {
         set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
     }
-
-     if (p_ref_frame_source->use_statistical_reweighting == 1) {
-        set_normalization(mscg_struct->ref_mat, 1.0 / p_ref_frame_source->total_frame_weights);
-	}
 
     if (p_frame_source->bootstrapping_flag == 1) {
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
@@ -449,6 +447,26 @@ void* rem_startup_part2(void* void_in)
   	n_blocks = total_frame_samples / mscg_struct->mat->frames_per_traj_block;
 
 	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);  
+  	
+  	
+  	// Read in the reference data from file based on the REM_reference_style setting.
+  	if (p_control_input->REM_reference_style == 0) {
+    	printf("When using LAMMPS, reference information cannot be read from frames.\n");
+    	printf("Please change your REM_reference_style and try again!\n");
+    	fflush(stdout);
+    	exit(EXIT_FAILURE);
+	} else if (p_control_input->REM_reference_style == 1) {
+		printf("Reading reference matrix from file.\n");
+    	construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat);
+    } else if (p_control_input->REM_reference_style == 2) {
+    	printf("Reading reference distribution functions.\n");
+    	// The CG box size is used for volume since there is no box size specified for the reference system.
+    	construct_rem_matrix_from_rdfs(p_cg, mscg_struct->ref_mat, calculate_volume(p_frame_source->simulation_box_limits));
+	} else {
+   		printf("Unrecognized REM_reference_style (%d)!\n", p_control_input->REM_reference_style);
+   		fflush(stdout);
+   		exit(EXIT_FAILURE);
+    }
   	
   	//Initialize other data
 	p_frame_source->cleanup = finish_fix_reading;
@@ -656,6 +674,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 // Process each frame of the trajectory to build the REM "matrix".
 // This function should be called after rem_setup_part2, but before
 // rem_solve_and_output.
+// This is used to build the CG matrix.
 void* rem_process_frame(void* void_in, double* const x, double* const f)
 {       		
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -862,7 +881,11 @@ void* rem_solve_and_output(void* void_in)
     // Close the trajectory and free the relevant temp variables.
     p_frame_source->cleanup(p_frame_source);
 
-    printf("Finished constructing REM equations.\n");
+	//Read in spline coefficents used in the previous iteration.
+    printf("Reading in previous iteration's solution.\n");
+    read_previous_rem_solution(p_cg, mat);
+
+	printf("Finished constructing REM equations.\n");
     if (p_frame_source->bootstrapping_flag == 1) {
 		free_bootstrapping_weights(p_frame_source);
 	}
@@ -912,7 +935,6 @@ void* rem_solve_and_output(void* void_in)
     delete mscg_struct->mat;
     delete mscg_struct->ref_mat;
     delete mscg_struct->frame_source;
-    delete mscg_struct->ref_frame_source;
     
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
@@ -925,6 +947,7 @@ void* rem_solve_and_output(void* void_in)
 // Supporting functions for FrameConfig and FrameSource structs 
 // (adapted from trajectory_input.cpp).
 //-------------------------------------------------------------
+
 // Initializes the FrameSource struct.
 // This function is not intended to be called externally.
 // It should only be called by setup_topology_and_frame.
