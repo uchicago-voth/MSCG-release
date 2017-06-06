@@ -592,7 +592,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     
     if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
-    	if (control_input->bootstrapping_flag == 1) {
+    if (control_input->bootstrapping_flag == 1) {
     	mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
     } else {
 		mat->finish_fm = solve_dense_fm_normal_equations;
@@ -809,7 +809,14 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   } else { 
 	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
   }
-	 
+
+  // For solving normal form
+  if (control_input->bootstrapping_flag == 1) {
+    mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
+  } else {
+	mat->finish_fm = solve_dense_fm_normal_equations;
+  }
+  
   // Constraint elements do not make sense for this matrix type.
   // These commented out function pointers are set in FM
   // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;

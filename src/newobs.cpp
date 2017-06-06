@@ -124,11 +124,10 @@ int main(int argc, char* argv[])
     printf("Constructing RE observable equations.\n");
     construct_full_fm_matrix(&cg, &mat_cg, &fs_cg);
         
-    //Find the solution to the entropy observable equations set up in
-    //previous steps. 
+    // Find the solution to the entropy observable equations set up in the previous steps. 
+    // This uses the usual dense FM normal matrix solving since it is actually least squares.
     printf("Finishing RE Observable matching.\n");
-    mat_cg.finish_fm(&mat_cg); /* Does this take into account bootstrapping? */
-    						   /* Does the eventual function pointer do the right REM observable stuff */
+    mat_cg.finish_fm(&mat_cg)
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.

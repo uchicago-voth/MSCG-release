@@ -131,6 +131,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 						}
 					}
 	      		} else {		
+	      		// This is for force matching, MS-CODE (sym), and relative entropy of framewise observables (kObs)
 	      		// Write output based on force splines		
    					if (mat->bootstrapping_flag == 1) {
 	                	// Write tabular output, regardless of spline type.
