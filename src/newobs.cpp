@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
     // Find the solution to the entropy observable equations set up in the previous steps. 
     // This uses the usual dense FM normal matrix solving since it is actually least squares.
     printf("Finishing RE Observable matching.\n");
-    mat_cg.finish_fm(&mat_cg)
+    mat_cg.finish_fm(&mat_cg);
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
@@ -202,7 +202,8 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
       }
       
 	  // Accumulate the difference in observable values to the RHS vector
-	  mat->accumulate_target_force_element(mat, trajectory_block_frame_index, fs->ref_observables[traj_frame_num] - fs->cg_observables)[traj_frame_num]);
+	  double observable_difference = fs->ref_observables[traj_frame_num] - fs->cg_observables[traj_frame_num];
+	  mat->accumulate_target_force_element(mat, trajectory_block_frame_index, &observable_difference);
 	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
