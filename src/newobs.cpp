@@ -201,7 +201,10 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
       }
-
+      
+	  // Accumulate the difference in observable values to the RHS vector
+	  mat->accumulate_target_force_element(mat, trajectory_block_frame_index, fs->ref_observables[traj_frame_num] - fs->cg_observables)[traj_frame_num]);
+	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
 	  if (fs->use_statistical_reweighting) {

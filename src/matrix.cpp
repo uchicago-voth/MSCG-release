@@ -767,11 +767,9 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
  
-  // These commented out function pointers are set in FM
-  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-  // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
-  // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
-  
+  // Constraint elements do not make sense for this matrix type.
+  // Target force is not necessary for REM interaction determination.
+
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
   mat->fm_matrix_rows = 2;
@@ -795,6 +793,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 }
 
 // Initialize a matrix for relative entropy determination/update of framewise observables.
+// Using the "Gaussian relaxation", this become a least squares problem.
 
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
@@ -802,15 +801,15 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
   
   /* TODO */
-  // This function pointer needs to be updated for framewise observables
+  // This function pointer needs to be updated for framewise observables.
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
  
+ // Constraint elements do not make sense for this matrix type.
   // These commented out function pointers are set in FM
   // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-  // mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
-  // mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
@@ -1569,7 +1568,9 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
-    }
+    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs) {
+    // Do not accumulate per-particle values for kREM or kOBs.
+	}
 }
 
 // Calculate the RHS vector for dense or sparse matrix calculations
