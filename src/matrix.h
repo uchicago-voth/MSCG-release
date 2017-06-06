@@ -402,8 +402,12 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kREM) {
 	    	delete dense_fm_matrix;
 	    	delete dense_fm_normal_matrix;
-			//delete [] dense_fm_normal_rhs_vector;
+	 	} else if (matrix_type == kObs) {
+	 		// This is a copy of kDense
+	 		delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
 	 	}
+
 	 	if  (output_raw_frame_blocks == 1) {
  			fclose(frame_block_fh);
  		}

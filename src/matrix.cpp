@@ -803,41 +803,41 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
   
-  /* TODO */
-  // This function pointer needs to be updated for framewise observables.
-  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
- 
- // Constraint elements do not make sense for this matrix type.
+  // For normal form (least squares from Gaussian relaxation)
+  if (control_input->bootstrapping_flag == 1) {
+    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
+  } else { 
+	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
+  }
+	 
+  // Constraint elements do not make sense for this matrix type.
   // These commented out function pointers are set in FM
   // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
   
-  /* TODO */
-  // I am not sure that this is right for this application.
-  // If we do it by regression, then the normal matrix should be cols x cols.
-  // If we are doing something more complicated than the usual RE, then 2 rows is not right either.
-  mat->fm_matrix_rows = 2;
+  // This allows frameblocks of arbitrary size to be accumulated.
+  mat->fm_matrix_rows = control_input->frames_per_traj_block;
   
   printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
   printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
 
-	// Set the appropriate matrix variables
-    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
-    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
-    mat->temperature = control_input->temperature;
-    mat->rem_chi = control_input->REM_iteration_step_size;
-    mat->boltzmann = control_input->boltzmann;
+  // Set the appropriate matrix variables
+  mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+  mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+  //mat->temperature = control_input->temperature;
+  //mat->rem_chi = control_input->REM_iteration_step_size;
+  //mat->boltzmann = control_input->boltzmann;
 
-	// Allocate the basic relative entropy matrix parts
-    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
-    /* TODO */
-    // I am not sure that this is right for this.
-    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
-    printf("Initialized a relative entropy matrix for framewise observables.\n");
+  // Allocate the basic relative entropy matrix parts
+  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+  //mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+  mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns); 
+  mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
+  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
+  printf("Initialized a relative entropy matrix for framewise observables.\n");
 }
 
 // "Initialize" a dummy matrix.
