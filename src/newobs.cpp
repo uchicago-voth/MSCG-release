@@ -1,6 +1,8 @@
 //
-//  newrobs.cpp
-//  
+//  newobs.cpp
+//
+//  The driver implements relative entropy for (scalar) frame-wise observables.
+//  It uses least squares fitting.
 //
 //  Copyright (c) 2017 The Voth Group at The University of Chicago. All rights reserved.
 //

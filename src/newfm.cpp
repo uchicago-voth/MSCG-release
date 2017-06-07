@@ -1,6 +1,9 @@
 //
 //  newfm.cpp
-//  
+//
+//  The driver implements force matching for interaction forces.
+//  It also implements observable determination for frame-wise and per-particle values.
+//  It uses least squares fitting.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //

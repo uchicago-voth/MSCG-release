@@ -1,6 +1,9 @@
 //
 //  rangefinder.cpp
 //  
+//  This driver is used for determining interaction ranges.
+//  It is used as a first step to prepare for running one of the other drivers.
+//  It also determines interaction potentials using direct Boltzmann inversion.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //

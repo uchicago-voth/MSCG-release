@@ -1,6 +1,8 @@
 //
 //  newrem.cpp
-//  
+//
+//  The driver implements relative entropy for interaction potentials.
+//  It uses gradient descent updating.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
