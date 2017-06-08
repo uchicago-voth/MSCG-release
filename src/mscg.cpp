@@ -42,6 +42,8 @@
 
 // Prototype function definition for functions called internal to this file
 void finish_fix_reading(FrameSource *const frame_source);
+inline void dynamic_state_sampling_error(void);
+inline void r15_error(void);
 
 // Data structure holding all MSCG information.
 // It is passed to the driver function (LAMMPS fix) as an opaque pointer.
@@ -88,10 +90,8 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	    
-    if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
-    	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
-		exit(EXIT_FAILURE);
-    }
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
+	if (mscg_struct->control_input->dyanmic_state_sampling != 0) dynamic_state_sampling_error();
 
 	return (void*)(mscg_struct);
 }
@@ -147,10 +147,8 @@ void* rem_startup_part1(void* void_in)
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	 
-    if (mscg_struct->cg->r15_interactions.class_subtype == 1) {
-    	printf("Error: R15 interactions are not currently support when using the LAMMPS fix!\n");
-		exit(EXIT_FAILURE);
-    }
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
+    if (mscg_struct->control_input->dyanmic_state_sampling != 0) dynamic_state_sampling_error();
 
 	return (void*)(mscg_struct); 
 }
@@ -1428,4 +1426,16 @@ int get_block_size(void* void_in)
 {
   MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
   return mscg_struct->control_input->frames_per_traj_block;
+}
+
+inline void dynamic_state_sampling_error(void)
+{
+	printf("Dynamic state sampling is not currently supported via fix_mscg!\n");
+	exit(EXIT_FAILURE);
+}
+
+inline void r15_error(void)
+{
+    printf("Error: R15 interactions are not currently supported when using the LAMMPS fix!\n");
+	exit(EXIT_FAILURE);
 }
