@@ -151,6 +151,7 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat);
 // Matrix-implementation-dependent functions for reading 
 // batches of FM matrices.
 
+int read_res_av_file(std::string* &filenames);
 void read_binary_dense_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat);
@@ -4093,32 +4094,40 @@ void read_binary_matrix(MATRIX_DATA* const mat)
     }
 }
 
+// Read the number of files to combine in this batch
+// and the file names for each from "res_av.in".
+
+int read_res_av_file(std::string* &filenames)
+{
+	int n_batch;
+	std::ifstream file_of_input_filenames;
+    check_and_open_in_stream(file_of_input_filenames, "res_av.in");
+    
+	file_of_input_filenames >> n_batch;
+    
+    filenames = new std::string[n_batch];
+    for (int i = 0; i < n_batch; i++) {
+        file_of_input_filenames >> filenames[i];
+    }
+    file_of_input_filenames.close();
+
+	return n_batch;
+}
+
 // Read the results of a batch of dense-matrix-based FM
 // calculations and add them together as if they were the
 // results of blocks of an earlier trajectory.
 
 void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
 {
-    int i, j, k;
-    double tx;
+    double matrix_element;
     double inv_norm_sum = 0.0;
     double inv_norm;
-    int n_batch;
-    char** file_names; //name of matrix files
-    FILE* file_of_input_file_names; //input file
-    
-    // Read the number of files to combine in this batch
+
+	// Read the number of files to combine in this batch
     // and the file names for each.
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    file_names = new char*[n_batch];
-    for (i = 0; i < n_batch; i++) {
-        file_names[i] = new char[100];
-    }
-    for (i = 0; i < n_batch; i++) {
-        fscanf(file_of_input_file_names, "%s", file_names[i]);
-    }
-    fclose(file_of_input_file_names);
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
 
     // Read each file's dense matrix, adding them together element-by-
     // element to get a final set of normal form equations.
@@ -4126,62 +4135,60 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
     FILE* single_binary_matrix_input;
 	dense_matrix* read_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	double* read_rhs = new double[mat->fm_matrix_columns];
-    for (i = 0; i < n_batch; i++) {
-        read_matrix->reset_matrix();
+    for (int i = 0; i < n_batch; i++) {
         // Read the new normal form matrix.
         // Stored as an upper traingular matrix because it is symmetric.
-        single_binary_matrix_input = open_file(file_names[i], "rb");
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
-                fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-                read_matrix->add_scalar(k, j, tx);
+        single_binary_matrix_input = open_file(filenames[i].c_str(), "rb");
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
+                fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+                read_matrix->assign_scalar(k, j, matrix_element);
             }
         }
 
         // Read the new normal form vector.
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-            read_rhs[j] = tx;
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+            read_rhs[j] = matrix_element;
         }
         
         // Read the force_sq_total value
-        fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-        mat->force_sq_total += tx;
+        fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+        mat->force_sq_total += matrix_element;
         
         // Read the inverse normalization
-        fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-        inv_norm = tx;
+        fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+        inv_norm = matrix_element;
         inv_norm_sum += inv_norm;
         
         // Add the new normal form matrix to the existing one.
         // This process "unnormalizes" each element as it is added.
         // Stored as an upper traingular matrix because it is symmetric.
-         for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
+         for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
             	mat->dense_fm_normal_matrix->add_scalar(k, j, inv_norm * read_matrix->get_scalar(k, j));
             }
         }
         
         // Add the new normal form vector to the existing one.
         // This process "unnormalizes" each element as it is added.
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             mat->dense_fm_normal_rhs_vector[j] += inv_norm * read_rhs[j];
         }
         fclose(single_binary_matrix_input);
-        delete [] file_names[i];
     }
-    delete [] file_names;
+    delete [] filenames;
     delete [] read_rhs;
     delete read_matrix;
      
     // Normalize the normal matrix and RHS vector by the total number of frames.
  	set_normalization(mat, 1.0/inv_norm_sum);
-	for (j = 0; j < mat->fm_matrix_columns; j++) {
-		for (k = 0; k <= j; k++) {
+	for (int j = 0; j < mat->fm_matrix_columns; j++) {
+		for (int k = 0; k <= j; k++) {
 			mat->dense_fm_normal_matrix->assign_scalar(k, j, mat->normalization * mat->dense_fm_normal_matrix->get_scalar(k, j));
 		}
 	}
-	for (j = 0; j < mat->fm_matrix_columns; j++) {
+	for (int j = 0; j < mat->fm_matrix_columns; j++) {
 		mat->dense_fm_normal_rhs_vector[j] = mat->normalization * mat->dense_fm_normal_rhs_vector[j];
 	}
 	    
@@ -4203,44 +4210,32 @@ void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 	delete mat->dense_fm_matrix;
     mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_columns, mat->accumulation_matrix_columns);
 
-    //read the matrix
-    int j, k;
-    double tx;
-    int n_batch; //number of blocks
-    char** file_names; //name of matrix files
-    FILE* file_of_input_file_names; //input file
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    if (n_batch > 1) {
+  	// Read the number of files to combine in this batch
+    // and the file names for each.
+	double read_value;
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
+  	if (n_batch > 1) {
         printf("Can not read more than one block for the sequential accumulation algorithm!\n");
         exit(EXIT_FAILURE);
     }
-    file_names = new char*[n_batch];
-
-    file_names[0] = new char[100]; // Max matrix file name length is 100.
-
-    fscanf(file_of_input_file_names, "%s", file_names[0]);
-    fclose(file_of_input_file_names);
-
-    FILE* single_binary_matrix_input;
-
-    single_binary_matrix_input = open_file(file_names[0], "rb");
-    for (j = 0; j < mat->fm_matrix_columns; j++) {
-        for (k = 0; k <= j; k++) {
-            fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-            mat->dense_fm_matrix->assign_scalar(k, j, tx);
+    
+    FILE* single_binary_matrix_input = open_file(filenames[0].c_str(), "rb");
+    for (int j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int k = 0; k <= j; k++) {
+            fread(&read_value, sizeof(double), 1, single_binary_matrix_input);
+            mat->dense_fm_matrix->assign_scalar(k, j, read_value);
         }
     }
 
-    for (j = 0; j < mat->fm_matrix_columns; j++) mat->dense_fm_matrix->assign_scalar(mat->fm_matrix_columns, j, 0.0);
+    for (int j = 0; j < mat->fm_matrix_columns; j++) mat->dense_fm_matrix->assign_scalar(mat->fm_matrix_columns, j, 0.0);
 
-    for (j = 0; j < mat->accumulation_matrix_columns; j++) {
-        fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-        mat->dense_fm_normal_rhs_vector[j] = tx;
+    for (int j = 0; j < mat->accumulation_matrix_columns; j++) {
+        fread(&read_value, sizeof(double), 1, single_binary_matrix_input);
+        mat->dense_fm_normal_rhs_vector[j] = read_value;
     }
     fclose(single_binary_matrix_input);
-    delete [] file_names[0];
-    delete [] file_names;
+    delete [] filenames;
 }
 
 // Read the results of a batch of sparse-matrix-based FM
@@ -4250,40 +4245,34 @@ void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat)
 {
     printf("The use of combinefm with the sparse matrix type is not supported!\n"); 
-	int i, j;
-    int n_batch;
-    FILE* file_of_input_file_names, *single_block_solution_file;
-    char single_block_solution_filename[100];
-    double* single_block_normalization_factors;
+	FILE *single_block_solution_file;
     
     // Allocate memory for a single block's worth of temp data.
-    single_block_normalization_factors = new double[mat->fm_matrix_columns];
+    double* single_block_normalization_factors = new double[mat->fm_matrix_columns];
     
-    // Open the file defining the batch size and batch file names.
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    
+    // Read the number of files to combine in this batch
+    // and the file names for each.
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
+
     // For each file in the batch, read the appropriate file
     // for the solution of that batch (not normalized) and the
     // normalization factors for that solution.
-    for (i = 0; i < n_batch; i++) {
-        
-        // Read the file
-        fscanf(file_of_input_file_names, "%s", single_block_solution_filename);
-        single_block_solution_file = open_file(single_block_solution_filename, "rb");
+    for (int i = 0; i < n_batch; i++) {
+        single_block_solution_file = open_file(filenames[i].c_str(), "rb");
         fread(mat->block_fm_solution, sizeof(double), mat->fm_matrix_columns, single_block_solution_file);
         fread(single_block_normalization_factors, sizeof(double), mat->fm_matrix_columns, single_block_solution_file);
         fclose(single_block_solution_file);
         
         // Add that to the accumulating solution in this program
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             mat->fm_solution[j] += mat->block_fm_solution[j];
             mat->fm_solution_normalization_factors[j] += single_block_normalization_factors[j];
         }
     }
     
-    fclose(file_of_input_file_names);
     delete [] single_block_normalization_factors;
+    delete [] filenames;
 }
 
 // Read the vector of regularization coefficients.
