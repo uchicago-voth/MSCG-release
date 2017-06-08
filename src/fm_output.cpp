@@ -360,6 +360,11 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 	    }
     	integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
 	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
+    } if (char_id == 'd') {
+   	 trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
+   	 std::vector<double> corrected_potential_vals;
+   	 integrate_force(axis_vals, force_vals, corrected_potential_vals);
+   	 write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals); 
     } else {		
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
     }
@@ -392,8 +397,9 @@ void pad_and_print_single_table(const char char_id, const std::string& basename,
 	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }
    status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
-   if(char_id == 'a'){
+   if(char_id == 'a') {
      pad_values_back(180.0,axis_vals,force_vals,force_vals[force_vals.size()-1]);
+     trim_excess_axis(0.0, 180.0, axis_vals, force_vals);
    }
    if (status == -1) {
 	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());

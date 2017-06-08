@@ -269,6 +269,31 @@ void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &f
 	}
 }
     		  
+// Remove entries with axis values out of the specified range.
+void trim_excess_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
+{
+	int last = axis_vals.size() - 1;
+	int first = 0;
+	while (axis_vals[last] + VERYSMALL_F > high_value) {
+		// remove last entry
+		axis_vals.pop_back();
+		force_vals.pop_back();
+		last--;
+	}
+
+	// Check lower value
+	while (axis_vals[first] < low_value + VERYSMALL_F) {
+		first++;
+	}
+	if (first != 0) {
+		// There is no axis_vals.pop_front() for std::vector.
+		// So, these entries would need to be copied to a completely new std::vector
+		// Instead, this will error out!
+		printf("Interaction range to print (%lf) exceeds normal upper bound (%lf)!\n", axis_vals[0], low_value);
+	}
+
+}
+
 // Find the index of the minimum value in a vector.
 
 unsigned get_min_index(const std::vector<double> &potential_vals) 
