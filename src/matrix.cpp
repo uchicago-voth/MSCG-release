@@ -32,6 +32,7 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
 
@@ -48,7 +49,6 @@ void set_sparse_accumulation_matrix_to_zero(MATRIX_DATA* const mat);
 void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat);
 void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat, dense_matrix* const dense_fm_matrix);
 void set_dummy_matrix_to_zero(MATRIX_DATA* const mat);
-void set_rem_matrix_to_zero(MATRIX_DATA* const mat);
 
 // Interface-level functions that convert force magnitude and derivatives to matrix elements.
 
@@ -71,8 +71,7 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
 void insert_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
-void insert_rem_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
-inline void insert_BI_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
+inline void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 
 void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
@@ -333,6 +332,10 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     case kObs: // Used for relative entropy framewise observables (e.g., newobs)
     	matrix_type = kObs;
     	initialize_frame_observable_matrix(this, control_input, cg);
+    	break;
+    case kRecode: // Used for relative entropy per-particle observables (e.g., newrecode)
+    	matrix_type = kRecode;
+    	initialize_recode_matrix(this, control_input, cg);
     	break;
     default:
         printf("Invalid matrix type.");
@@ -762,7 +765,7 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
+  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
@@ -798,7 +801,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero = set_rem_matrix_to_zero;
+  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
@@ -818,8 +821,6 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   }
   
   // Constraint elements do not make sense for this matrix type.
-  // These commented out function pointers are set in FM
-  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
   
   // Size the relative entropy matrix
   determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
@@ -833,13 +834,74 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   // Set the appropriate matrix variables
   mat->accumulation_matrix_columns = mat->fm_matrix_columns;
   mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
-  //mat->temperature = control_input->temperature;
-  //mat->rem_chi = control_input->REM_iteration_step_size;
-  //mat->boltzmann = control_input->boltzmann;
+  
+  // These are variables from REM matrix that look like they are not needed here.
+  // mat->temperature = control_input->temperature;
+  // mat->rem_chi = control_input->REM_iteration_step_size;
+  // mat->boltzmann = control_input->boltzmann;
+  // mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+  // These commented out function pointers are set in FM
+  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
 
   // Allocate the basic relative entropy matrix parts
   mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-  //mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+  mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns); 
+  mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
+  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
+  printf("Initialized a relative entropy matrix for framewise observables.\n");
+}
+
+// Initialize a matrix for relative entropy determination/update of per-particle observables.
+// Using the "Gaussian relaxation", this become a least squares problem.
+
+void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  
+  // For normal form (least squares from Gaussian relaxation)
+  if (control_input->bootstrapping_flag == 1) {
+    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
+  } else { 
+	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
+  }
+
+  // For solving normal form
+  if (control_input->bootstrapping_flag == 1) {
+    mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
+  } else {
+	mat->finish_fm = solve_dense_fm_normal_equations;
+  }
+  
+  // Constraint elements do not make sense for this matrix type.
+  
+  // Size the relative entropy matrix
+  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+  
+  // This allows frameblocks of arbitrary size to be accumulated.
+  mat->fm_matrix_rows = control_input->frames_per_traj_block;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+  // Set the appropriate matrix variables
+  mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+  mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+
+  // These are variables from REM matrix that look like they are not needed here.
+  // These commented out function pointers are set in FM
+  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
+  // mat->temperature = control_input->temperature;
+  // mat->rem_chi = control_input->REM_iteration_step_size;
+  // mat->boltzmann = control_input->boltzmann;
+  // mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+
+  // Allocate the basic relative entropy matrix parts
+  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
   mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
   mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns); 
   mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
@@ -1053,12 +1115,6 @@ inline void set_dense_matrix_to_zero(MATRIX_DATA* const mat)
     mat->dense_fm_matrix->reset_matrix();
 }
 
-// Set all elements of a dense matrix to zero.
-inline void set_rem_matrix_to_zero(MATRIX_DATA* const mat)
-{
-    mat->dense_fm_matrix->reset_matrix();
-}
-
 // Set all elements of a linked-list sparse matrix to zero.
 
 inline void set_sparse_matrix_to_zero(MATRIX_DATA* const mat)
@@ -1243,23 +1299,23 @@ void accumulate_entropy_elements(InteractionClassComputer* const info, const int
    int n_cg_sites = mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-     insert_rem_matrix_element(frame_row, ref_column + k, basis_fn_vals[k], mat);    
+     insert_scalar_matrix_element(frame_row, ref_column + k, basis_fn_vals[k], mat);    
    }
 }
 
 void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
-  printf("Tabulated interactions cannot be done through REM framework. Please remove tabulated interactions from rmin files.\n");
+  printf("Tabulated interactions cannot be done through the REM framework. Please remove tabulated interactions from rmin files.\n");
+  fflush(stdout);
   exit(EXIT_FAILURE);
 }
 
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
-
   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
 
   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-	insert_BI_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
+	insert_scalar_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
   }
 }
 
@@ -1481,15 +1537,10 @@ inline void insert_accumulation_matrix_element(const int i, const int j, double*
     mat->dense_fm_matrix->add_vector(mat->size_per_vector * i + mat->accumulation_row_shift, j, x);
 }
 
-inline void insert_rem_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
+inline void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
 {
   mat->dense_fm_matrix->add_scalar(i,j,x);
 }  
-
-inline void insert_BI_matrix_element(const int i, const int j,double const x, MATRIX_DATA* const mat)
-{
-  mat->dense_fm_matrix->add_scalar(i,j,x);
-}
 
 // Add a scalar force element to a dense matrix.
 
@@ -1575,8 +1626,8 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
-    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs) {
-    // Do not accumulate per-particle values for kREM or kOBs.
+    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs || mat->matrix_type == kRecode) {
+    // Do not accumulate per-particle values for kREM or kOBs or kRecode.
 	}
 }
 
@@ -3505,7 +3556,6 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			beta =  ((double)(mat->size_per_vector) * n_cg_sites * n_frames - trace_product) / residual;				
 
 			write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-
 		}
 		
 		// Clean-up bayesian allocated memory
@@ -3555,27 +3605,21 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
   
 void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
 {
-  int i, j;
+  // Output BI matrix and vector before solving.
   FILE* BI_matrix = fopen("BI_matrix.dat","a");
   FILE* BI_vector = fopen("BI_vector.dat","a");
-  for(i = 0; i < mat->fm_matrix_rows; i++){
-    for(j = 0; j < mat->fm_matrix_columns; j++){
-      fprintf(BI_matrix,"%lf ",mat->dense_fm_matrix->get_scalar(i,j));
-    }
-    fprintf(BI_matrix,"\n");
-  }
-  
-  for(i = 0; i < mat->fm_matrix_rows;i++)
-    {
+  mat->dense_fm_matrix->print_matrix(BI_matrix);
+  for(int i = 0; i < mat->fm_matrix_rows;i++)  {
       fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
-    }
+  }
   fclose(BI_matrix);
   fclose(BI_vector);
   
+  // Solve BI matrix
   if (mat->fm_matrix_columns > 0 && mat->fm_matrix_rows > 0) {
   	double* singular_values = new double[mat->fm_matrix_columns];
 	calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
-  	for (i = 0; i < mat->fm_matrix_columns; i++) {
+  	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
   	}
   	delete [] singular_values;
@@ -3589,7 +3633,6 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     double* dd_bak;
     double ttx;
     double* dd1;
-    int i,j,k;
     
     // Solve for master
     solve_dense_fm_normal_equations(mat);
@@ -3603,7 +3646,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // otherwise.
     if (mat->output_normal_equations_rhs_flag == 1) {
         dd_bak = new double[mat->fm_matrix_columns];
-        for (i = 0; i < mat->fm_matrix_columns; i++) dd_bak[i] = mat->dense_fm_normal_rhs_vector[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) dd_bak[i] = mat->dense_fm_normal_rhs_vector[i];
     }
     
     // At the time of solution, one can be sure that the raw dense matrix
@@ -3620,13 +3663,13 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         FILE* mat_in = open_file("result.in", "rb");
         dd1 = new double[mat->fm_matrix_columns];
         
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
                 fread(&ttx, sizeof(double), 1, mat_in);
                 mat->dense_fm_normal_matrix->assign_scalar(k, j, ttx);
             }
         }
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             fread(&ttx, sizeof(double), 1, mat_in);
             dd1[j] = ttx;
         }
@@ -3634,7 +3677,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         
         // The target for an iterative calculation is the difference between the targets
         // for this trajectory and the previous trajectory.
-        for (i = 0; i < mat->fm_matrix_columns; i++)
+        for (int i = 0; i < mat->fm_matrix_columns; i++)
             mat->dense_fm_normal_rhs_vector[i] = dd1[i] - mat->dense_fm_normal_rhs_vector[i];
         delete [] dd1;
         
@@ -3643,8 +3686,8 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         // Save the results in binary form for parallel runs.
         if (mat->output_style >= 2) {
             FILE* mat_out = open_file("result.out", "wb");
-            for (j = 0; j < mat->bootstrapping_num_estimates; j++) {
-            	for (i = 0; i < mat->fm_matrix_columns; i++) {
+            for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+            	for (int i = 0; i < mat->fm_matrix_columns; i++) {
                 	fwrite(&mat->bootstrapping_dense_fm_normal_matrices[j]->values[i * mat->fm_matrix_columns], sizeof(double), i + 1, mat_out);
             	}
             	fwrite(&mat->bootstrapping_dense_fm_normal_rhs_vectors[j][0], sizeof(double), mat->fm_matrix_columns, mat_out);
@@ -3658,11 +3701,11 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         }
     }
 	
-    for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
+    for (int k = 0; k < mat->bootstrapping_num_estimates; k++) {
     
 		// Copy over symmetric off-diagonal values in normal matrix;
-	    for (i = 0; i < mat->fm_matrix_columns; i++) {
-	        for (j = 0; j < i; j++) {
+	    for (int i = 0; i < mat->fm_matrix_columns; i++) {
+	        for (int j = 0; j < i; j++) {
     	        mat->bootstrapping_dense_fm_normal_matrices[k]->assign_scalar(i, j, mat->bootstrapping_dense_fm_normal_matrices[k]->get_scalar(j , i));
         	}
     	}
@@ -3671,7 +3714,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     	if (mat->regularization_style == 2) {
 	    	printf("Regularizing FM normal equations (estimate %d).\n", k);
     		fflush(stdout);
-        	for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	       	mat->bootstrapping_dense_fm_normal_matrices[k]->add_scalar(i, i, mat->regularization_vector[i]);
         	}
         }
@@ -3688,7 +3731,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     		fflush(stdout);
         	double squared_regularization_parameter;
         	squared_regularization_parameter = mat->tikhonov_regularization_param * mat->tikhonov_regularization_param;
-        	for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	       	mat->bootstrapping_dense_fm_normal_matrices[k]->add_scalar(i, i, squared_regularization_parameter);
         	}
         }
@@ -3704,7 +3747,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     	fflush(stdout);
     	FILE* solution_file = open_file("sol_info.out", "a");
     	fprintf(solution_file, "Singular vector %d:\n", k);
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
+    	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	    fprintf(solution_file, "%le\n", singular_values[i]);
     	}
     	fclose(solution_file);
@@ -3715,7 +3758,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 	    // Calculate the final results from the singular values.
 	    printf("Calculating final FM results (estimate %d).\n", k);
     	fflush(stdout);    
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
+    	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	    mat->bootstrap_solutions[k][i] = mat->bootstrapping_dense_fm_normal_rhs_vectors[k][i] * h[i];
     	}
     	
@@ -3738,22 +3781,22 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         double* x0 = new double[mat->fm_matrix_columns];
         std::ifstream x_in;
         check_and_open_in_stream(x_in, "x.in");
-        for (i = 0; i < mat->fm_matrix_columns; i++) x_in >> x0[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) x_in >> x0[i];
         x_in.close();
         
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
         delete [] x0;
     }
 
     printf("Completed FM.\n"); fflush(stdout);
 
     if (mat->output_normal_equations_rhs_flag == 1) {
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->dense_fm_normal_rhs_vector[i] = dd_bak[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->dense_fm_normal_rhs_vector[i] = dd_bak[i];
         delete [] dd_bak;
     }
     // Clean up the heap-allocated matrix temps required for 
     // optional more-detailed output.
-    for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
+    for (int k = 0; k < mat->bootstrapping_num_estimates; k++) {
 	    delete mat->bootstrapping_dense_fm_normal_matrices[k];
     	delete [] mat->bootstrapping_dense_fm_normal_rhs_vectors[k];
 	}
@@ -3860,15 +3903,13 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
     
     // Precondition the accumulation matrix using the root-of-sum-of-squares of the columns
     // as column scaling factors.
-    double* h = new double[mat->fm_matrix_columns];
     
-    for (i = 0; i < mat->fm_matrix_columns; i++) {
-        h[i] = 0.0;
-    }
+    // Use default constructor to initialize all elements to 0.
+    double* h = new double[mat->fm_matrix_columns]();
     
     for (i = 0; i < mat->fm_matrix_columns; i++) {
         for (j = 0; j < mat->fm_matrix_columns; j++) {
-            h[j] = h[j] + mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i] * mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i];
+            h[j] += mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i] * mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i];
         }
     }
     
@@ -3920,7 +3961,6 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
         xnorm += mat->fm_solution[i] * mat->fm_solution[i];
     }
     fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);
-    
     fprintf(solution_file, "Residual 2-norm:\n%le\n", resid);
     
     // Deallocate the remaining temps.
@@ -3963,15 +4003,11 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
     
     	// Precondition the accumulation matrix using the root-of-sum-of-squares of the columns
     	// as column scaling factors.
-    	double* h = new double[mat->fm_matrix_columns];
-    
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
-        	h[i] = 0.0;
-    	}
+    	double* h = new double[mat->fm_matrix_columns]();
     
     	for (i = 0; i < mat->fm_matrix_columns; i++) {
         	for (j = 0; j < mat->fm_matrix_columns; j++) {
-            	h[j] = h[j] + mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i] * mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i];
+            	h[j] += mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i] * mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i];
         	}
     	}
     
@@ -4021,8 +4057,7 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
     	for (i = 0; i < mat->fm_matrix_columns; i++) {
         	xnorm += mat->fm_solution[i] * mat->fm_solution[i];
     	}
-    	fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);
-    
+    	fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);    
     	fprintf(solution_file, "Residual 2-norm:\n%le\n", resid);
     
     	// Deallocate the remaining temps.
@@ -4064,7 +4099,6 @@ void read_binary_matrix(MATRIX_DATA* const mat)
 
 void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
 {
-
     int i, j, k;
     double tx;
     double inv_norm_sum = 0.0;

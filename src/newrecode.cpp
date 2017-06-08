@@ -1,13 +1,11 @@
 //
-//  newrem.cpp
+//  newrecode.cpp
+//  
+//  The driver implements relative entropy for per-particle (scalar?) observables.
+//  It uses gradient descent updating.
 //
-//  The driver implements relative entropy for interaction potentials.
-//  It uses least squares fitting.
+//  Copyright (c) 2017 The Voth Group at The University of Chicago. All rights reserved.
 //
-//  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
-//
-
-// Note: This currently only does reweighting of REF trajectory.
 
 #include <stdio.h>
 #include <cstdio>
@@ -22,7 +20,6 @@
 #include "fm_output.h"
 #include "misc.h"
 
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
 
 int main(int argc, char* argv[])
@@ -32,7 +29,6 @@ int main(int argc, char* argv[])
 
     // Trajectory frame data; see types.h
     FrameSource fs_cg;      // CG trajectory
-    FrameSource fs_ref;     // reference trajectory
     ControlInputs control_input;
     
     //----------------------------------------------------------------
@@ -43,7 +39,7 @@ int main(int argc, char* argv[])
     // only used to set the trajectory input files and do nothing 
     // else.
     printf("Parsing command line arguments.\n");
-    parse_entropy_command_line_arguments(argc,argv, &fs_cg, &fs_ref);
+    parse_command_line_arguments(argc,argv, &fs_cg);
     
     // Read the file control.in to determine the values of many of
     // the parameters in the cg struct, including the desired
@@ -53,7 +49,7 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
-	copy_control_inputs_to_frd(&control_input, &fs_cg, &fs_ref);
+    copy_control_inputs_to_frd(&control_input, &fs_cg);
     
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 
@@ -72,22 +68,15 @@ int main(int argc, char* argv[])
     read_all_interaction_ranges(&cg);
 
     // Read statistical weights for each frame if the 
-    // 'use_statistical_reweighting' or 'reference_statistical_reweighting'
-    // flag is set in control.in.
-    if (fs_ref.use_statistical_reweighting == 1) {
-    	printf("Reading per-frame statistical reweighting factors for reference trajectory.\n");
-    	fflush(stdout);
-    	read_frame_weights(&fs_ref, control_input.starting_frame, control_input.n_frames, "ref"); 
-    }
+    // 'use_statistical_reweighting' flag is set in control.in.
     if (fs_cg.use_statistical_reweighting == 1) {
-    	printf("Reading per-frame statistical reweighting factors for CG trajectory.\n");
+    	printf("Reading per-frame statistical reweighting factors for trajectory.\n");
     	fflush(stdout);
-    	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames, "cg"); 
+    	read_frame_weights(&fs_cg, control_input.starting_frame, control_input.n_frames, "in"); 
     }
 
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
-    
 	if (fs_cg.bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
@@ -99,13 +88,18 @@ int main(int argc, char* argv[])
     // read.
     printf("Beginning to read frames.\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-    fs_ref.get_first_frame(&fs_ref, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-	
+
+// 
+/* TODO */
+/*    
+    // Read in reference and CG observable values (1 value per frame).
+    read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
+    read_frame_values("observables.cg", control_input.starting_frame, control_input.n_frames, fs_cg.cg_observables);
+*/
+    
 	//  dynamic state sampling for REM systems
-	if (fs_ref.dynamic_state_sampling == 1) {
-		// Sample the types independently
+	if (fs_cg.dynamic_state_sampling == 1) {
 		fs_cg.sampleTypesFromProbs();
-		fs_ref.sampleTypesFromProbs();
 	}
 
     // Assign a host of function pointers in 'cg' new definitions
@@ -113,23 +107,18 @@ int main(int argc, char* argv[])
     set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
-    printf("Initializing up REM matrix.\n");
-    control_input.matrix_type = kREM;
-    MATRIX_DATA mat_cg(&control_input, &cg);
-    MATRIX_DATA mat_ref(&control_input, &cg);
+    printf("setting up RE observable matrix\n");
+    control_input.matrix_type = kRecode;  
+    MATRIX_DATA mat_cg(&control_input, &cg); /*CHECK*/
     
-	if (fs_cg.use_statistical_reweighting == 1) {
+    if (fs_cg.use_statistical_reweighting == 1) {
         set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
-	}
-    if (fs_ref.use_statistical_reweighting == 1) {
-        set_normalization(&mat_ref, 1.0 / fs_ref.total_frame_weights);
 	}
 
     if (fs_cg.bootstrapping_flag == 1) {
     	// Allocate for bootstrapping only for cg and only if appropriate
   		allocate_bootstrapping(&mat_cg, &control_input, 2, mat_cg.fm_matrix_columns);
-  		mat_ref.bootstrapping_flag = 0;
-    	
+
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
     	if(fs_cg.use_statistical_reweighting == 1) {
@@ -137,47 +126,27 @@ int main(int argc, char* argv[])
     	}
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
-
-	// Process CG data
-    printf("Reading CG frames.\n");
-    construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    // Process FG data
-    // The manner of constructing the reference matrix depends on REM_reference_style.
-	if (control_input.REM_reference_style == 0) {
-    	printf("Reading reference frames.\n");
-    	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
-	} else if (control_input.REM_reference_style == 1) {
-		printf("Reading reference matrix from file.\n");
-    	construct_rem_matrix_from_input_matrix(&mat_ref);
-    } else if (control_input.REM_reference_style == 2) {
-    	printf("Reading reference distribution functions.\n");
-    	// The CG box size is used for volume since there is no box size specified for the reference system.
-    	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
-	} else {
-   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
-   		fflush(stdout);
-   		exit(EXIT_FAILURE);
-    }
-    
-    //Read in spline coefficents used in the previous iteration.
-    printf("Reading in previous iteration's solution.\n");
-    read_previous_rem_solution(&cg, &mat_cg);
-
-    //Find the solution to the entropy minimization equations.
-    printf("Calculating new REM parameters.\n");
-    if (fs_cg.bootstrapping_flag == 1) {
-    	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
-		free_bootstrapping_weights(&fs_cg);
-	} else {
-		calculate_new_rem_parameters(&mat_cg, &mat_ref);
-	} 
+    printf("Constructing RE observable equations.\n");
+    construct_full_fm_matrix(&cg, &mat_cg, &fs_cg);
+        
+    // Find the solution to the entropy observable equations set up in the previous steps. 
+    // This uses the usual dense FM normal matrix solving since it is actually least squares.
+    printf("Finishing RE Observable matching.\n");
+    mat_cg.finish_fm(&mat_cg);
 
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n");
     write_fm_interaction_output_files(&cg, &mat_cg);
-    
+
+     /* TODO */
+/*    
+    // Clean-up special data
+    delete [] fs_cg.ref_observables;
+    delete [] fs_cg.cg_observables;
+*/
+  
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
@@ -192,7 +161,6 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   int traj_frame_num = 0;
   int times_sampled=1;
   int read_stat = 1;
-  double* ref_box_half_lengths = new double[fs->position_dimension];
 
   //skip the desired number of frames before starting the matrix building loop
   fs->move_to_start_frame(fs);
@@ -211,53 +179,47 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   mat->accumulation_row_shift = 0;
 
   //initialize the cell linked list
+  //NVT assumed so that this only needs to be done once
   PairCellList pair_cell_list = PairCellList();
   ThreeBCellList three_body_cell_list = ThreeBCellList();
-  
-  //populate the cell linked list
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
-  if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
-    double max_cutoff = 0.0;
-    for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
-        max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
-    }
-    three_body_cell_list.init(max_cutoff, fs);
-  }
-
-  // Record this box's dimensions.
-  for (int i = 0; i < fs->position_dimension; i++) {
-	ref_box_half_lengths[i] = fs->frame_config->simulation_box_half_lengths[i];
-  }
-
+  
   if( cg->three_body_nonbonded_interactions.class_subtype > 0){
-    printf("Three body non-bonded interactions are not yet supported by newrem!\n");
+    printf("three body non-bonded interactions are not yet supported by newrem\n");
     exit(EXIT_FAILURE);
   }
-
+  
   if (fs->pressure_constraint_flag != 0){
-      printf("Pressure constraints are not supported by newrem!\n");
+      printf("Pressure constraints are not supported by newobs!\n");
       exit(EXIT_FAILURE);
   }
-  
-  printf("Entering expectation calculator.\n");fflush(stdout);
+
+  printf("entering expectation calculator\n");fflush(stdout);
 
   for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
- 
- 	// reset the matrix to 0.
+
+	// reset the matrix to 0.
 	(*mat->set_fm_matrix_to_zero)(mat);
-   
+    
     //for each frame in this block
-    for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++) {
-	  	  
+    for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++){
+
       // check that the last frame read was successful
       if (read_stat == 0){
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
       }
-
+     
+     /* TODO */
+     /* 
+	  // Accumulate the difference in observable values to the RHS vector
+	  double observable_difference = fs->ref_observables[traj_frame_num] - fs->cg_observables[traj_frame_num];
+	  mat->accumulate_target_force_element(mat, trajectory_block_frame_index, &observable_difference);
+	*/
+	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
-	  if (fs->use_statistical_reweighting == 1) {
+	  if (fs->use_statistical_reweighting) {
 		  int frame_index = mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index;
 		  printf("Reweighting entries for frame %d. ", frame_index);
 		  mat->current_frame_weight = fs->frame_weights[frame_index];
@@ -266,39 +228,10 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  //Skip processing frame if frame weight is 0.
       if (fs->use_statistical_reweighting == 1 && mat->current_frame_weight == 0.0) {
       } else {
-      
-		int box_change = 0;
-		for (int i = 0; i < fs->position_dimension; i++) {
-		  if ( fabs(ref_box_half_lengths[i] - fs->frame_config->simulation_box_half_lengths[i]) > VERYSMALL_F ) {
-			box_change = 1;
-			break;
-		  }
-		}
-		
-		// Redo cell list set-up and update reference box size if box has changed.
-		if (box_change == 1) {
-		  // Re-initialize the cell linked lists for finding neighbors in the provided frames;
-		  pair_cell_list = PairCellList();
-		  three_body_cell_list = ThreeBCellList();
-		  pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
-		  if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
-			double max_cutoff = 0.0;
-			for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
-			  max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
-			}
-			three_body_cell_list.init(max_cutoff, fs);
-		  }
-		
-		  // Update the reference_box_half_lengths for this new box size.
-		  for (int i = 0; i < fs->position_dimension; i++) {
-		    ref_box_half_lengths[i] = fs->frame_config->simulation_box_half_lengths[i];
-		  }
-		}
-		
         FrameConfig* frame_config = fs->getFrameConfig();
         calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
       }
-         
+      
       if(fs->dynamic_state_sampling == 0){
 	    //Read next frame
 	    // Only do this if we are not currently process the last frame.
@@ -330,6 +263,4 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 
   printf("Finishing frame parsing.\n");
   fs->cleanup(fs);
-  
-  delete [] ref_box_half_lengths;
 }
