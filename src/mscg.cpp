@@ -91,7 +91,7 @@ void* mscg_startup_part1(void* void_in)
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	    
     if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
-	if (mscg_struct->control_input->dyanmic_state_sampling != 0) dynamic_state_sampling_error();
+	if (mscg_struct->control_input->dynamic_state_sampling != 0) dynamic_state_sampling_error();
 
 	return (void*)(mscg_struct);
 }
@@ -148,7 +148,7 @@ void* rem_startup_part1(void* void_in)
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	 
     if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
-    if (mscg_struct->control_input->dyanmic_state_sampling != 0) dynamic_state_sampling_error();
+    if (mscg_struct->control_input->dynamic_state_sampling != 0) dynamic_state_sampling_error();
 
 	return (void*)(mscg_struct); 
 }

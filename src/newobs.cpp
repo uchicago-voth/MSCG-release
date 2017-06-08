@@ -130,8 +130,8 @@ int main(int argc, char* argv[])
     // This uses the usual dense FM normal matrix solving since it is actually least squares.
     printf("Finishing RE Observable matching.\n");
     mat_cg.finish_fm(&mat_cg);
-    if (frame_source.bootstrapping_flag == 1) {
-		free_bootstrapping_weights(&frame_source);
+    if (fs_cg.bootstrapping_flag == 1) {
+		free_bootstrapping_weights(&fs_cg);
 	}
 
 

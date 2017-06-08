@@ -63,7 +63,7 @@ void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, co
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
-void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 
 // Matrix insertion routines
@@ -768,7 +768,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
  
   // Constraint elements do not make sense for this matrix type.
@@ -804,7 +804,7 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
   
   // For normal form (least squares from Gaussian relaxation)
@@ -861,7 +861,7 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
   mat->accumulate_matching_forces = accumulate_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_entropy; // does nothing
+  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
   
   // For normal form (least squares from Gaussian relaxation)
@@ -931,6 +931,7 @@ void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
   mat->fm_solution.resize(mat->fm_matrix_columns);
    
   mat->accumulate_matching_forces = accumulate_BI_elements;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
   
   // reset output files
@@ -1233,7 +1234,9 @@ void accumulate_vector_symmetric_tabulated_forces(InteractionClassComputer* cons
 void accumulate_vector_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+    int this_column;
+    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+    int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
     std::array<double, DIMENSION> forces;
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
         // Calculate the associated forces.
@@ -1242,18 +1245,18 @@ void accumulate_vector_one_body_force(InteractionClassComputer* const info, cons
  		    forces[j] = -basis_fn_vals[k] * derivatives[0][j];
             }
         // Load those forces into the target vector.
-        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, ref_column + k, &forces[0], mat);
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, this_column, &forces[0], mat);
     }
 }
 
 void accumulate_vector_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
-    if (ref_column >= mat->fm_matrix_columns -  1) {
-		printf("ref_col %d, fm_matrix_columns %d\n", ref_column, mat->fm_matrix_columns);
-		fflush(stdout);    
-    }
+    int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
     std::vector<double> forces(DIMENSION * n_body);
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
         // Calculate the associated forces.
@@ -1266,8 +1269,9 @@ void accumulate_vector_matching_forces(InteractionClassComputer* const info, con
             }
         }
         // Load those forces into the target vector.
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
         for (int i = 0; i < n_body; i++) {
-            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, ref_column + k, &forces[DIMENSION * i], mat);
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[DIMENSION * i], mat);
         }
     }
 }
@@ -1275,7 +1279,10 @@ void accumulate_vector_matching_forces(InteractionClassComputer* const info, con
 void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+	int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
     std::vector<double> forces(DIMENSION * n_body);
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
         // Calculate the associated forces.
@@ -1288,36 +1295,43 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
             }
         }
         // Load those forces into the target vector.
-        for (int i = 0; i < n_body; i++) {
-            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, ref_column + k, &forces[DIMENSION * i], mat);
+	   this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+       for (int i = 0; i < n_body; i++) {
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[DIMENSION * i], mat);
         }
     }
 }
 
 void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
-   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+   int this_column;
+   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
    int n_cg_sites = mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-     insert_scalar_matrix_element(frame_row, ref_column + k, basis_fn_vals[k], mat);    
+      this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
    }
-}
-
-void accumulate_tabulated_entropy(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
-{
-  printf("Tabulated interactions cannot be done through the REM framework. Please remove tabulated interactions from rmin files.\n");
-  fflush(stdout);
-  exit(EXIT_FAILURE);
 }
 
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
-  int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+  int this_column;
+  int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+  int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
 
   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
-	insert_scalar_matrix_element(n_body, ref_column + k, basis_fn_vals[k], mat);
+	this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+	insert_scalar_matrix_element(n_body, this_column, basis_fn_vals[k], mat);
   }
+}
+
+void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+  printf("Tabulated interactions cannot be done for relative entropy interactions. Please remove tabulated interactions from rmin files.\n");
+  fflush(stdout);
+  exit(EXIT_FAILURE);
 }
 
 //---------------------------------------------------------------------
@@ -1328,8 +1342,7 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
 void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // Calculate the associated forces.
-    // Use flat arrays for performance.
-    std::array<double, 1> forces;
+	std::array<double, 1> forces;
     forces[0] = table_fn_val;
 
     // Load this force into the target vector.
@@ -1339,7 +1352,6 @@ void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const 
 void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // Calculate the associated forces.
-    // Use flat arrays for performance.
     std::vector<double> forces(n_body);
     forces[(n_body - 1)] = 0.0;
     for (int i = 0; i < n_body - 1; i++) {
@@ -1355,21 +1367,26 @@ void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, co
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+	int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
     std::array<double, 1> forces;
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
         // Calculate the associated forces.
         // Use flat force array for performance.
  	    forces[0] = -basis_fn_vals[k];
         // Load those forces into the target vector.
-        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, ref_column + k, &forces[0], mat);
+        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, this_column, &forces[0], mat);
     }
 }
 
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+    int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
 
     std::vector<double> forces(n_body);
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
@@ -1381,8 +1398,9 @@ void accumulate_scalar_matching_forces(InteractionClassComputer* const info, con
             forces[(n_body - 1)] += basis_fn_vals[k];
         }
         // Load those forces into the target vector.
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
         for (int i = 0; i < n_body; i++) {
-            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, ref_column + k, &forces[i], mat);
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[i], mat);
         }
     }
 }
