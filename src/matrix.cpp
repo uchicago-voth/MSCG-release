@@ -4382,7 +4382,8 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   double r = 0;
   double rdf_value, normalized_counts;  
   int first_nonzero_basis_index = 0;
-  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
+  int column_size = icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions] - icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
   std::ifstream rdf_file;
   std::string line;
   std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
@@ -4398,8 +4399,7 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
       
       if (rdf_value > 0.0) {
-  	  	  normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / 3.0;
-		  normalized_counts /= (2.0 * volume / num_of_pairs);
+  	  	  normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / (3.0 * 2.0);
 
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
@@ -4408,6 +4408,12 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
 		  }
 	  }
   }
+  
+  // Finish normalization for all matrix elements in this range
+  for (int i = 0; i < column_size; i++) {
+  	mat->dense_fm_normal_matrix->assign_scalar(0, ref_column + i, (num_of_pairs / volume) * mat->dense_fm_normal_matrix->get_scalar(0, ref_column + i) );
+  }
+  
   rdf_file.close();
 }
 
