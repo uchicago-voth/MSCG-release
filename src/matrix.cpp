@@ -300,6 +300,9 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 		accumulate_one_body_tabulated_force 	= accumulate_vector_one_body_tabulated_force;
     }
    
+    // Determine the size of the matrix from model specifications (default sizing)
+	if (control_input->matrix_type != kDummy) determine_matrix_columns_and_rows(this, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+
     // Perform matrix-type-specific initializations.
     switch (control_input->matrix_type) {
     case kDense:
@@ -380,9 +383,6 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 	    mat->finish_fm = solve_dense_fm_normal_equations;
 	}
 	
-    // Determine the size of the matrix from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-
     // Check that the matrix dimensions are reasonable and print diagnostics.    
     if ( (unsigned)(mat->fm_matrix_rows / mat->frames_per_traj_block) * (unsigned)(control_input->n_frames) < (unsigned)(mat->fm_matrix_columns) ) {
         printf("Current number of frames in this trajectory is too low to provide a fully-determined set of FM equations. Provide more frames in the input trajectory.\n");
@@ -449,10 +449,7 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
 	} else {
 	    mat->finish_fm = solve_accumulation_form_fm_equations;
 	}
-	
-    // Determine the size of the matrix from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-        
+	        
     // Check that the matrix dimensions are reasonable.
     if ( (unsigned)(mat->fm_matrix_rows / mat->frames_per_traj_block) * (unsigned)(control_input->n_frames) < (unsigned)(mat->fm_matrix_columns) ) {
         printf("Current number of frames per frame block is too low to allow use of accumulation matrices. Increase block size.\n");
@@ -510,10 +507,7 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     } else {
 	    mat->finish_fm = average_sparse_block_fm_solutions;
 	}
-	
-    // Determine the size of the matrix blocks from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-        
+	        
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
 	printf("Maximum number of non-zero entries is %d, Sparsity is at least %.2lf percent\n", mat->max_nonzero_normal_elements, 100.0 * (1.0 -  (double) mat->max_nonzero_normal_elements / (double) (mat->fm_matrix_columns * mat->fm_matrix_columns)) );
@@ -601,9 +595,6 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     } else {
 		mat->finish_fm = solve_dense_fm_normal_equations;
 	}
-	
-    // Determine the size of the matrix blocks from model specifications
-    determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 	
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
@@ -693,9 +684,6 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 	}
 	
 	mat->sparse_safety_factor = control_input->sparse_safety_factor;
-
-    // Determine the size of the matrix blocks from model specifications
-    determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 	
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
@@ -774,8 +762,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   // Constraint elements do not make sense for this matrix type.
   // Target force is not necessary for REM interaction determination.
 
-  // Size the relative entropy matrix
-  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+  // Adjustthe size the relative entropy matrix
   mat->fm_matrix_rows = 2;
   
   printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
@@ -822,9 +809,6 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   }
   
   // Constraint elements do not make sense for this matrix type.
-  
-  // Size the relative entropy matrix
-  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
   
   // This allows frameblocks of arbitrary size to be accumulated.
   mat->fm_matrix_rows = control_input->frames_per_traj_block;
@@ -879,9 +863,6 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
   }
   
   // Constraint elements do not make sense for this matrix type.
-  
-  // Size the relative entropy matrix
-  determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
   
   // This allows frameblocks of arbitrary size to be accumulated.
   mat->fm_matrix_rows = control_input->frames_per_traj_block;
