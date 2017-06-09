@@ -62,7 +62,7 @@ void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const 
 void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
-void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_frame_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 
@@ -755,10 +755,11 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_matching_forces = accumulate_frame_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
- 
+  mat->accumulate_fm_matrix_element = insert_scalar_matrix_element;
+  
   // Constraint elements do not make sense for this matrix type.
   // Target force is not necessary for REM interaction determination.
 
@@ -790,9 +791,10 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_matching_forces = accumulate_frame_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
   
   // For normal form (least squares from Gaussian relaxation)
   if (control_input->bootstrapping_flag == 1) {
@@ -844,9 +846,10 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_entropy_elements;
+  mat->accumulate_matching_forces = accumulate_particle_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
   
   // For normal form (least squares from Gaussian relaxation)
   if (control_input->bootstrapping_flag == 1) {
@@ -864,8 +867,7 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
   
   // Constraint elements do not make sense for this matrix type.
   
-  // This allows frameblocks of arbitrary size to be accumulated.
-  mat->fm_matrix_rows = control_input->frames_per_traj_block;
+  // The default matrix size is OK.
   
   printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
   printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
@@ -1008,10 +1010,10 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 	// then multiplying by the block size.
 	mat->rows_less_virial_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
     if (pressure_constraint_flag == 0) {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * DIMENSION;
+        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * mat->size_per_vector;
         mat->virial_constraint_rows = 0;
     } else {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * DIMENSION + frames_per_traj_block;
+        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * mat->size_per_vector + frames_per_traj_block;
         mat->virial_constraint_rows = frames_per_traj_block;
     }
 }
@@ -1283,16 +1285,29 @@ void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const
     }
 }
 
-void accumulate_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
 {
    int this_column;
    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
    int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
-   int n_cg_sites = mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int n_cg_sites = mat->rows_less_virial_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
-      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
+      (*mat->accumulate_fm_matrix_element)(frame_row, this_column, basis_fn_vals[k], mat);    
+   }
+}
+
+void accumulate_frame_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+{
+   int this_column;
+   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int n_cg_sites = mat->rows_less_virial_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
+   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+      this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+      (*mat->accumulate_fm_matrix_element)(frame_row, this_column, basis_fn_vals[k], mat);    
    }
 }
 
@@ -4359,7 +4374,7 @@ void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComput
 	  if( type_vector[0] == type_vector[1]){
 	    num_pairs -= sitecounter[type_vector[0]-1];
 	  }
-	  read_pair_distribution(icomp, topo_data->name, mat, i, counter,num_pairs, volume);
+	  read_pair_distribution(icomp, topo_data->name, mat, i, counter, num_pairs, volume);
 	} else if ( icomp->ispec->class_type == kPairBonded ) {
 	  read_pair_distribution(icomp, topo_data->name, mat, i, counter, 2.0, 1.0);
 	} else if( icomp->ispec->class_type == kDensity ){
@@ -4382,8 +4397,7 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   double r = 0;
   double rdf_value, normalized_counts;  
   int first_nonzero_basis_index = 0;
-  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
-  int column_size = icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions] - icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1];
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
   std::ifstream rdf_file;
   std::string line;
   std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
@@ -4399,19 +4413,14 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
       
       if (rdf_value > 0.0) {
-  	  	  normalized_counts = rdf_value * 4.0*PI*( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / (3.0 * 2.0);
-
+  	  	  normalized_counts = rdf_value * 4.0 * PI * ( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / (3.0 * 2.0);
+		  noramlized_counts *= (num_of_pairs / volume);
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
 		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
-		  	mat->dense_fm_normal_matrix->assign_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  	mat->dense_fm_normal_matrix->add_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
 		  }
 	  }
-  }
-  
-  // Finish normalization for all matrix elements in this range
-  for (int i = 0; i < column_size; i++) {
-  	mat->dense_fm_normal_matrix->assign_scalar(0, ref_column + i, (num_of_pairs / volume) * mat->dense_fm_normal_matrix->get_scalar(0, ref_column + i) );
   }
   
   rdf_file.close();
@@ -4444,7 +4453,7 @@ void read_other_distribution(InteractionClassComputer* const icomp, char** const
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
 		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
-		  	mat->dense_fm_normal_matrix->assign_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  	mat->dense_fm_normal_matrix->add_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
 		  }
   	  }
   }
