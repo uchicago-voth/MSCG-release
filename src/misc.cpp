@@ -281,15 +281,22 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 		last--;
 	}
 
-	// Check lower value
+	// Check lower value(s)
 	while (axis_vals[first] < low_value + VERYSMALL_F) {
 		first++;
 	}
 	if (first != 0) {
-		// There is no axis_vals.pop_front() for std::vector.
-		// So, these entries would need to be copied to a completely new std::vector
-		// Instead, this will error out!
-		printf("Interaction range to print (%lf) exceeds normal upper bound (%lf)!\n", axis_vals[0], low_value);
+		// remove these leading entries
+		// only do this once because the operation is rather inefficient
+		if (first == 1) {
+			//remove a sigle entry
+			axis_vals.erase(axis_vals.begin());
+			force_vals.erase(force_vals.begin());
+		} else {
+			// remove a range of entries
+			axis_vals.erase(axis_vals.begin(), axis_vals.begin() + first - 1);
+			force_vals.erase(force_vals.begin(), force_vals.begin() + first - 1);
+		}
 	}
 
 }
