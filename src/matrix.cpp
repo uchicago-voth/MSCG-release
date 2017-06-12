@@ -51,7 +51,6 @@ void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat, dense_matrix* const
 void set_dummy_matrix_to_zero(MATRIX_DATA* const mat);
 
 // Interface-level functions that convert force magnitude and derivatives to matrix elements.
-
 void accumulate_vector_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int *particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_vector_symmetric_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
@@ -62,6 +61,7 @@ void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const 
 void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_frame_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
@@ -71,7 +71,7 @@ void accumulate_BI_elements(InteractionClassComputer* const info, const int firs
 void insert_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
-inline void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
+void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 
 void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
@@ -758,7 +758,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
   mat->accumulate_matching_forces = accumulate_frame_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
-  mat->accumulate_fm_matrix_element = insert_scalar_matrix_element;
+  //mat->accumulate_fm_matrix_element = insert_scalar_matrix_element;
   
   // Constraint elements do not make sense for this matrix type.
   // Target force is not necessary for REM interaction determination.
@@ -846,7 +846,7 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_particle_entropy_elements;
+  mat->accumulate_matching_forces = accumulate_scalar_entropy_elements;
   mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
   mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
   mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
@@ -1294,7 +1294,7 @@ void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, co
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
-      (*mat->accumulate_fm_matrix_element)(frame_row, this_column, basis_fn_vals[k], mat);    
+      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
    }
 }
 
@@ -1307,7 +1307,7 @@ void accumulate_frame_entropy_elements(InteractionClassComputer* const info, con
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
-      (*mat->accumulate_fm_matrix_element)(frame_row, this_column, basis_fn_vals[k], mat);    
+      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
    }
 }
 
@@ -3123,8 +3123,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		FILE* mat_fp   = fopen("matrix.out", "w");
 		FILE* inv_fp   = fopen("inverse.out", "w");
-		//backup_normal_matrix->print_matrix(mat_fp);
-	
+		
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
 		   for (int j = backup_normal_matrix->row_sizes[i] - 1; j < backup_normal_matrix->row_sizes[i + 1] - 1; j++) {
 		      backup_dense_matrix->assign_scalar(i, backup_normal_matrix->column_indices[j], backup_normal_matrix->values[j]);
@@ -3477,7 +3476,6 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		FILE* mat_fp   = fopen("matrix.out", "w");
 		FILE* inv_fp   = fopen("inverse.out", "w");
-		backup_normal_matrix->print_matrix(mat_fp);
 		
 		while (iteration < mat->bayesian_max_iter) {
 		
@@ -4414,7 +4412,7 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
       
       if (rdf_value > 0.0) {
   	  	  normalized_counts = rdf_value * 4.0 * PI * ( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / (3.0 * 2.0);
-		  noramlized_counts *= (num_of_pairs / volume);
+		  normalized_counts *= (num_of_pairs / volume);
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
 		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {

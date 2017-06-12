@@ -22,7 +22,6 @@
 #include "fm_output.h"
 #include "misc.h"
 
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
 
 int main(int argc, char* argv[])
