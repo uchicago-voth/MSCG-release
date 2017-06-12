@@ -445,27 +445,7 @@ void* rem_startup_part2(void* void_in)
   	n_blocks = total_frame_samples / mscg_struct->mat->frames_per_traj_block;
 
 	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);  
-  	
-  	
-  	// Read in the reference data from file based on the REM_reference_style setting.
-  	if (p_control_input->REM_reference_style == 0) {
-    	printf("When using LAMMPS, reference information cannot be read from frames.\n");
-    	printf("Please change your REM_reference_style and try again!\n");
-    	fflush(stdout);
-    	exit(EXIT_FAILURE);
-	} else if (p_control_input->REM_reference_style == 1) {
-		printf("Reading reference matrix from file.\n");
-    	construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat);
-    } else if (p_control_input->REM_reference_style == 2) {
-    	printf("Reading reference distribution functions.\n");
-    	// The CG box size is used for volume since there is no box size specified for the reference system.
-    	construct_rem_matrix_from_rdfs(p_cg, mscg_struct->ref_mat, calculate_volume(p_frame_source->simulation_box_limits));
-	} else {
-   		printf("Unrecognized REM_reference_style (%d)!\n", p_control_input->REM_reference_style);
-   		fflush(stdout);
-   		exit(EXIT_FAILURE);
-    }
-  	
+  	  	
   	//Initialize other data
 	p_frame_source->cleanup = finish_fix_reading;
 	p_frame_source->current_frame_n = 1;
@@ -687,6 +667,28 @@ void* rem_process_frame(void* void_in, double* const x, double* const f)
 			p_frame_config->f[i][j] = f[i*3 + j];
 		}
 	}	
+	
+	// Read reference matrix if this is the first frame processed
+	if (mscg_struct->curr_frame == 0) {
+	  	// Read in the reference data from file based on the REM_reference_style setting.
+	  	if (mscg_struct->control_input->REM_reference_style == 0) {
+    		printf("When using LAMMPS, reference information cannot be read from frames.\n");
+    		printf("Please change your REM_reference_style and try again!\n");
+    		fflush(stdout);
+    		exit(EXIT_FAILURE);
+		} else if (mscg_struct->control_input->REM_reference_style == 1) {
+			printf("Reading reference matrix from file.\n");
+    		construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat);
+    	} else if (mscg_struct->control_input->REM_reference_style == 2) {
+    		printf("Reading reference distribution functions.\n");
+    		// The CG box size is used for volume since there is no box size specified for the reference system.
+	    	construct_rem_matrix_from_rdfs(p_cg, mscg_struct->ref_mat, calculate_volume(p_frame_source->simulation_box_limits));
+		} else {
+   			printf("Unrecognized REM_reference_style (%d)!\n", mscg_struct->control_input->REM_reference_style);
+   			fflush(stdout);
+   			exit(EXIT_FAILURE);
+    	}
+	}
 	
 	// Initialize the cell linked lists for finding neighbors in the provided frames;
     // NVT trajectories are assumed, so this only needs to be done once.
