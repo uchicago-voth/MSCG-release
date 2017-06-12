@@ -106,7 +106,7 @@ newobs.o: newobs.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newobs.cpp
 
 newobs_mkl.o: newobs.cpp $(COMMON_SOURCE) 
-	$(CC) $(MKL_CFLAGS) -c newobs.cpp -D"_mkl_flag=1" -o newrem_obs.o
+	$(CC) $(MKL_CFLAGS) -c newobs.cpp -D"_mkl_flag=1" -o newobs_mkl.o
 
 combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c combinefm.cpp

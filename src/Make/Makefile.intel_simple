@@ -69,13 +69,13 @@ newobs: newobs.o  $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
 
 newobs_mkl: newobs_mkl.o  $(MKL_COMMON_OBJECTS) 
-	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs.o $(MKL_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs_mkl.o $(MKL_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
 
 newobs_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS) 
 	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 
 newobs_mkl_no_gro: newobs_mkl.o  $(MKL_NO_GROCOMMON_OBJECTS) 
-	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs.o $(MKL_NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newobs_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 
 combinefm: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
