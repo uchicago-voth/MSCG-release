@@ -1,0 +1,17 @@
+units           real
+dimension	3
+atom_style	full
+
+read_data data.MeOH_CG
+
+pair_style zero 10.0
+kspace_style none
+bond_style	none
+angle_style     none
+dihedral_style  none
+
+pair_coeff * *
+
+fix 1 all mscg 1 rem on name 1
+
+rerun dump.lammpstrj.cg first 0 last 2000000 every 1 dump x y z box yes
