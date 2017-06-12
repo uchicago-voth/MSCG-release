@@ -4392,7 +4392,8 @@ void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComput
 void read_pair_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
   const double PI = 3.1415926;
-  double r = 0;
+  double r = 0.0;
+  double rprev = 0.0;
   double rdf_value, normalized_counts;  
   int first_nonzero_basis_index = 0;
   int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
@@ -4404,6 +4405,15 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   
   check_and_read_next_line(rdf_file, line); // read header line
   
+  // read next 2 lines to set rprev an appropriate distance back, then reset the file reader
+  int offset = rdf_file.tellg();
+  if(!std::getline(rdf_file, line))  exit(EXIT_FAILURE);
+  sscanf(line.c_str(),"%lf %lf\n",&r,&normalized_counts);
+  if(!std::getline(rdf_file, line))  exit(EXIT_FAILURE);
+  sscanf(line.c_str(),"%lf %lf\n",&rdf_value,&normalized_counts);
+  rprev = 2.0 * r - rdf_value;
+  rdf_file.seekg(offset);
+  
   while ( r <= icomp->ispec->upper_cutoffs[index_among_defined_intrxns] ) {
   	  // Read actual content
       // Leave the loop only if we go beyond the upper cutoff or we reach the end of the file
@@ -4411,7 +4421,7 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
   	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
       
       if (rdf_value > 0.0) {
-  	  	  normalized_counts = rdf_value * 4.0 * PI * ( r*r*r - (r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())*(r - icomp->ispec->get_fm_binwidth())) / (3.0 * 2.0);
+  	  	  normalized_counts = rdf_value * 4.0 * PI * ( r*r*r - (rprev)*(rprev)*(rprev) ) / (3.0 * 2.0);
 		  normalized_counts *= (num_of_pairs / volume);
 		  // Get values for matrix elements
 		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
@@ -4419,6 +4429,7 @@ void read_pair_distribution(InteractionClassComputer* const icomp, char** const 
 		  	mat->dense_fm_normal_matrix->add_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
 		  }
 	  }
+	  rprev = r;
   }
   
   rdf_file.close();
