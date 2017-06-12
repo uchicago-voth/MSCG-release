@@ -80,7 +80,7 @@ FixMSCG::FixMSCG(LAMMPS *lmp, int narg, char **arg) :
         range_flag = 0;
       else error->all(FLERR,"Illegal fix mscg command");
       iarg += 2;
-    else if (strcmp(arg[iarg],"rem") == 0) {
+    } else if (strcmp(arg[iarg],"rem") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix mscg command");
       if (strcmp(arg[iarg+1],"on") == 0)
         rem_flag = 1;
