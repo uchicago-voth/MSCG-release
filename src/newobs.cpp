@@ -182,7 +182,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
   
   if( cg->three_body_nonbonded_interactions.class_subtype > 0){
-    printf("three body non-bonded interactions are not yet supported by newrem\n");
+    printf("Three body non-bonded interactions are not yet supported by newrem\n");
     exit(EXIT_FAILURE);
   }
   
@@ -191,17 +191,17 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
       exit(EXIT_FAILURE);
   }
 
-  printf("entering expectation calculator\n");fflush(stdout);
+  printf("Entering expectation calculator.\n");fflush(stdout);
 
-  for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {    
-
+  for (mat->trajectory_block_index = 0; mat->trajectory_block_index < n_blocks; mat->trajectory_block_index++) {
+  
 	// reset the matrix to 0.
 	(*mat->set_fm_matrix_to_zero)(mat);
-    
+	
     //for each frame in this block
     for (int trajectory_block_frame_index = 0; trajectory_block_frame_index < mat->frames_per_traj_block; trajectory_block_frame_index++){
-
-      // check that the last frame read was successful
+	  
+	  // check that the last frame read was successful
       if (read_stat == 0){
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
@@ -213,7 +213,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
-	  if (fs->use_statistical_reweighting) {
+	  if (fs->use_statistical_reweighting == 1) {
 		  int frame_index = mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index;
 		  printf("Reweighting entries for frame %d. ", frame_index);
 		  mat->current_frame_weight = fs->frame_weights[frame_index];
@@ -222,7 +222,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  //Skip processing frame if frame weight is 0.
       if (fs->use_statistical_reweighting == 1 && mat->current_frame_weight == 0.0) {
       } else {
-        FrameConfig* frame_config = fs->getFrameConfig();
+      	FrameConfig* frame_config = fs->getFrameConfig();
         calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
       }
       

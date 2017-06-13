@@ -222,7 +222,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
-	  if (fs->use_statistical_reweighting) {
+	  if (fs->use_statistical_reweighting == 1) {
 		  int frame_index = mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index;
 		  printf("Reweighting entries for frame %d. ", frame_index);
 		  mat->current_frame_weight = fs->frame_weights[frame_index];

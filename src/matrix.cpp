@@ -225,6 +225,11 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	    control_input->frames_per_traj_block = 1;
 	}
 	
+	if (control_input->frames_per_traj_block < 1) {
+		printf("Please change the block size to a positive number and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
+	
 	if (control_input->position_dimension <= 0) {
 		printf("Position dimension must be a positive integer\n");
 		exit(EXIT_FAILURE);
