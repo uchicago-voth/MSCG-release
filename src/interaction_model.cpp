@@ -109,23 +109,19 @@ std::vector<int> DensityClassSpec::get_interaction_types(const int index_among_d
 }
 
 // Select the correct type name array for the interaction.
-void select_name(InteractionClassSpec* const ispec, char ** &name, char ** const cg_name)
+char** select_name(InteractionClassSpec* const ispec, char ** const cg_name)
 {
-	DensityClassSpec* dspec;
-  	RadiusofGyrationClassSpec* rg_spec;
-  	HelicalClassSpec* h_spec;
-
 	if(ispec->class_type == kDensity) {
-		dspec = dynamic_cast<DensityClassSpec*>( ispec );
-		name = dspec->density_group_names;
+		DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>( ispec );
+		return dspec->density_group_names;
 	} else if(ispec->class_type == kRadiusofGyration) {
-		rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( ispec );
-		name = rg_spec->molecule_group_names;
+		RadiusofGyrationClassSpec* rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( ispec );
+		return rg_spec->molecule_group_names;
 	} else if(ispec->class_type == kHelical) {
-		h_spec = dynamic_cast<HelicalClassSpec*>( ispec );
-		name = h_spec->molecule_group_names;
+		HelicalClassSpec* h_spec = dynamic_cast<HelicalClassSpec*>( ispec );
+		return h_spec->molecule_group_names;
 	} else {
-		name = cg_name;
+		return cg_name;
 	}
 }
 
@@ -807,10 +803,9 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     if (cg->helical_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
     
 	// Read the ranges.
-	char ** name;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
         if ((*iclass_iterator)->n_defined == 0) continue;
-        select_name((*iclass_iterator), name, cg->name);
+        char** name = select_name((*iclass_iterator), cg->name);
 	
         if ((*iclass_iterator)->class_type == kPairNonbonded) {
             (*iclass_iterator)->smart_read_interaction_class_ranges(nonbonded_range_in, name);

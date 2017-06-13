@@ -186,8 +186,7 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
     iclass->n_to_force_match = iclass->get_n_defined();
     iclass->interaction_column_indices = std::vector<unsigned>(iclass->n_to_force_match + 1);
 	
-	char **name;
-	select_name(iclass, name, topo_data->name);
+	char** name = select_name(iclass, topo_data->name);
 	if(iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2 ){
 		if(iclass->class_type == kDensity) {
 			if (iclass->class_subtype > 0) {
@@ -479,11 +478,10 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 
 void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
-	char ** name;
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
     for(iclass_iterator = cg->iclass_list.begin(), icomp_iterator = cg->icomp_list.begin(); (iclass_iterator != cg->iclass_list.end()) && (icomp_iterator != cg->icomp_list.end()); iclass_iterator++, icomp_iterator++) {
-        select_name((*iclass_iterator), name, cg->name);
+        char** name = select_name((*iclass_iterator), cg->name);
         if((*iclass_iterator)->class_type == kOneBody) {
         	write_one_body_iclass_range_specifications(*icomp_iterator, name, mat, one_body_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kPairNonbonded) {
@@ -780,7 +778,6 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
 {
   initialize_first_BI_matrix(mat, cg);
-  char ** name;
   double volume = calculate_volume(fs->simulation_box_limits);
   int solution_counter = 0;
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -797,7 +794,7 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
   	(*icomp_iterator)->interaction_class_column_index = 0;
   	
   	// Do BI for this interaction
-  	select_name((*icomp_iterator)->ispec, name, cg->name);
+  	char** name = select_name((*icomp_iterator)->ispec, cg->name);
     initialize_next_BI_matrix(mat, (*icomp_iterator));
     read_interaction_file_and_build_matrix(mat, (*icomp_iterator), volume, &cg->topo_data, name);
     solve_this_BI_equation(mat, solution_counter);

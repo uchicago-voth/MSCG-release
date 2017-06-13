@@ -1113,7 +1113,7 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types);
 void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg);
 
 // Select the correct type name array for the interaction.
-void select_name(InteractionClassSpec* const ispec, char ** &name, char ** const cg_name);
+char** select_name(InteractionClassSpec* const ispec, char ** const cg_name);
 
 // Convert selected basis types to kBSplineAndDeriv (for REM)
 void screen_interaction_basis(CG_MODEL_DATA* const cg);

@@ -99,7 +99,7 @@ void initialize_topology_data(TopologyData* const topo_data)
     topo_data->cg_site_types = new int[nsites]();
     topo_data->molecule_ids  = new int[nsites]();
 
-    topo_data->name = new char*[topo_data->n_cg_types];
+    topo_data->name = new char*[topo_data->n_cg_types]();
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
         topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1]();
     }
@@ -181,7 +181,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     // class arrays indexed by all possible such interactions
     // using that information.
     initialize_topology_data(topo_data);
-    cg->name = new char*[cg->n_cg_types];
+    cg->name = new char*[cg->n_cg_types]();
     for (i = 0; i < unsigned(cg->n_cg_types); i++) {
         cg->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
     }
