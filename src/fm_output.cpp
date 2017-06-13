@@ -318,15 +318,15 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
     } else {
     	print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals);
-    	if (icomp->ispec->class_type != kOneBody) {
+    	if (dynamic_cast<OneBodyClassComputer*>(icomp) == NULL) {
 		    std::vector<double> tab_axis_vals, tab_force_vals;
 		    icomp->calc_grid_of_table_force_vals(index_among_defined_intrxns, icomp->ispec->output_binwidth, tab_axis_vals, tab_force_vals);
     		// sum the forces between the fm and tab.
     		add_force_vals(axis_vals, force_vals, tab_axis_vals, tab_force_vals);
     		// Integrate force starting from cutoff
     		integrate_force(axis_vals, force_vals, potential_vals);
-    		
-    		write_MSCGFM_table_output_file(basename + "_sum", axis_vals, force_vals);
+    		//write_LAMMPS_table_output_file(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, potential_vals, force_vals);   
+			write_MSCGFM_table_output_file(basename + "_sum", axis_vals, force_vals);
 			pad_and_print_table_files(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, force_vals, potential_vals, cutoff);
     	}
     }
@@ -349,7 +349,7 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 	    }
     	integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
 	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
-    } else if (char_id == 'd') {
+    } if (char_id == 'd') {
    	 trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 std::vector<double> corrected_potential_vals;
    	 integrate_force(axis_vals, force_vals, corrected_potential_vals);
@@ -378,8 +378,6 @@ void print_table_files(const char char_id, std::string& basename, std::vector<do
 void pad_and_print_single_table(const char char_id, const std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff)
 {
    std::vector<double> padded_potential_vals;
-   
-   // pad front
    int status = pad_values_front_with_fix(axis_vals,force_vals);
    if(char_id == 'a'){
      pad_values_front(0.0,axis_vals,force_vals,force_vals[0]);
@@ -387,8 +385,6 @@ void pad_and_print_single_table(const char char_id, const std::string& basename,
    if (status == -1) {
 	printf("Error encountered when padding lower end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }
-   
-   // pad back
    status = pad_values_back_with_fix(cutoff,axis_vals,force_vals);
    if(char_id == 'a') {
      pad_values_back(180.0,axis_vals,force_vals,force_vals[force_vals.size()-1]);
@@ -397,11 +393,7 @@ void pad_and_print_single_table(const char char_id, const std::string& basename,
    if (status == -1) {
 	printf("Error encountered when padding upper end of %s! Please check the output tables carefully before using!\n", basename.c_str());
    }
-   
-   // Generate padded_potential_vals
    integrate_force(axis_vals, force_vals, padded_potential_vals);
-   
-   // write LAMMPS table using padded forces and potentials
    write_LAMMPS_table_output_file(char_id, basename, axis_vals, padded_potential_vals, force_vals);
 }
 
