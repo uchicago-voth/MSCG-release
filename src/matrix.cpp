@@ -754,11 +754,15 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_frame_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  //mat->accumulate_fm_matrix_element        = insert_scalar_matrix_element;
   mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
-  //mat->accumulate_fm_matrix_element = insert_scalar_matrix_element;
   
   // Constraint elements do not make sense for this matrix type.
   // Target force is not necessary for REM interaction determination.
@@ -790,12 +794,16 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_frame_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
-  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
-  mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-  
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  mat->accumulate_target_force_element       = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  mat->accumulate_fm_matrix_element          = insert_dense_matrix_element;
+
   // For normal form (least squares from Gaussian relaxation)
   if (control_input->bootstrapping_flag == 1) {
     mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
@@ -845,11 +853,15 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
 void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
 {
   // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero = set_dense_matrix_to_zero;
-  mat->accumulate_matching_forces = accumulate_scalar_entropy_elements;
-  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
-  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
-  mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_scalar_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_scalar_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_scalar_one_body_force;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  mat->accumulate_target_force_element       = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  mat->accumulate_fm_matrix_element          = insert_dense_matrix_element;
   
   // For normal form (least squares from Gaussian relaxation)
   if (control_input->bootstrapping_flag == 1) {
@@ -4344,7 +4356,7 @@ void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
     if ( (*icomp_iterator)->ispec->n_to_force_match == 0) continue;
     
     // Set the correct name array for this interaction
-    select_name ((*icomp_iterator)->ispec, name, cg->name);
+    select_name((*icomp_iterator)->ispec, name, cg->name);
   
   	// Read and build matrix section for this interaction
     read_rdf_file_and_build_rem_matrix(mat, (*icomp_iterator), volume, &cg->topo_data, name);
