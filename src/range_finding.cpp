@@ -727,8 +727,10 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	unsigned long* bin_counts;
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
 
+	  ispec->adjust_cutoffs_for_basis(i);
 		// Set-up histogram based on interaction binwidth
 		num_bins = (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 );
+		//		printf("%lf %lf\n",ispec->upper_cutoffs[i],ispec->lower_cutoffs[i]);
 		bin_centers = new double[num_bins]();
         bin_counts = new unsigned long[num_bins]();
         
