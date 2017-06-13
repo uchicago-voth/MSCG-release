@@ -587,7 +587,7 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
     }
     
     fprintf(solution_spline_output_file, "%lf %lf", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
-    if (ispec->upper_cutoffs[index_among_defined] == -1.0) {
+    if (ispec->upper_cutoffs[index_among_defined] == -1.0) { // there is no sampling here.
 		fprintf(solution_spline_output_file, " none");	    
     } else {
 	    fprintf(solution_spline_output_file, " fm");
@@ -728,7 +728,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
 		
 		// Set-up histogram based on interaction binwidth
-		if (ispec->upper_cutoffs[i] == -1.0) {
+		if (ispec->upper_cutoffs[i] == -1.0) { // there is no sampling here. default allocate
 			num_bins = 1;
 		} else {	
 	    	 ispec->adjust_cutoffs_for_basis(i);
@@ -906,6 +906,8 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   int *junk;
   double r;
   double potential;
+  
+  if (icomp->ispec->upper_cutoffs[index_among_defined_intrxns] == -1.0) return; // There is no sampling here
   int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
   
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];

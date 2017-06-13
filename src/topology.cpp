@@ -96,12 +96,12 @@ inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const in
 void initialize_topology_data(TopologyData* const topo_data)
 {
 	unsigned nsites = topo_data->n_cg_sites;
-    topo_data->cg_site_types = new int[nsites];
-    topo_data->molecule_ids  = new int[nsites];
+    topo_data->cg_site_types = new int[nsites]();
+    topo_data->molecule_ids  = new int[nsites]();
 
     topo_data->name = new char*[topo_data->n_cg_types];
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
-        topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
+        topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1]();
     }
     topo_data->max_quints_per_site = topo_data->max_dihedrals_per_site + 2;
     // Ready pair bond data structures.
