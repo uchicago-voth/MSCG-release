@@ -726,11 +726,14 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	double* bin_centers;
 	unsigned long* bin_counts;
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
-
-	  ispec->adjust_cutoffs_for_basis(i);
+		
 		// Set-up histogram based on interaction binwidth
-		num_bins = (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 );
-		//		printf("%lf %lf\n",ispec->upper_cutoffs[i],ispec->lower_cutoffs[i]);
+		if (ispec->upper_cutoffs[i] == -1.0) {
+			num_bins = 1;
+		} else {	
+	    	 ispec->adjust_cutoffs_for_basis(i);
+			num_bins = (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 );
+		}
 		bin_centers = new double[num_bins]();
         bin_counts = new unsigned long[num_bins]();
         
@@ -853,7 +856,11 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
   int *junk;
   double PI = 3.1415926;
   double r, potential;
-  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  
+  if (icomp->ispec->upper_cutoffs[index_among_defined_intrxns] == -1.0) return; // There is no sampling here
+  
+  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth() + 0.5);
+  fflush(stdout);
   
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
