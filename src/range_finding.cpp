@@ -49,7 +49,7 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
 
 void read_helical_parameter_file(InteractionClassSpec* const ispec);
 void read_density_parameter_file(DensityClassSpec* const ispec);
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* const topo_data);
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* const topo_data, char ** const name);
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
 
@@ -186,21 +186,23 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
     iclass->n_to_force_match = iclass->get_n_defined();
     iclass->interaction_column_indices = std::vector<unsigned>(iclass->n_to_force_match + 1);
 	
+	char **name;
+	select_name(iclass, name, topo_data->name);
 	if(iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2 ){
 		if(iclass->class_type == kDensity) {
 			if (iclass->class_subtype > 0) {
-				open_density_parameter_distribution_files_for_class(icomp, topo_data->density_group_names);
+				open_density_parameter_distribution_files_for_class(icomp, name);
  			}
  		} else if (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) {
  			if (iclass->class_subtype > 0) {
- 				open_parameter_distribution_files_for_class(icomp, topo_data->molecule_group_names);
+ 				open_parameter_distribution_files_for_class(icomp, name);
 			}
 		} else if ( (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
 					 iclass->class_subtype == 1 ) {
-			open_parameter_distribution_files_for_class(icomp, topo_data->name);
+			open_parameter_distribution_files_for_class(icomp, name);
 		} else if (iclass->class_type == kPairNonbonded || iclass->class_type == kPairBonded || 
 		           iclass->class_type == kAngularBonded || iclass->class_type == kDihedralBonded) {
-		    open_parameter_distribution_files_for_class(icomp, topo_data->name);
+		    open_parameter_distribution_files_for_class(icomp, name);
 		} else {
 			// do nothing here
 		}
@@ -477,26 +479,28 @@ void write_range_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 
 void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FILE* const one_body_spline_output_filep, FILE* const nonbonded_spline_output_filep, FILE* const bonded_spline_output_filep, FILE* const distance_spline_output_filep, FILE* const density_interaction_output_filep, FILE* const helical_interaction_output_filep, FILE* const radius_of_gyration_interaction_output_filep)
 {   
+	char ** name;
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	std::list<InteractionClassComputer*>::iterator icomp_iterator;
     for(iclass_iterator = cg->iclass_list.begin(), icomp_iterator = cg->icomp_list.begin(); (iclass_iterator != cg->iclass_list.end()) && (icomp_iterator != cg->icomp_list.end()); iclass_iterator++, icomp_iterator++) {
+        select_name((*iclass_iterator), name, cg->name);
         if((*iclass_iterator)->class_type == kOneBody) {
-        	write_one_body_iclass_range_specifications(*icomp_iterator, cg->name, mat, one_body_spline_output_filep);
+        	write_one_body_iclass_range_specifications(*icomp_iterator, name, mat, one_body_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kPairNonbonded) {
-            write_iclass_range_specifications(*icomp_iterator, cg->name, mat, nonbonded_spline_output_filep);
+            write_iclass_range_specifications(*icomp_iterator, name, mat, nonbonded_spline_output_filep);
         } else if ( ((*iclass_iterator)->class_type == kR13Bonded ||
         		 (*iclass_iterator)->class_type == kR14Bonded ||
         		 (*iclass_iterator)->class_type == kR15Bonded) &&
         		 (*iclass_iterator)->class_subtype != 0 ) {
-        	write_iclass_range_specifications(*icomp_iterator, cg->name, mat, distance_spline_output_filep);
+        	write_iclass_range_specifications(*icomp_iterator, name, mat, distance_spline_output_filep);
         } else if ((*iclass_iterator)->class_type == kHelical) {
-			write_iclass_range_specifications(*icomp_iterator, cg->helical_interactions.molecule_group_names, mat, helical_interaction_output_filep);
+			write_iclass_range_specifications(*icomp_iterator, name, mat, helical_interaction_output_filep);
         } else if ((*iclass_iterator)->class_type == kRadiusofGyration) {
-			write_iclass_range_specifications(*icomp_iterator, cg->radius_of_gyration_interactions.molecule_group_names, mat, radius_of_gyration_interaction_output_filep);
+			write_iclass_range_specifications(*icomp_iterator, name, mat, radius_of_gyration_interaction_output_filep);
 		} else if ((*iclass_iterator)->class_type == kDensity) {
-			write_iclass_range_specifications(*icomp_iterator, cg->density_interactions.density_group_names, mat, density_interaction_output_filep);
+			write_iclass_range_specifications(*icomp_iterator, name, mat, density_interaction_output_filep);
 		} else {
-            write_iclass_range_specifications(*icomp_iterator, cg->name, mat, bonded_spline_output_filep);
+            write_iclass_range_specifications(*icomp_iterator, name, mat, bonded_spline_output_filep);
         }
     }
 }
@@ -771,6 +775,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
 {
   initialize_first_BI_matrix(mat, cg);
+  char ** name;
   double volume = calculate_volume(fs->simulation_box_limits);
   int solution_counter = 0;
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
@@ -787,8 +792,9 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
   	(*icomp_iterator)->interaction_class_column_index = 0;
   	
   	// Do BI for this interaction
+  	select_name((*icomp_iterator)->ispec, name, cg->name);
     initialize_next_BI_matrix(mat, (*icomp_iterator));
-    read_interaction_file_and_build_matrix(mat, (*icomp_iterator), volume, &cg->topo_data);
+    read_interaction_file_and_build_matrix(mat, (*icomp_iterator), volume, &cg->topo_data, name);
     solve_this_BI_equation(mat, solution_counter);
     
     // restore icci
@@ -796,7 +802,7 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
   }
 }
 
-void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data)
+void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data, char ** const name)
 { 
   int counter = 0;
   int* sitecounter;
@@ -809,7 +815,6 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
   }
     
   // Otherwise, process the data
-  //fm_basis_fn_vals = std::vector<double>(fm_s_comp->get_n_coef());
   for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
   	icomp->index_among_defined_intrxns = i; // This is OK since every defined interaction is "matched" here.
   	icomp->set_indices();
@@ -819,16 +824,11 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 	  if( type_vector[0] == type_vector[1]){
 	    num_pairs -= sitecounter[type_vector[0]-1];
 	  }
-	  read_one_param_dist_file_pair(icomp, topo_data->name, mat, i, counter,num_pairs, volume);
+	  read_one_param_dist_file_pair(icomp, name, mat, i, counter,num_pairs, volume);
 	} else if ( icomp->ispec->class_type == kPairBonded ) {
-	  read_one_param_dist_file_pair(icomp, topo_data->name, mat, i, counter, 2.0, 1.0);
-	} else if( icomp->ispec->class_type == kDensity ){
-	  DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
-	  read_one_param_dist_file_other(icomp, dspec->density_group_names, mat, i, counter, 1.0);
-	} else if ( icomp->ispec->class_type == kRadiusofGyration || icomp->ispec->class_type == kHelical) {
-		read_one_param_dist_file_other(icomp, topo_data->molecule_group_names, mat, i, counter, 1.0);
+	  read_one_param_dist_file_pair(icomp, name, mat, i, counter, 2.0, 1.0);
 	} else {
-	  read_one_param_dist_file_other(icomp, topo_data->name, mat, i, counter,1.0);
+	  read_one_param_dist_file_other(icomp, name, mat, i, counter,1.0);
 	}
   }  
   if (icomp->ispec->class_type == kPairNonbonded) {

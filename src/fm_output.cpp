@@ -71,10 +71,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
     // Move this to a b-spline output constructor.
     FILE *spline_output_filep = open_file("b-spline.out", "w");
     fclose(spline_output_filep);
-    char** name = cg->name;
-	DensityClassSpec* dspec;
-	RadiusofGyrationClassSpec* rg_spec;
-	HelicalClassSpec* h_spec;
+    char** name;
 
     // For each class of interactions, perform output for the active 
     // interactions in that class. For one-parameter interactions right now.
@@ -86,15 +83,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
             	    
             	// Select the correct type name array for the interaction.
-				if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-					name = dspec->density_group_names;
-				} else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-					 name = rg_spec->molecule_group_names;
-				} else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-					 name = h_spec->molecule_group_names;
-				} else {
-						name = cg->name;
-				}
+				select_name((*icomp_iterator)->ispec, name, cg->name);
 
 				// Write output based on energy splines
 	        	if(mat->matrix_type == kREM || mat->matrix_type == kDummy){

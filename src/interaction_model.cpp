@@ -108,6 +108,27 @@ std::vector<int> DensityClassSpec::get_interaction_types(const int index_among_d
 	return types;
 }
 
+// Select the correct type name array for the interaction.
+void select_name(InteractionClassSpec* const ispec, char ** name, char ** const cg_name)
+{
+	DensityClassSpec* dspec;
+  	RadiusofGyrationClassSpec* rg_spec;
+  	HelicalClassSpec* h_spec;
+
+	if( (dspec = dynamic_cast<DensityClassSpec*>( ispec )) != NULL)
+	{
+		name = dspec->density_group_names;
+	} else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( ispec )) != NULL)
+	{
+		name = rg_spec->molecule_group_names;
+	} else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( ispec )) != NULL)
+	{
+		name = h_spec->molecule_group_names;
+	} else
+	{
+		name = cg_name;
+	}
+}
 
 void check_input_values(CG_MODEL_DATA* cg)
 {
@@ -787,18 +808,20 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     if (cg->helical_interactions.class_subtype != 0) check_and_open_in_stream(helical_range_in, "rmin_hel.in"); 
     
 	// Read the ranges.
+	char ** name;
+	select_name((*iclass_iterator), name, cg->name);
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
         if ((*iclass_iterator)->n_defined == 0) continue;
         if ((*iclass_iterator)->class_type == kPairNonbonded) {
-            (*iclass_iterator)->smart_read_interaction_class_ranges(nonbonded_range_in, cg->name);
+            (*iclass_iterator)->smart_read_interaction_class_ranges(nonbonded_range_in, name);
         } else if((*iclass_iterator)->class_type == kDensity) {
-			(*iclass_iterator)->smart_read_interaction_class_ranges(density_range_in, cg->density_interactions.density_group_names);
+			(*iclass_iterator)->smart_read_interaction_class_ranges(density_range_in, name);
         } else if((*iclass_iterator)->class_type == kRadiusofGyration) {
-        	(*iclass_iterator)->smart_read_interaction_class_ranges(rg_range_in, cg->radius_of_gyration_interactions.molecule_group_names);
+        	(*iclass_iterator)->smart_read_interaction_class_ranges(rg_range_in, name);
         } else if((*iclass_iterator)->class_type == kHelical) {
-        	(*iclass_iterator)->smart_read_interaction_class_ranges(helical_range_in, cg->helical_interactions.molecule_group_names);
+        	(*iclass_iterator)->smart_read_interaction_class_ranges(helical_range_in, name);
         } else if((*iclass_iterator)->class_type == kOneBody) {
-			(*iclass_iterator)->smart_read_interaction_class_ranges(one_body_range_in, cg->name);
+			(*iclass_iterator)->smart_read_interaction_class_ranges(one_body_range_in, name);
 		} else if((*iclass_iterator)->class_type == kR13Bonded ||
 				  (*iclass_iterator)->class_type == kR14Bonded ||
 				  (*iclass_iterator)->class_type == kR15Bonded ) {

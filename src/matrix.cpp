@@ -4333,10 +4333,7 @@ void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 
 void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, const double volume)
 {
-  char** name = cg->name;  
-  DensityClassSpec* dspec;
-  RadiusofGyrationClassSpec* rg_spec;
-  HelicalClassSpec* h_spec;
+  char** name;  
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
 
@@ -4347,15 +4344,7 @@ void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
     if ( (*icomp_iterator)->ispec->n_to_force_match == 0) continue;
     
     // Set the correct name array for this interaction
-	if( (dspec = dynamic_cast<DensityClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-		name = dspec->density_group_names;
-	} else if( ( rg_spec = dynamic_cast<RadiusofGyrationClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-		name = rg_spec->molecule_group_names;
-	} else if( ( h_spec = dynamic_cast<HelicalClassSpec*>( (*icomp_iterator)->ispec )) != NULL) {
-		name = h_spec->molecule_group_names;
-	} else {
-		name = cg->name;
-	}
+    select_name ((*icomp_iterator)->ispec, name, cg->name);
   
   	// Read and build matrix section for this interaction
     read_rdf_file_and_build_rem_matrix(mat, (*icomp_iterator), volume, &cg->topo_data, name);
@@ -4391,7 +4380,7 @@ void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComput
 	} else if ( icomp->ispec->class_type == kPairBonded ) {
 	  read_pair_distribution(icomp, name, mat, i, counter, 2.0, 1.0);
 	} else {
-	  read_other_distribution(icomp, topo_data->name, mat, i, counter,1.0);
+	  read_other_distribution(icomp, name, mat, i, counter,1.0);
 	}
   }  
   if (icomp->ispec->class_type == kPairNonbonded) {
