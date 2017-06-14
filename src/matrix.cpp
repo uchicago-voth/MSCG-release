@@ -1043,7 +1043,7 @@ void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassCo
   if (icomp->ispec->output_parameter_distribution !=  0) {
     // For every defined interaction,
     for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-      num_entries += (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth());
+      num_entries += (2 * (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth()));
     }
   }
   mat->fm_matrix_rows = num_entries;
@@ -2932,11 +2932,11 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_
 	// The SVD routine works in two modes: first, the routine is run with a dummy workspace to
 	// determine the size of the needed workspace, then that workspace is allocated, then the
 	// routine is run again with a sufficient workspace to perform SVD.
-	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_rows, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 	lapack_setup_flag = lapack_temp_workspace[0];
 	delete [] lapack_temp_workspace;
 	lapack_temp_workspace = new double[lapack_setup_flag];
-	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_columns, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_rows, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
 
 	// Clean up the heap-allocated temps.
 	delete [] lapack_temp_workspace;
