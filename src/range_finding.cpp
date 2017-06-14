@@ -730,14 +730,14 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 			num_bins = 1;
 		} else {	
 	    	 ispec->adjust_cutoffs_for_basis(i);
-			num_bins = (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 );
+		 num_bins = ( 2 * (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 )) - 1;
 		}
 		bin_centers = new double[num_bins]();
         bin_counts = new unsigned long[num_bins]();
         
-        bin_centers[0] = ispec->lower_cutoffs[i] + 0.5 * ispec->get_fm_binwidth();
+        bin_centers[0] = ispec->lower_cutoffs[i] + 0.25 * ispec->get_fm_binwidth();
         for (int j = 1; j < num_bins; j++) {
-        	bin_centers[j] = bin_centers[j - 1] + ispec->get_fm_binwidth();
+	  bin_centers[j] = bin_centers[j - 1] + (0.5 ispec->get_fm_binwidth());
         }
 		
 		// Open distribution file
@@ -858,7 +858,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
   
   if (icomp->ispec->upper_cutoffs[index_among_defined_intrxns] == -1.0) return; // There is no sampling here
   
-  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth() + 0.5);
+  int num_entries = (2 * (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth() + 0.5)) - 1;
   fflush(stdout);
   
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
@@ -907,7 +907,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   double potential;
   
   if (icomp->ispec->upper_cutoffs[index_among_defined_intrxns] == -1.0) return; // There is no sampling here
-  int num_entries = (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth());
+  int num_entries = (2 * (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth())) -1;
   
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
