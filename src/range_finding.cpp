@@ -825,6 +825,8 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
 	  if( type_vector[0] == type_vector[1]){
 	    num_pairs -= sitecounter[type_vector[0]-1];
+	  } else {
+	  	num_pairs *= 2.0;
 	  }
 	  read_one_param_dist_file_pair(icomp, name, mat, i, counter,num_pairs, volume);
 	} else if ( icomp->ispec->class_type == kPairBonded ) {

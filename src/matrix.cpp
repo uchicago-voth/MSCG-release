@@ -859,6 +859,7 @@ void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 {
   // Set (and override) matrix function pointers
   mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  /* TODO??? */
   mat->accumulate_matching_forces            = accumulate_scalar_entropy_elements;
   mat->accumulate_symmetric_matching_forces  = accumulate_scalar_entropy_elements;
   mat->accumulate_one_body_force 			 = accumulate_scalar_one_body_force;
