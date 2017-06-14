@@ -841,7 +841,7 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
                 cg_site3 = mol->angle_list->partners_[cg_site1][2 * j + 1];  
                 cg_type2 = mol->cg_site_types[cg_site2];
                 cg_type3 = mol->cg_site_types[cg_site3];
-                for (k = 0; k < mol->bond_list->partner_numbers_[mol->angle_list->partners_[cg_site1][2 * j + 1]]; k++) {
+                for (k = 0; k < mol->bond_list->partner_numbers_[cg_site3]; k++) {
                     cg_site4 = mol->bond_list->partners_[cg_site3][k];
                     cg_type4 = mol->cg_site_types[cg_site4];
                     if (cg_site4 == cg_site2) continue;

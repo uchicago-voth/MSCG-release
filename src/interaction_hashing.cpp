@@ -205,7 +205,12 @@ int calc_four_body_interaction_hash(int i, int j, int k, int l, const int n_cg_t
     if (i > j) {
     	swap_pair(i, j);
         swap_pair(k, l);
+    } else if (i == j) {
+    	if (k > l) {
+    		swap_pair(k, l);
+    	}
     }
+    
     n_ij = four_body_ij_hash(i, j, n_cg_types);
     n_kl = (k - 1) * n_cg_types + l - 1;
     if (i == j) {

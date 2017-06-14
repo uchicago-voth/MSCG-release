@@ -737,7 +737,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
         
         bin_centers[0] = ispec->lower_cutoffs[i] + 0.25 * ispec->get_fm_binwidth();
         for (int j = 1; j < num_bins; j++) {
-	  bin_centers[j] = bin_centers[j - 1] + (0.5 ispec->get_fm_binwidth());
+	  bin_centers[j] = bin_centers[j - 1] + (0.5 * ispec->get_fm_binwidth());
         }
 		
 		// Open distribution file
