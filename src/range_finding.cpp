@@ -747,7 +747,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		// Populate histogram by reading distribution file
 		dist_stream >> value;
 		while (!dist_stream.fail()) {
-		  curr_bin = (int)(floor((value - ispec->lower_cutoffs[i] + 0.00001) / (0.5 * ispec->get_fm_binwidth())));	
+		  curr_bin = (int)(floor((value - ispec->lower_cutoffs[i] + VERYSMALL_F) / (0.5 * ispec->get_fm_binwidth())));	
 			if( (curr_bin < num_bins) && (curr_bin >= 0) ) {
 				bin_counts[curr_bin]++;
 			} else if (curr_bin > num_bins) {
@@ -870,7 +870,8 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
       double normalized_counts;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       if (counts > 0) {
-      	normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - (r - (0.5 * icomp->ispec->get_fm_binwidth()))*(r - (0.5 * icomp->ispec->get_fm_binwidth()))*(r - (0.5 * icomp->ispec->get_fm_binwidth()))) );
+        double dr = r - 0.5 * icomp->ispec->get_fm_binwidth();
+      	normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - dr*dr*dr) );
       	normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
       	potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       } else {
@@ -924,7 +925,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       } else {
       	normalized_counts = 0.0;
       	potential = 100.0;
-	printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.");
+	printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.\n");
       }
 	  if (potential > VERYLARGE || potential < - VERYLARGE) {
       	potential = VERYLARGE;
