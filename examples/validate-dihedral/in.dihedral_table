@@ -1,0 +1,37 @@
+units		real
+dimension       3
+atom_style	full
+boundary p p p
+ 
+read_data data.dihedral
+
+pair_style lj/cut 10.0
+pair_coeff 1 1 0.0 1.0
+
+bond_style zero nocoeff
+bond_coeff *
+
+angle_style zero nocoeff
+angle_coeff *
+
+dihedral_style  table linear 100
+dihedral_coeff 1 validate_dihedral.table val_dih
+
+timestep	1.0
+
+thermo_style custom step pe ke edihed vol press
+thermo 1000
+
+# Allow CG system to equilibrate
+fix 1 all nvt temp 300.0 300.0 100.0
+run 10000
+
+unfix 1
+fix 2 all nvt temp 300.0 300.0 100.0
+reset_timestep 0
+
+dump d1 all custom 100 dihedral.lammpstrj id mol type x y z fx fy fz
+dump_modify d1 sort id
+thermo 1000
+log cg_basic_fm.lammps
+run 100000
