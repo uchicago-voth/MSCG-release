@@ -274,7 +274,7 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 {
 	int last = axis_vals.size() - 1;
 	int first = 0;
-	while (axis_vals[last] + VERYSMALL_F > high_value) {
+	while (axis_vals[last] > VERYSMALL_F + high_value) {
 		// remove last entry
 		axis_vals.pop_back();
 		force_vals.pop_back();
@@ -282,7 +282,7 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 	}
 
 	// Check lower value(s)
-	while (axis_vals[first] < low_value + VERYSMALL_F) {
+	while (axis_vals[first] < low_value - VERYSMALL_F) {
 		first++;
 	}
 	if (first != 0) {
