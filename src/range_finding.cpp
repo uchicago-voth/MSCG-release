@@ -516,17 +516,13 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 	if (iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2) {
 		if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
 			close_parameter_distribution_files_for_class(icomp);
-			DensityClassSpec* d_spec = static_cast<DensityClassSpec*>(iclass);
-			generate_parameter_distribution_histogram(icomp, d_spec->density_group_names);
-			remove_dist_files(icomp, d_spec->density_group_names);
-		} else if (iclass->class_type == kRadiusofGyration && iclass->class_subtype == 1) {
-			RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(iclass);
-			generate_parameter_distribution_histogram(icomp, rg_spec->molecule_group_names);
-			remove_dist_files(icomp, rg_spec->molecule_group_names);
-		} else if (iclass->class_type == kHelical && iclass->class_subtype == 1) {
-			HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(iclass);
-			generate_parameter_distribution_histogram(icomp, h_spec->molecule_group_names);
-			remove_dist_files(icomp, h_spec->molecule_group_names);
+			generate_parameter_distribution_histogram(icomp, name); // name is set correctly in write_interaction_range_data_to_file
+			remove_dist_files(icomp, name);
+		} else if ( (iclass->class_type == kRadiusofGyration || iclass->class_type == kHelical)
+				  && iclass->class_subtype == 1) {
+			close_parameter_distribution_files_for_class(icomp);
+			generate_parameter_distribution_histogram(icomp, name); // name is set correctly in write_interaction_range_data_to_file
+			remove_dist_files(icomp, name);
 		} else if ( (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ) &&
 					iclass->class_subtype == 1 ) {
 			close_parameter_distribution_files_for_class(icomp);
@@ -727,9 +723,9 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		
 		// Set-up histogram based on interaction binwidth
 		if (ispec->upper_cutoffs[i] == -1.0) { // there is no sampling here. default allocate
-			num_bins = 1;
+		  num_bins = 1;
 		} else {	
-	    	 ispec->adjust_cutoffs_for_basis(i);
+	     ispec->adjust_cutoffs_for_basis(i);
 		 num_bins = ( 2 * (int)( (ispec->upper_cutoffs[i] - ispec->lower_cutoffs[i]) / ispec->get_fm_binwidth() + 0.5 ));
 		}
 		bin_centers = new double[num_bins]();
@@ -737,7 +733,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
         
         bin_centers[0] = ispec->lower_cutoffs[i] + 0.25 * ispec->get_fm_binwidth();
         for (int j = 1; j < num_bins; j++) {
-	  bin_centers[j] = bin_centers[j - 1] + (0.5 * ispec->get_fm_binwidth());
+	      bin_centers[j] = bin_centers[j - 1] + (0.5 * ispec->get_fm_binwidth());
         }
 		
 		// Open distribution file
