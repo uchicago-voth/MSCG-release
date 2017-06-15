@@ -384,7 +384,6 @@ void calc_helical_interaction_sampling_range(InteractionClassComputer* const ico
 	int n_helical_ids = 2 * h_spec->helical_list->partner_numbers_[mol_id];
 	int* helical_ids = new int[n_helical_ids];
 	for (int i = 0; i < n_helical_ids; i++) helical_ids[i] = h_spec->helical_list->partners_[mol_id][i]; 
-	
 
     calc_fraction_helical(particle_ids, x, simulation_box_half_lengths, n_ids, param, helical_ids, n_helical_ids/2, h_spec->r0[icomp->index_among_defined_intrxns], h_spec->sigma2[icomp->index_among_defined_intrxns]);
 
@@ -421,7 +420,8 @@ void evaluate_density_sampling_range(InteractionClassComputer* const info, std::
 {
 	DensityClassComputer* icomp = static_cast<DensityClassComputer*>(info);
 	DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);	
-	int contributing_density_group = icomp->index_among_defined_intrxns % ispec->n_density_groups;
+	std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+	int contributing_density_group = types[1] - 1;
 	double param = icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k];
 	
 	if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
