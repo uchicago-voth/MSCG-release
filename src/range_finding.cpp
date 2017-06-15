@@ -55,7 +55,6 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char 
 
 // Output parameter distribution functions
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
-void open_density_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name); 
 void close_parameter_distribution_files_for_class(InteractionClassComputer* const icomp);
 void remove_dist_files(InteractionClassComputer* const icomp, char **name);
 void generate_parameter_distribution_histogram(InteractionClassComputer* const icomp, char **name);
@@ -188,14 +187,9 @@ void initialize_single_class_range_finding_temps(InteractionClassSpec *iclass, I
 	
 	char** name = select_name(iclass, topo_data->name);
 	if(iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2 ){
-		if(iclass->class_type == kDensity) {
-			if (iclass->class_subtype > 0) {
-				open_density_parameter_distribution_files_for_class(icomp, name);
- 			}
- 		} else if (iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) {
- 			if (iclass->class_subtype > 0) {
- 				open_parameter_distribution_files_for_class(icomp, name);
-			}
+		if ( (iclass->class_type == kDensity || iclass->class_type == kRadiusofGyration  || iclass->class_type == kHelical) &&
+		 	  iclass->class_subtype > 0 ) {
+ 			open_parameter_distribution_files_for_class(icomp, name);
 		} else if ( (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded) &&
 					 iclass->class_subtype == 1 ) {
 			open_parameter_distribution_files_for_class(icomp, name);
@@ -505,6 +499,7 @@ void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* 
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file) 
 {
+	// Name is selected in calling function write_interaction_range_data_to_file.
     InteractionClassSpec *iclass = icomp->ispec;
     for (int i = 0; i < iclass->get_n_defined(); i++) {
         int index_among_matched_interactions = iclass->defined_to_matched_intrxn_index_map[i];
@@ -550,21 +545,9 @@ void write_one_body_iclass_range_specifications(InteractionClassComputer* const 
 
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined)
 {
+	// Name is selected in 2x up calling function write_single_range_specification
     InteractionClassSpec* ispec = icomp->ispec;
-    std::string basename;
-	
-	if (ispec->class_type == kDensity) {
-		DensityClassSpec* iclass = static_cast<DensityClassSpec*>(ispec);
-		basename = iclass->get_interaction_name(iclass->density_group_names, index_among_defined, " ");
-	} else if (ispec->class_type == kRadiusofGyration) {
-		RadiusofGyrationClassSpec* iclass = static_cast<RadiusofGyrationClassSpec*>(ispec);
-		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
-	} else if (ispec->class_type == kHelical) {
-		HelicalClassSpec* iclass = static_cast<HelicalClassSpec*>(ispec);
-		basename = iclass->get_interaction_name(iclass->molecule_group_names, index_among_defined, " ");
-	} else {
-		basename = ispec->get_interaction_name(name, index_among_defined, " ");
-	}
+    std::string basename = ispec->get_interaction_name(name, index_among_defined, " ");
 	
 	fprintf(solution_spline_output_file, "%s ", basename.c_str());
 
@@ -664,6 +647,7 @@ void read_density_parameter_file(DensityClassSpec* const ispec)
 
 void open_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name) 
 {
+	// The correct name is selected in calling function initialize_single_class_range_finding_temps
     InteractionClassSpec* ispec = icomp->ispec;
 	std::string filename;
 	ispec->output_range_file_handles = new FILE*[ispec->get_n_defined()];
@@ -671,17 +655,6 @@ void open_parameter_distribution_files_for_class(InteractionClassComputer* const
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
 	 	filename = ispec->get_basename(name, i,  "_") + ".dist";
   		ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
-	}		
-}
-
-void open_density_parameter_distribution_files_for_class(InteractionClassComputer* const icomp, char **name) 
-{
-	DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-	ispec->output_range_file_handles = new FILE*[ispec->get_n_defined()];
-	
-	for (int i = 0; i < ispec->get_n_defined(); i++) {
-	 	std::string filename = icomp->ispec->get_basename(ispec->density_group_names, i,  "_") + ".dist";
-	 	ispec->output_range_file_handles[i] = open_file(filename.c_str(), "w");
 	}		
 }
 
@@ -696,6 +669,7 @@ void close_parameter_distribution_files_for_class(InteractionClassComputer* cons
 
 void remove_dist_files(InteractionClassComputer* const icomp, char **name) 
 {
+	// Name is selected in calling function 2x up named write_interaction_range_data_to_file.
     InteractionClassSpec* ispec = icomp->ispec;	
     if(ispec->output_parameter_distribution != 1) return;
     for (int i = 0; i < ispec->get_n_defined(); i++) {
@@ -708,7 +682,7 @@ void remove_dist_files(InteractionClassComputer* const icomp, char **name)
 
 void generate_parameter_distribution_histogram(InteractionClassComputer* const icomp, char **name)
 {
-	printf("Generating parameter distribution histogram for %s interactions.\n", icomp->ispec->get_full_name().c_str());
+	// Name is selected in calling function 2x up named write_interaction_range_data_to_file.
     InteractionClassSpec* ispec = icomp->ispec;	
 	
 	std::string filename;
@@ -755,9 +729,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 
 		// Write histogram to file
 		filename = ispec->get_basename(name, i, "_") + ".hist";
-    
 		hist_stream.open(filename, std::ofstream::out);
-		
 		hist_stream << "#center\tcounts\n";
 		for (int j = 0; j < num_bins; j++) {
 			hist_stream << bin_centers[j] << "\t" << bin_counts[j] << "\n";
@@ -802,6 +774,7 @@ void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const 
 
 void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data, char ** const name)
 { 
+  // Name is correctly selected by calling function calculate_BI.
   int counter = 0;
   int* sitecounter;
   if (icomp->ispec->class_type == kPairNonbonded) {
@@ -821,14 +794,13 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
 	  if( type_vector[0] == type_vector[1]){
 	    num_pairs -= sitecounter[type_vector[0]-1];
-	  } else {
-	  	num_pairs *= 2.0;
+	  	num_pairs /= 2.0;
 	  }
 	  read_one_param_dist_file_pair(icomp, name, mat, i, counter,num_pairs, volume);
 	} else if ( icomp->ispec->class_type == kPairBonded ) {
-	  read_one_param_dist_file_pair(icomp, name, mat, i, counter, 2.0, 1.0);
+	  read_one_param_dist_file_pair(icomp, name, mat, i, counter, 1.0, 1.0);
 	} else {
-	  read_one_param_dist_file_other(icomp, name, mat, i, counter,1.0);
+	  read_one_param_dist_file_other(icomp, name, mat, i, counter, 1.0);
 	}
   }  
   if (icomp->ispec->class_type == kPairNonbonded) {
@@ -841,6 +813,7 @@ void read_interaction_file_and_build_matrix(MATRIX_DATA* mat, InteractionClassCo
 
 void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
 {
+  // name is corrected selected by calling function 2x up named calculate_BI.
   std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".hist";
   std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
@@ -868,7 +841,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
       if (counts > 0) {
         double dr = r - 0.5 * icomp->ispec->get_fm_binwidth();
       	normalized_counts = (double)(counts) * 3.0 / ( 4.0*PI*( r*r*r - dr*dr*dr) );
-      	normalized_counts *= 2.0 * mat->normalization * volume / num_of_pairs;
+      	normalized_counts *= mat->normalization * volume / num_of_pairs;
       	potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
       } else {
       	normalized_counts = 0.0;
@@ -892,13 +865,14 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
 
 void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
 {
+  // name is corrected selected by calling function 2x up named calculate_BI.
   std::string filename = icomp->ispec->get_basename(name, index_among_defined_intrxns,  "_") + ".hist";
   std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
   FILE* curr_dist_input_file = open_file(filename.c_str(), "r");
   FILE* rdf_file = open_file(rdf_name.c_str(), "w");
   fprintf(rdf_file, "# r gofr\n"); // header.
   
-  int i, counts;
+  int counts;
   int *junk;
   double r;
   double potential;
@@ -909,7 +883,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
-  for(i = 0; i < num_entries; i++)
+  for(int i = 0; i < num_entries; i++)
     {
 	  int first_nonzero_basis_index;
 	  double normalized_counts;
