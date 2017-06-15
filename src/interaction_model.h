@@ -789,7 +789,6 @@ struct DensityClassSpec: InteractionClassSpec {
 	};
 	
 	~DensityClassSpec() {
-		printf("density spect type %d, n_defined %d\n", class_subtype, get_n_defined()); fflush(stdout);
 		if((class_subtype > 0) && (get_n_defined() > 0)) {
 			delete [] density_groups;
 			delete [] density_weights;
@@ -961,7 +960,6 @@ struct DensityClassComputer : InteractionClassComputer {
 	int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {return -1;}
 		
 	inline ~DensityClassComputer() {
-		printf("density_computer n_defined %d\n", ispec->get_n_defined()); fflush(stdout);
 		if(ispec->get_n_defined() > 0) {
 			delete [] denomenator;
 			delete [] u_cutoff;
