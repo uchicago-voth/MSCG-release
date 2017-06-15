@@ -849,7 +849,7 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 		if(interaction_flags % 2 == 1) {
 			// Look-up this index
 			info->index_among_defined_intrxns = index_counter;
-			std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+			std::vector<int> types = ispec->get_interaction_types(index_among_defined_intrxns);
 			int contributing_density_group = types[1] - 1;
 			info->curr_weight = ispec->density_weights[ contributing_density_group * ispec->n_density_groups + (cg_site_types[info->l] - 1)];
 			(*calc_matrix_elements)(info, x, simulation_box_half_lengths, mat);
@@ -1334,8 +1334,7 @@ void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::
 	info->index_among_tabulated_interactions = info->ispec->defined_to_tabulated_intrxn_index_map[info->index_among_defined_intrxns];
 	if ((info->index_among_matched_interactions == 0) && (info->index_among_tabulated_interactions == 0)) return; // if the index is zero, it is not present in the model and should be ignored.
 	
-	int index_among_defined = info->index_among_defined_intrxns;
-    double distance;
+	double distance;
     int particle_ids[2] = {info->k, info->l};
     std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[1];
     if ( conditionally_calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives) ) {
