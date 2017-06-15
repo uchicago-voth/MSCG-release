@@ -936,7 +936,7 @@ struct DensityClassComputer : InteractionClassComputer {
 	
 	// A "flattened" 2D-array that stores the density of each density group at each CG site. 
 	// Only the needed elements are calculated
-	double* density_values;		// It is "flattened" via the "hash" [density_group2 * n_density_groups + cg_site_index].
+	double* density_values;		// It is "flattened" via the "hash" [matched_density_index * n_cg_sites + cg_site_index].
 								// First, this will hold the accumulating weight function contributions that determine 
 								// the density of each density group at every relavent CG site.
 								// Then, this holds the spline derivative evaluated at the density value 

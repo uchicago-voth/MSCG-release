@@ -420,9 +420,7 @@ void evaluate_density_sampling_range(InteractionClassComputer* const info, std::
 {
 	DensityClassComputer* icomp = static_cast<DensityClassComputer*>(info);
 	DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);	
-	std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
-	int contributing_density_group = types[1] - 1;
-	double param = icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k];
+	double param = icomp->density_values[icomp->index_among_defined_intrxns * ispec->n_cg_sites + icomp->k];
 	
 	if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
