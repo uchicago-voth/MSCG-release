@@ -203,13 +203,8 @@ void DensityClassComputer::class_set_up_computer(void)
 	
 	// Allocate and compute constant calculation intermediates.
 	denomenator = new double[iclass->get_n_defined()];
-	u_cutoff = new double[iclass->get_n_defined()];
-	f_cutoff = new double[iclass->get_n_defined()];
-	
-	for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
-		u_cutoff[ii] = 0.0;
-		f_cutoff[ii] =  0.0;
-	}
+	u_cutoff = new double[iclass->get_n_defined()]();
+	f_cutoff = new double[iclass->get_n_defined()]();
 	
 	if(iclass->class_subtype == 1) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
@@ -849,13 +844,13 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 	DensityClassSpec* ispec = static_cast<DensityClassSpec*>(info->ispec);
 	// Loop through to determine which bits are non-zero.
 	// For each non-zero bit, look-up the matched or tabulated interaction, and perform the requested calculation
-	int contributing_density_group;
 	for(int index_counter = 0; interaction_flags != 0; index_counter++) {
 		// This could easily be a while loop over interaction_flags with a manaully incremented counter.
 		if(interaction_flags % 2 == 1) {
 			// Look-up this index
 			info->index_among_defined_intrxns = index_counter;
-			contributing_density_group = index_counter % ispec->n_density_groups;
+			std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+			int contributing_density_group = types[1] - 1;
 			info->curr_weight = ispec->density_weights[ contributing_density_group * ispec->n_density_groups + (cg_site_types[info->l] - 1)];
 			(*calc_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 		}
@@ -1247,7 +1242,8 @@ void calc_gaussian_density_values(InteractionClassComputer* const info, std::arr
 	if (distance2 < icomp->cutoff2) {
 		// Calculate the weight function
 		double distance = sqrt(distance2);
-		int contributing_density_group = index_among_defined % ispec->n_density_groups;
+		std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+		int contributing_density_group = types[1] - 1;
 		icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k] +=
 										icomp->curr_weight * ( exp( - distance2 / icomp->denomenator[index_among_defined]) + icomp->u_cutoff[index_among_defined]
 										+ icomp->f_cutoff[index_among_defined] * (distance - ispec->cutoff) ) / icomp->denomenator[index_among_defined];
@@ -1269,8 +1265,9 @@ void calc_switching_density_values(InteractionClassComputer* const info, std::ar
 	
 		// Calculate the weight function
 		double distance = sqrt(distance2);
-		int contributing_density_group = index_among_defined % ispec->n_density_groups;
-
+		std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+		int contributing_density_group = types[1] - 1;
+		
 		icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k] +=
 										icomp->curr_weight * -0.5 * tanh( (distance - ispec->density_switch[index_among_defined])/ispec->density_sigma[index_among_defined] )
 										+ icomp->u_cutoff[index_among_defined] + icomp->f_cutoff[index_among_defined] * (distance - ispec->cutoff);
@@ -1292,7 +1289,8 @@ void calc_lucy_density_values(InteractionClassComputer* const info, std::array<d
 	
 		// Calculate the weight function
 		double distance = sqrt(distance2);
-		int contributing_density_group = index_among_defined % ispec->n_density_groups;
+		std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+		int contributing_density_group = types[1] - 1;
 		double cutoff_minus_distance = ispec->cutoff - distance;
 		
 		icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k] +=
@@ -1315,9 +1313,9 @@ void calc_re_density_values(InteractionClassComputer* const info, std::array<dou
 	if (distance2 < icomp->cutoff2) {
 	
 		// Calculate the weight function
-		//double distance = sqrt(distance2);
-		int contributing_density_group = index_among_defined % ispec->n_density_groups;
-
+		std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+		int contributing_density_group = types[1] - 1;
+		
 		if (distance2 > ispec->density_sigma[index_among_defined] * ispec->density_sigma[index_among_defined]) {
 			icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k] +=
 										icomp->curr_weight * (icomp->c0[index_among_defined] +
@@ -1346,7 +1344,8 @@ void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::
 		DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
 	
 		// Look-up this particular interaction's density.
-		int contributing_density_group = index_among_defined % ispec->n_density_groups;
+		std::vector<int> types = ispec->get_interaction_types(icomp->index_among_defined_intrxns);
+		int contributing_density_group = types[1] - 1;
 		double density_value = icomp->density_values[contributing_density_group * ispec->n_density_groups + icomp->k];
 		// Calculate the weight function derivative.
 		double density_derivative = (*icomp->calculate_density_derivative)(icomp, ispec, distance);
