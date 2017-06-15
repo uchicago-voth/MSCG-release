@@ -3,6 +3,7 @@ Density Dependent Force Matching Supplement to MSCG FM Manual
 Author: Jacob Wagner
 Created: August 28, 2012
 Updated: August 30, 2016
+Edited:  June   14, 2017
 
 Purpose: This describes the extension to the Multi-scale Coarse-graining (MS-CG)
 force-matching (FM) software to include density dependent potentials/forces.
@@ -113,8 +114,8 @@ B.3) den.prm (needed for rangefinder.x)
                              (  DG1-1 is the "home" and DG1-2 is the "other" group)
                              (* P1-1 ... P1-n are the required parameters based on the)
                              (  type of density interaction)
-   . . . ... .               (The total number of lines should be 2 to the number of )
-                             (  density groups defined in top.in)
+   . . . ... .               (The total number of lines should be the square of the 
+   							 ( number of density groups defined in top.in)
  
 B.4) rmin_den.in (needed for newfm.x)
    The range of densities, the action to be performed (tabulated, force match, none), 
@@ -126,9 +127,8 @@ B.4) rmin_den.in (needed for newfm.x)
                              (The lower Dl and upper Dh values for this interaction)
                              (* P1-1 ... P1-n are the required parameters based on the)
                              (  type of density interaction)
-   . . . ... .               (The total number of lines should be 2 to the number of )
-                             (  density groups defined in top.in)
-   
+   . . . ... .               (The total number of lines should be the square of the 
+   							 ( number of density groups defined in top.in)
    
 C) Output Files
    1) rmin_den.in
