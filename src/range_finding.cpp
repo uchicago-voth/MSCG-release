@@ -364,7 +364,8 @@ void calc_dihedral_four_body_interaction_sampling_range(InteractionClassComputer
     int particle_ids[4] = {icomp->k, icomp->l, icomp->i, icomp->j}; // end indices (k, l) followed by central bond indices (i, j)
     double param;
     calc_dihedral(particle_ids, x, simulation_box_half_lengths, param);
-
+    //printf("Dihedral particle ids: %d, %d, %d, %d\n", icomp->k, icomp->l, icomp->i, icomp->j);
+	//printf("Dihedral angle is %lf\n", param);
     if (icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] > param) icomp->ispec->lower_cutoffs[icomp->index_among_defined_intrxns] = param;
     if (icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] < param) icomp->ispec->upper_cutoffs[icomp->index_among_defined_intrxns] = param;
 	
