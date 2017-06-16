@@ -507,7 +507,6 @@ int read_density_groups(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::i
 			// Check that read was successful for cg_type.
 			// This assumes that cg_type is 1-based (not 0-based).
 			if ( (cg_type >= 0) && (cg_type < cg->n_cg_types) ) {
-			//if ( (cg_type > 0) && (cg_type <= cg->n_cg_types) ) {
 				topo_data->density_groups[i*(cg->n_cg_types) + cg_type] = true;
 			} else {
 				printf("Out-of-range type number in density group definition: %s\n", type_list[j].c_str()); fflush(stdout);

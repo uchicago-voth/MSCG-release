@@ -827,7 +827,7 @@ void process_completed_density(DensityClassComputer* const info, calc_pair_matri
 		// Does this group belong do any defined density_group
 		for(int dg1 = 0; dg1 < ispec->n_density_groups; dg1++) {
 		
-			if(ispec->density_groups[dg1 * ispec->n_density_groups + cg_site_types[i] - 1] == false) continue;
+			if(ispec->density_groups[dg1 * ispec->n_cg_types + cg_site_types[i] - 1] == false) continue;
 			
 			// Go through all densities that could be calcualted at this site
 			for(int dg2 = 0; dg2 < ispec->n_density_groups; dg2++) {
@@ -850,8 +850,7 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 			// Look-up this index
 			info->index_among_defined_intrxns = index_counter;
 			std::vector<int> types = ispec->get_interaction_types(info->index_among_defined_intrxns);
-			int contributing_density_group = types[1] - 1;
-			info->curr_weight = ispec->density_weights[ contributing_density_group * ispec->n_density_groups + (cg_site_types[info->l] - 1)];
+			info->curr_weight = ispec->density_weights[ (types[1] - 1) * ispec->n_density_groups + (cg_site_types[info->l] - 1)];
 			(*calc_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 		}
 		// Shift to the right and repeat the operation
