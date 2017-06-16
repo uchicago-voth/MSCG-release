@@ -571,7 +571,8 @@ void DihedralTable::compute(int eflag, int vflag)
     double phi = Phi(x[i1], x[i2], x[i3], x[i4], domain,
                      vb12, vb23, vb34, n123, n234);
 
-	double degrees = (phi * 180.0 / 3.14159) - 180.0;
+	double degrees = (phi * 180.0 / 3.14159);
+	if (degrees > 180.0) degrees -= 360.0;
 	printf("Dihedral %lf radians, %lf shifted degrees\n", phi, degrees);
     // ------ Step 2: Compute the gradient of phi with atomic position: ------
     //
@@ -692,7 +693,7 @@ void DihedralTable::compute(int eflag, int vflag)
       f4[d] = m_du_dphi * dphi_dx4[d];
     }
     
-    printf("m_du_dphi %lf\n");
+    printf("m_du_dphi %lf\n", m_du_dphi);
     printf("f1: %lf, %lf, %lf\n", dphi_dx1[0], dphi_dx1[1], dphi_dx1[2]);
     printf("f2: %lf, %lf, %lf\n", dphi_dx2[0], dphi_dx2[1], dphi_dx2[2]);
     printf("f3: %lf, %lf, %lf\n", dphi_dx3[0], dphi_dx3[1], dphi_dx3[2]);
