@@ -831,7 +831,7 @@ void process_completed_density(DensityClassComputer* const info, calc_pair_matri
 			
 			// Go through all densities that could be calcualted at this site
 			for(int dg2 = 0; dg2 < ispec->n_density_groups; dg2++) {
-				info->index_among_defined_intrxns = dg1 * ispec->n_density_groups + dg2;
+				info->index_among_defined_intrxns = calc_asymmetric_interaction_hash({dg1 + 1, dg2 + 1}, ispec->n_density_groups);
 				info->k = i;
 				process_density(info, x, simulation_box_half_lengths, mat);
 			}

@@ -303,7 +303,7 @@ void setup_site_to_density_group_index_for_range(DensityClassSpec* iclass)
 			if(iclass->density_groups[dg1 * iclass->n_cg_types + type1] == false) continue;
 			// This CG site type (type1) belongs to this density_group (dg1)
 			// Now, look through types again to determine if the corresponding density group has an interaction with this density group.
-			for(int type2 = type1; type2 < iclass->n_cg_types; type2++) {
+			for(int type2 = 0; type2 < iclass->n_cg_types; type2++) {
 				// Only need to look through half of the type1/type2 combinations since we can check both 1/2 and 2/1 at the same time.
 				// Determine which density groups type2 belongs to.
 				for(int dg2 = 0; dg2 < iclass->n_density_groups; dg2++) {
@@ -312,7 +312,7 @@ void setup_site_to_density_group_index_for_range(DensityClassSpec* iclass)
 					
 					// Now, assume (for rangefinding) that these density groups interact with ordering type1/type2 and type2/type1.
 					iclass->site_to_density_group_intrxn_index_map[type1 * iclass->n_cg_types + type2] |= 1 << (dg1 * iclass->n_density_groups + dg2);
-					iclass->site_to_density_group_intrxn_index_map[type2 * iclass->n_cg_types + type1] |= 1 << (dg2 * iclass->n_density_groups + dg1);
+					iclass->site_to_density_group_intrxn_index_map[type2 * iclass->n_cg_types + type1] |= 1 << (dg1 * iclass->n_density_groups + dg2);
 				}
 			}
 		}
