@@ -38,7 +38,6 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
 void write_output_solution(MATRIX_DATA* const mat);
 
 void write_MSCGFM_table_output_file(const std::string& filename_base, const std::vector<double>& axis, const std::vector<double>& force);
-void write_LAMMPS_table_output_file(const char i_type, const std::string& interaction_name, const int num_entries, double* axis_values, double* potential_vals, double* force_vals, int min_index, double min_val);
 void write_LAMMPS_table_output_file(const char i_type, const std::string& interaction_name, std::vector<double>& axis_vals, std::vector<double>& potential_vals, std::vector<double>& force_vals);
 void write_full_bootstrapping_MSCGFM_table_output_file(const std::string& filename_base, const std::vector<double>& axis, std::vector<double> const master_force, std::vector<double>* const force, int const bootstrapping_num_estimates);
 void write_bootstrapping_MSCGFM_table_output_file(const std::string& filename_base, const std::vector<double>& axis, std::vector<double> const master_force, std::vector<double>* const force, int const bootstrapping_num_estimates);
@@ -246,6 +245,8 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 // Write the tabular output for a single interaction.
 void write_one_param_table_files_energy(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double cutoff) 
 {
+  // Compute forces and potentials over a grid of parameter values.
+  // Correct name is selected in calling function write_interaction_data_to_file
   std::vector<double> axis_vals, force_vals, potential_vals;
   if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
     {
@@ -257,16 +258,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
       make_negative(force_vals);
     }
     // Determine base for output filenames.
-    std::string basename;
-    if(icomp->ispec->class_type == kDensity)
-      {
-        DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
-      }
-    else
-      {
-        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-      }
+    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
@@ -282,6 +274,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double cutoff) 
 {	
     // Compute forces over a grid of parameter values.
+	// Correct name is selected in calling function write_interaction_data_to_file
     std::vector<double> axis_vals, force_vals, potential_vals;
     int index_among_tabulated = icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
     if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
@@ -296,16 +289,9 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
       }
     
     // Determine base for output filenames.
-    std::string basename;
-    if(icomp->ispec->class_type == kDensity)
-      {
-        DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
-        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
-      }
-    else
-      {
-        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-      }
+    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+
+
     // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
      {
@@ -353,7 +339,7 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
    	 trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 std::vector<double> corrected_potential_vals;
    	 integrate_force(axis_vals, force_vals, corrected_potential_vals);
-   	 write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals); 
+   	 write_LAMMPS_table_output_file(char_id, basename, axis_vals, corrected_potential_vals, force_vals); 
     } else {		
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
     }
@@ -467,7 +453,7 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
     std::string type_names;
     if (icomp->ispec->class_type == kDensity) {
    		DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
-   	    type_names = dspec->get_interaction_name(name, index_among_defined, " ");
+   	    type_names = dspec->get_interaction_name(name, index_among_defined, " "); // this needs to call the assymmetric hash version
 	} else {
    	    type_names = icomp->ispec->get_interaction_name(name, index_among_defined, " ");
 	}
