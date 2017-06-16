@@ -92,6 +92,7 @@ struct InteractionClassSpec {
     std::vector<unsigned> defined_to_symmetric_intrxn_index_map;
     std::vector<unsigned> defined_to_tabulated_intrxn_index_map;
     std::vector<unsigned> defined_to_symtab_intrxn_index_map;
+    std::vector<unsigned> defined_to_periodic_intrxn_index_map;
     std::vector<unsigned> interaction_column_indices;
     int n_to_force_match;
     int n_force;

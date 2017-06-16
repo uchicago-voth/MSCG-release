@@ -48,12 +48,16 @@ void write_bootstrapping_one_param_bspline_file(InteractionClassComputer* const 
 void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, const int index_among_defined_intrxns);
 std::vector<double> calculate_bootstrapping_standard_error(const std::vector<double> master_vals, const std::vector<double>* vals, const int bootstrapping_num_estimates);
 
+void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
+void shift_remaining_indices(const int start, const int bspline_k, std::vector<unsigned> &interaction_column_indices, const int size);
+
 //------------------------------------------------------------------------
 //    Implementation
 //------------------------------------------------------------------------
 
 void write_fm_interaction_output_files(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 {
+	reinsert_periodic_solution_coefficients(cg, mat);
 
     // Write a binary copy of the solution vector if desired.
     if (mat->output_solution_flag == 1) {
@@ -717,4 +721,41 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
             fclose(normal_form_rhs_output_file);
         }
     }
+}
+
+void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
+{
+	int cumulative_shift = 0;
+	// For each class of interactions, look for periodic interactions
+	std::list<InteractionClassComputer*>::iterator icomp_iterator;
+	for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+		(*icomp_iterator)->interaction_class_column_index+= cumulative_shift;
+		int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
+		int size = (*icomp_iterator)->ispec->n_defined;
+        
+        // For every defined interaction,
+        for (int i = 0; i < size; i++) {
+            // If that interaction is being matched (includes forces and symmetric/DOOM)
+            // and it is periodic,
+            if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0 &&
+            	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] != 0) {
+            	int first_index = (*icomp_iterator)->ispec->interaction_column_indices[i - 1];
+            	int last_index  = (*icomp_iterator)->ispec->interaction_column_indices[i];
+            	
+            	// Insert n_coef elements from the beginning of the interaction at the end of this interaction
+            	for (int j = 0; j < n_coef; j++) {
+            		mat->fm_solution.insert( mat->fm_solution.begin() + last_index, mat->fm_solution[first_index + n_coef]);
+            	}
+            	
+            	// Then, update interaction_column_inices for the rest of this matrix
+            	shift_remaining_indices(i, n_coef, (*icomp_iterator)->ispec->interaction_column_indices, size);
+            	cumulative_shift += n_coef;
+            }
+        }
+    } 
+}
+
+void shift_remaining_indices(const int start, const int bspline_k, std::vector<unsigned> &interaction_column_indices, const int size)
+{
+	for(int i = start; i < size; i++) interaction_column_indices[i] += bspline_k;
 }

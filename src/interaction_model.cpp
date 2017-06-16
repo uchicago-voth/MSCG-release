@@ -26,6 +26,7 @@ inline void read_types(const int n_body, std::vector<int> &types, std::string* e
 
 // Non-standard setup functions.
 void setup_site_to_density_group_index(DensityClassSpec* iclass);
+void setup_periodic_index(InteractionClassSpec* iclass);
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data);
 void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
 
@@ -545,6 +546,24 @@ void setup_site_to_density_group_index(DensityClassSpec* iclass)
 	}
 }
 
+void setup_periodic_index(InteractionClassSpec* iclass) 
+{
+	// Setup periodic flags for dihedral interactions based on upper and lower cutoff values.
+	for (int i = 0; i < iclass->n_defined; i++) {
+		// Only for matched interactions
+		if (iclass->defined_to_matched_intrxn_index_map[i] == 0) continue;
+		
+		// Check if this interaction meets the criteria for periodic interactions
+		// At the moment, this only looks for an interaction that covers the whole range.
+		// It allows some flexibility in values near the edges since this will also get called for BI
+		if (iclass->upper_cutoffs[i] > 179.0 && iclass->lower_cutoffs[i] < -179.0) {
+			iclass->defined_to_periodic_intrxn_index_map[i] = 1;
+			iclass->upper_cutoffs[i] = 180.0;
+			iclass->lower_cutoffs[i] = -180.0;
+		}
+	}
+}
+	
 void HelicalClassSpec::rebuild_helical_list(TopoList* molecule_list, TopoList* dihedral_list)
 {
 	// Free old list if previously allocated.
@@ -618,7 +637,10 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 			
 			interaction_column_indices[counter + 1] = interaction_column_indices[counter] + grid_i;
 			// BSplines include an extra bspline_k - 2 knots.
-			if ((basis_type == kBSpline) || (basis_type == kBSplineAndDeriv)) interaction_column_indices[counter + 1] += get_bspline_k() - 2;
+			if ((basis_type == kBSpline) || (basis_type == kBSplineAndDeriv)) {
+				interaction_column_indices[counter + 1] -= 2;
+				if(defined_to_periodic_intrxn_index_map[i] == 0) interaction_column_indices[counter + 1] += get_bspline_k();
+			}
 			// Delta basis is only 1 column wide.
 			else if (basis_type == kDelta) interaction_column_indices[counter + 1] = interaction_column_indices[counter] + 1;
 			counter++;
@@ -665,6 +687,7 @@ void InteractionClassSpec::setup_for_defined_interactions(TopologyData* topo_dat
 	defined_to_symmetric_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
 	defined_to_tabulated_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
 	defined_to_symtab_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
+	defined_to_periodic_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
 	lower_cutoffs = new double[n_defined]();
 	upper_cutoffs = new double[n_defined]();
 	n_to_force_match = 0;
@@ -703,21 +726,22 @@ void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, Topo
 	    // Allocate space for the three body nonbonded hash tables analogously to the bonded interactions.
         tb_spec->defined_to_matched_intrxn_index_map = std::vector<unsigned>(tb_spec->get_n_defined(), 0);   
 		tb_spec->defined_to_tabulated_intrxn_index_map = std::vector<unsigned>(tb_spec->get_n_defined(), 0);   
-        tb_spec->lower_cutoffs = new double[tb_spec->get_n_defined()];
+        tb_spec->defined_to_periodic_intrxn_index_map = std::vector<unsigned>(tb_spec->get_n_defined(), 0);
+        tb_spec->lower_cutoffs = new double[tb_spec->get_n_defined()]();
         tb_spec->upper_cutoffs = new double[tb_spec->get_n_defined()];
 
         // The three body interaction basis functions depend only 
         // on a single angle by default.
         for (int i = 0; i < tb_spec->get_n_defined(); i++) {
             tb_spec->defined_to_matched_intrxn_index_map[i] = i + 1;
-			tb_spec->defined_to_tabulated_intrxn_index_map[i] = 0;
             tb_spec->lower_cutoffs[i] = 0.0;
             tb_spec->upper_cutoffs[i] = 180.0;
         }
 
 	} else {
         tb_spec->defined_to_matched_intrxn_index_map = std::vector<unsigned>(1, 0);
-        tb_spec->defined_to_tabulated_intrxn_index_map = std::vector<unsigned>(1, 0);  
+        tb_spec->defined_to_tabulated_intrxn_index_map = std::vector<unsigned>(1, 0);
+        tb_spec->defined_to_periodic_intrxn_index_map = std::vector<unsigned>(1, 0);
         tb_spec->lower_cutoffs = new double[1]();
 		tb_spec->upper_cutoffs = new double[1]();
 		tb_spec->interaction_column_indices = std::vector<unsigned>(1, 0);
@@ -840,6 +864,8 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
 	// Also, setup density computer variables that depended on rmin_den.in values.
 	setup_site_to_density_group_index(&cg->density_interactions);
+	// Also, setup periodic flags for dihedral interactions based on upper and lower cutoff values.
+	setup_periodic_index(&cg->dihedral_interactions);
 	
     // Allocate space for the column index of each block of basis functions associated with each class of interactions active
     // in the model and meant for force matching, then fill them in class by class.
