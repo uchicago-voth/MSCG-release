@@ -57,9 +57,9 @@ SplineComputer::SplineComputer(InteractionClassSpec* ispec)
 	n_to_force_match = ispec->n_to_force_match; 
 	n_defined = ispec->get_n_defined();
 	binwidth = ispec->get_fm_binwidth();
-	
-	interaction_column_indices_ = std::vector<unsigned>(ispec->get_n_defined(), 0);
-	for (int i = 0; i < ispec->get_n_defined(); i++) interaction_column_indices_[i] = ispec->interaction_column_indices[i];
+	int size = ispec->interaction_column_indices.size();
+	interaction_column_indices_ = std::vector<unsigned>(size, 0);
+	for (int i = 0; i < size; i++) interaction_column_indices_[i] = ispec->interaction_column_indices[i];
 }
 
 // This routine returns the input value minus the lower cutoff, rounded
@@ -127,7 +127,8 @@ void BSplineComputer::calculate_basis_fn_vals(const int index_among_defined, con
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
-    check_matching_istart(first_nonzero_basis_index, istart);
+    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
+    first_nonzero_basis_index = istart;
     
     for (unsigned i = 0; i < n_coef; i++) {
         vals[i] = gsl_vector_get(bspline_vectors, i);
@@ -137,17 +138,17 @@ void BSplineComputer::calculate_basis_fn_vals(const int index_among_defined, con
 double BSplineComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
 {
     size_t istart, iend;
-    int ici_index = 0;
+    int ici_value = 0;
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
-		ici_index = interaction_column_indices_[index_among_matched_interactions - 1];
+		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
-        check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
-        force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + interaction_column_indices_[index_among_matched_interactions - 1] + tn];
+        check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_value, tn, istart);
+        force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ici_value + tn];
     }
     return force;
 }
@@ -209,7 +210,8 @@ void BSplineAndDerivComputer::calculate_bspline_deriv_vals(const int index_among
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_deriv_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], (size_t)(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched]);
-    check_matching_istart(first_nonzero_basis_index, istart);
+    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
+    first_nonzero_basis_index = istart;
     
     for (unsigned i = 0; i < n_coef; i++) {
     	vals[i] = -gsl_matrix_get(bspline_matrices, i, 1);
@@ -225,8 +227,9 @@ void BSplineAndDerivComputer::calculate_basis_fn_vals(const int index_among_defi
     
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
-    check_matching_istart(first_nonzero_basis_index, istart);
-
+    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
+	first_nonzero_basis_index = istart;
+    
     for (unsigned i = 0; i < n_coef; i++) {
         vals[i] = gsl_vector_get(bspline_vectors, i);
     }
@@ -235,17 +238,17 @@ void BSplineAndDerivComputer::calculate_basis_fn_vals(const int index_among_defi
 double BSplineAndDerivComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
 {
     size_t istart, iend;
-    int ici_index = 0;
+    int ici_value = 0;
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
 	double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
-		ici_index = interaction_column_indices_[index_among_matched_interactions - 1];
+		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
-    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
-    	force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + interaction_column_indices_[index_among_matched_interactions - 1] + tn];
+    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_value, tn, istart);
+    	force += gsl_vector_get(bspline_vectors, tn - istart) * spline_coeffs[first_nonzero_basis_index + ici_value + tn];
     }
     return force;
 }
@@ -254,16 +257,16 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
 {
     double deriv = 0.0;
     size_t istart, iend;
-    int ici_index = 0;
+    int ici_value = 0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
 	gsl_bspline_deriv_eval_nonzero(axis_val, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
-		ici_index = interaction_column_indices_[index_among_matched_interactions - 1];
+		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
     for (int tn = int(istart); tn <= int(iend); tn++) {
-    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_index, tn, istart);
-        deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ici_index + tn];
+    	check_bspline_sizing(spline_coeffs.size(), first_nonzero_basis_index, index_among_matched_interactions, ici_value, tn, istart);
+        deriv += gsl_matrix_get(bspline_matrices, tn - istart, 1) * spline_coeffs[first_nonzero_basis_index + ici_value + tn];
     }
     return deriv;
 }
@@ -316,22 +319,22 @@ void LinearSplineComputer::calculate_basis_fn_vals(const int index_among_defined
 double LinearSplineComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
 {
     double force = 0.0;
-    int ici_index = 0;
+    int ici_value = 0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
 	double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, axis);
 
 	int basis_function_column_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
     double remainder_after_binning = fmod(param_less_lower_cutoff / ispec_->get_fm_binwidth(), 1.0);
     if (index_among_matched_interactions > 0) {
-		ici_index = interaction_column_indices_[index_among_matched_interactions - 1];
+		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
     
-    if (unsigned(first_nonzero_basis_index + ici_index + basis_function_column_index + 1) < spline_coeffs.size()) {
-        force = spline_coeffs[first_nonzero_basis_index + ici_index + basis_function_column_index] * (1.0 - remainder_after_binning) + spline_coeffs[first_nonzero_basis_index + ici_index + basis_function_column_index + 1] * remainder_after_binning;
-    } else if (unsigned(first_nonzero_basis_index + ici_index + basis_function_column_index + 1) == spline_coeffs.size()) {
-        force = spline_coeffs[first_nonzero_basis_index + ici_index + basis_function_column_index];
+    if (unsigned(first_nonzero_basis_index + ici_value + basis_function_column_index + 1) < spline_coeffs.size()) {
+        force = spline_coeffs[first_nonzero_basis_index + ici_value + basis_function_column_index] * (1.0 - remainder_after_binning) + spline_coeffs[first_nonzero_basis_index + ici_value + basis_function_column_index + 1] * remainder_after_binning;
+    } else if (unsigned(first_nonzero_basis_index + ici_value + basis_function_column_index + 1) == spline_coeffs.size()) {
+        force = spline_coeffs[first_nonzero_basis_index + ici_value + basis_function_column_index];
     } else {
-        fprintf(stderr, "Warning: attempting to read %d columns past interaction column %d in a matrix of %lu columns, to be multiplied by a coefficient %g.", basis_function_column_index + 1, first_nonzero_basis_index + ici_index, spline_coeffs.size(), remainder_after_binning);
+        fprintf(stderr, "Warning: attempting to read %d columns past interaction column %d in a matrix of %lu columns, to be multiplied by a coefficient %g.", basis_function_column_index + 1, first_nonzero_basis_index + ici_value, spline_coeffs.size(), remainder_after_binning);
     }
     return force;
 }
@@ -411,7 +414,7 @@ inline void adjust_splines_for_periodicity(const InteractionClassType class_type
 	for (int i = 0; i < n_defined; i++) {
 		// Adjust the internal copy if it is periodic (make it bigger by n_coef.
 		if (defined_to_periodic_intrxn_index_map[i] == 1) {
-			shift_remaining_indices(i, n_coef, interaction_column_indices_, n_defined);
+			shift_remaining_indices(i, n_coef, interaction_column_indices_, interaction_column_indices_.size());
 		}
 	}
 }

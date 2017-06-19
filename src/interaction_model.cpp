@@ -32,6 +32,7 @@ void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
 
 // Input checking and error reporting functions.
 void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const ispec, double const cutoff);
+void check_angular_interaction_range_cutoffs(AngularClassSpec *const ispec);
 void report_tabulated_interaction_format_error(const int line, const std::string& string);
 void report_tabulated_interaction_data_consistency_error(const int line);
 void report_fields_error(const std::string &full_name, const int n_expected, const int n_fields); 
@@ -178,6 +179,21 @@ void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const isp
 			if (ispec->upper_cutoffs[i] > (cutoff + ispec->output_binwidth + VERYSMALL) ) {
 				fprintf(stderr, "An upper cutoff (%lf) specified in the range file is larger than the pair nonbonded cutoff speicified in the control file (%lf).\n", ispec->upper_cutoffs[i], cutoff);
 				fprintf(stderr, "This can lead to unphysical looking interactions.\n");
+				fprintf(stderr, "Please adjust and run again.\n");
+				fflush(stderr);
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+}
+
+// Check that specified angular interactions do not extend past 0 or 180.
+void check_angular_interaction_range_cutoffs(AngularClassSpec *const ispec)
+{
+	for (int i = 0; i < ispec->n_defined; i++) {
+		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. DOOM) interactions.
+			if (ispec->upper_cutoffs[i] > 180.0 + VERYSMALL_F || ispec->lower_cutoffs[i] < -VERYSMALL_F) {
+				fprintf(stderr, "The interaction range (%lf to %lf) specified in the range file is goes outside of the allowed range (0 to 180).\n", ispec->lower_cutoffs[i], ispec->upper_cutoffs[i]);
 				fprintf(stderr, "Please adjust and run again.\n");
 				fflush(stderr);
 				exit(EXIT_FAILURE);
@@ -549,17 +565,42 @@ void setup_site_to_density_group_index(DensityClassSpec* iclass)
 void setup_periodic_index(InteractionClassSpec* iclass) 
 {
 	// Setup periodic flags for dihedral interactions based on upper and lower cutoff values.
+	// Only do this for angle-based dihedrals (not distance-based dihedrals).
+	if (iclass->class_subtype == 1) return;
 	for (int i = 0; i < iclass->n_defined; i++) {
 		// Only for matched interactions
 		if (iclass->defined_to_matched_intrxn_index_map[i] == 0) continue;
 		
-		// Check if this interaction meets the criteria for periodic interactions
-		// At the moment, this only looks for an interaction that covers the whole range.
-		// It allows some flexibility in values near the edges since this will also get called for BI
+		// Check if this interaction meets the criteria for periodic interactions.
 		if (iclass->upper_cutoffs[i] > 179.0 && iclass->lower_cutoffs[i] < -179.0) {
+			// This only looks for an interaction that covers the whole range.
+			// It allows some flexibility in values near the edges since this will also get called for BI calculation directly from rangerinder.
+			printf("Treating dihedral interaction range (%lf to %lf) as fully periodic (-180 to 180).\n", iclass->lower_cutoffs[i], iclass->upper_cutoffs[i]);
 			iclass->defined_to_periodic_intrxn_index_map[i] = 1;
 			iclass->upper_cutoffs[i] = 180.0;
 			iclass->lower_cutoffs[i] = -180.0;
+		} else if (iclass->upper_cutoffs[i] < iclass->lower_cutoffs[i] || iclass->upper_cutoffs[i] > 180.0 + VERYSMALL_F) {
+			// This looks for a range that passes through the periodic boundary.
+			// For example, this can be specified as either +140 to -140 or +140 to +220.
+			printf("Treating dihedral interaction range (%lf to %lf) as going through periodic wrapping.\n", iclass->lower_cutoffs[i], iclass->upper_cutoffs[i]);
+			iclass->defined_to_periodic_intrxn_index_map[i] = 2;	
+			if (iclass->upper_cutoffs[i] < -180.0) {
+				iclass->upper_cutoffs[i] += 360.0;
+			}
+		}
+		// Make sure that these cutoff values are within the right range.
+		if (iclass->lower_cutoffs[i] < -180.0 - VERYSMALL_F || iclass->lower_cutoffs[i] > 540.0 ||
+				   iclass->upper_cutoffs[i] > 540.0 + VERYSMALL_F) {
+			printf("Invalid interaction range for dihedral angle (%lf to %lf)\n", iclass->lower_cutoffs[i], iclass->upper_cutoffs[i]);
+			if (iclass->lower_cutoffs[i] < -180.0 - VERYSMALL_F ) {
+				printf("Adjusting lower cutoff to -180.\n");
+				iclass->lower_cutoffs[i] = -180.0;
+			} else if (iclass->upper_cutoffs[i] > 540.0 && iclass->defined_to_periodic_intrxn_index_map[i] == 2) {
+				printf("Adjusting unwrapped upper cutoff to 540.0\n");
+				iclass->upper_cutoffs[i] = 540.0;
+			} else {			
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 }
@@ -862,6 +903,8 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
+	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
+	check_angular_interaction_range_cutoffs(&cg->angular_interactions);
 	// Also, setup density computer variables that depended on rmin_den.in values.
 	setup_site_to_density_group_index(&cg->density_interactions);
 	// Also, setup periodic flags for dihedral interactions based on upper and lower cutoff values.

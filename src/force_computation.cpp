@@ -1067,15 +1067,15 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
     double dihedral;
 	
 	if ( conditionally_calc_dihedral_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, dihedral, derivatives) ) {
-    	//printf("Dihedral particle ids: %d, %d, %d, %d\n", info->k, info->l, info->i, info->j);
-    	//printf("Dihedral angle is %lf\n", dihedral);
-    	//for (int i = 0; i < 3; i++) printf("Derivative %d: %lf, %lf, %lf\n", i+1, derivatives[i][0], derivatives[i][1], derivatives[i][2]);
-		//printf("\n"); fflush(stdout);
-        if (dihedral < info->ispec->lower_cutoffs[index_among_defined] ||
-        	dihedral > info->ispec->upper_cutoffs[index_among_defined]) {
+    	if (info->ispec->class_subtype == 0 && 
+    		info->ispec->defined_to_periodic_intrxn_index_map[index_among_defined] == 2) {
+        		dihedral += 360.0;
+        }
+    	if ( dihedral < info->ispec->lower_cutoffs[index_among_defined] ||
+        	 dihedral > info->ispec->upper_cutoffs[index_among_defined] ) {
         	delete [] derivatives;
         	return;
-        }
+        } 
 		info->process_interaction_matrix_elements(info, mat, 4, particle_ids, derivatives, dihedral, 0, 0.0, 0.0);
     }
 	delete [] derivatives;

@@ -57,6 +57,9 @@ void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &f
 // Remove entries with axis values out of the specified range.
 void trim_excess_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 
+// Wrap the axis around a boundary if there is more than 1 value to wrap.
+void wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals);
+
 // Find the index of the minimum value in a vector.
 unsigned get_min_index(const std::vector<double> &potential_vals);
 

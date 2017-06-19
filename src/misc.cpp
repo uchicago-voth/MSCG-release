@@ -270,6 +270,7 @@ void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &f
 }
     		  
 // Remove entries with axis values out of the specified range.
+
 void trim_excess_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
 {
 	int last = axis_vals.size() - 1;
@@ -294,11 +295,55 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 			force_vals.erase(force_vals.begin());
 		} else {
 			// remove a range of entries
-			axis_vals.erase(axis_vals.begin(), axis_vals.begin() + first - 1);
-			force_vals.erase(force_vals.begin(), force_vals.begin() + first - 1);
+			axis_vals.erase(axis_vals.begin(), axis_vals.begin() + first);
+			force_vals.erase(force_vals.begin(), force_vals.begin() + first);
 		}
 	}
 
+}
+
+// Wrap the axis around a boundary if there is more than 1 value to wrap.
+
+void wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
+{
+	// Determine how many values there are to wrap
+	int counter = 0;
+	int index = axis_vals.size() - 1;
+	while (axis_vals[index] > high_value + VERYSMALL_F) {
+		counter++;
+		index--;
+	}
+	
+	// Only continue if there is more than 1 value to wrap.
+	// If there is only 1 value than it is probably a rounding issue with the spline table.
+	// If there are more values, then this interaction range probably passed through a periodic boundary.
+	if (counter <= 1) return;
+	
+	double axis_value, force_value;
+	std::vector<double>::iterator axis_it;
+  	std::vector<double>::iterator force_it;
+
+	while (counter > 0) {
+		// Store last value
+		axis_value = axis_vals.back();
+		force_value = force_vals.back();
+		
+		// Remove value
+		axis_vals.pop_back();
+		axis_vals.pop_back();
+		
+		// Adjust axis
+		axis_value -= 360.0;
+		
+		// Insert value 
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+		axis_vals.insert(axis_it, axis_value);
+		force_vals.insert(force_it, force_value);	
+
+		// adjust counter
+		counter--;
+	}
 }
 
 // Find the index of the minimum value in a vector.
