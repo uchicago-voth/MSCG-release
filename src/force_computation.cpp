@@ -92,7 +92,7 @@ void InteractionClassComputer::set_up_computer(InteractionClassSpec* const ispec
     // Store the pointer to the spec.
     ispec = ispec_pt;
 
-    // Set up spline computation for matching and tabulation
+	// Set up spline computation for matching and tabulation
     // as needed.
     fm_s_comp = set_up_fm_spline_comp(ispec);
     if (ispec->n_to_force_match > 0) {
@@ -231,6 +231,7 @@ void DensityClassComputer::class_set_up_computer(void)
 	} else if (iclass->class_subtype == 3) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			denomenator[ii] = pow(iclass->cutoff, 4.0);
+			printf("%d: cutoff %lf, u_cutoff %lf, f_cutoff %lf, denom %lf\n", ii, iclass->cutoff, u_cutoff[ii], f_cutoff[ii], denomenator[ii]); fflush(stdout);
 		} 
 	} else if (iclass->class_subtype == 4) {
 		c0 = new double[iclass->get_n_defined()]();
@@ -849,8 +850,8 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 		if(interaction_flags % 2 == 1) {
 			// Look-up this index
 			info->index_among_defined_intrxns = index_counter;
-			std::vector<int> types = ispec->get_interaction_types(info->index_among_defined_intrxns);
-			info->curr_weight = ispec->density_weights[ (types[1] - 1) * ispec->n_density_groups + (cg_site_types[info->l] - 1)];
+			info->set_indices();
+			info->curr_weight = ispec->density_weights[info->index_among_defined_intrxns];
 			(*calc_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 		}
 		// Shift to the right and repeat the operation
@@ -1335,7 +1336,7 @@ void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::
 		DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
 	
 		// Look-up this particular interaction's density.
-		double density_value = icomp->density_values[icomp->index_among_defined_intrxns * ispec->n_cg_sites + icomp->k];
+		double density_value = icomp->density_values[info->index_among_defined_intrxns * ispec->n_cg_sites + icomp->k];
 		// Calculate the weight function derivative.
 		double density_derivative = (*icomp->calculate_density_derivative)(icomp, ispec, distance);
 		density_derivative *= icomp->curr_weight;

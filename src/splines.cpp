@@ -69,11 +69,11 @@ double SplineComputer::get_param_less_lower_cutoff(const int index_among_defined
     double cutoff_range = ispec_->upper_cutoffs[index_among_defined] - ispec_->lower_cutoffs[index_among_defined] - VERYSMALL;
     double param_less_lower_cutoff = param_val - ispec_->lower_cutoffs[index_among_defined];
     if (param_less_lower_cutoff < 0.0) {
-    	if (param_less_lower_cutoff < VERYSMALL_F) fprintf(stderr, "Value passed to spline computer (%lf) is below its lower cutoff (%lf)!\n\n", param_val, ispec_->lower_cutoffs[index_among_defined]);
+    	if (param_less_lower_cutoff < -VERYSMALL_F - 0.5 * ispec_->get_fm_binwidth()) fprintf(stderr, "Value passed to spline computer (%lf) is below its lower cutoff (%lf)!\n\n", param_val, ispec_->lower_cutoffs[index_among_defined]);
     	param_less_lower_cutoff = 0.0;
     }
     else if (param_less_lower_cutoff > cutoff_range) {
-    	if (param_less_lower_cutoff > cutoff_range + VERYSMALL_F) fprintf(stderr, "Value passed to spline computer %lf is above its cutoff %lf!\n\n", param_val, ispec_->upper_cutoffs[index_among_defined]);
+    	if (param_less_lower_cutoff > cutoff_range + VERYSMALL_F + 0.5 * ispec_->get_fm_binwidth()) fprintf(stderr, "Value passed to spline computer %lf is above its cutoff %lf!\n\n", param_val, ispec_->upper_cutoffs[index_among_defined]);
 	    param_less_lower_cutoff = cutoff_range;
     }
     return param_less_lower_cutoff;
@@ -164,41 +164,36 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
     	printf("Spline order for BSplineAndDeriv must be at least 3!\n");
 		exit(EXIT_FAILURE);
     }
-    
-    // Exclude kThreeBody class_subtype == 0 only
-    if ( (ispec_->class_type != kThreeBodyNonbonded) || (ispec_->class_subtype == 1) || (ispec_->class_subtype == 2) || (ispec_->class_subtype == 3) ) {
-        printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
-        bspline_vectors = gsl_vector_alloc(n_coef);
-        bspline_matrices = gsl_matrix_alloc(n_coef, 2);
-       	bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
-     	
-       	int counter = 0; // this is a stand in for index_among_matched_interxns
-		for (unsigned i = 0; i < n_defined; i++) {
-			if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
-				ici_index = interaction_column_indices_[counter + 1] - interaction_column_indices_[counter];
-				n_to_print_minus_bspline_k = ici_index - n_coef + 2;
-				check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
-				bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
-				gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
-				counter++;
-			}
+ 
+	printf("Allocating b-spline and derivative temporaries for %d interactions.\n", ispec_->get_n_defined());
+	bspline_vectors = gsl_vector_alloc(n_coef);
+	bspline_matrices = gsl_matrix_alloc(n_coef, 2);
+	bspline_workspaces = new gsl_bspline_workspace*[n_to_force_match];
+	
+	int counter = 0; // this is a stand in for index_among_matched_interxns
+	for (unsigned i = 0; i < n_defined; i++) {
+		if (ispec_->defined_to_matched_intrxn_index_map[i] > 0) {
+			ici_index = interaction_column_indices_[counter + 1] - interaction_column_indices_[counter];
+			n_to_print_minus_bspline_k = ici_index - n_coef + 2;
+			check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
+			bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
+			gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i], ispec_->upper_cutoffs[i], bspline_workspaces[counter]);
+			counter++;
 		}
-    }
+	}
 }
 
 BSplineAndDerivComputer::~BSplineAndDerivComputer() 
 {
-    if ((ispec_->class_type != kThreeBodyNonbonded) || (class_subtype == 1) || (class_subtype == 2) || (ispec_->class_subtype == 3) ) {
-    	if (ispec_->class_type != kThreeBodyNonbonded) {
-    		for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
-    	} else {
-    		for (unsigned i = 0; i < n_defined; i++)  gsl_bspline_free(bspline_workspaces[i]);
-        }
-        
-        delete [] bspline_workspaces;
-        gsl_vector_free(bspline_vectors);
-		gsl_matrix_free(bspline_matrices);
-    }
+	if (ispec_->class_type != kThreeBodyNonbonded) {
+		for (unsigned i = 0; i < n_to_force_match; i++)	gsl_bspline_free(bspline_workspaces[i]);
+	} else {
+		for (unsigned i = 0; i < n_defined; i++)  gsl_bspline_free(bspline_workspaces[i]);
+	}
+	
+	delete [] bspline_workspaces;
+	gsl_vector_free(bspline_vectors);
+	gsl_matrix_free(bspline_matrices);
 }
 
 void BSplineAndDerivComputer::calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
