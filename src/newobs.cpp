@@ -89,6 +89,9 @@ int main(int argc, char* argv[])
     printf("Beginning to read frames.\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
     
+	// Perhaps we should have a control.in option that enables reading/use of the
+	// observables.cg file (where only observables.ref would be read by default).
+
     // Read in reference and CG observable values (1 value per frame).
     read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
     read_frame_values("observables.cg", control_input.starting_frame, control_input.n_frames, fs_cg.cg_observables);
@@ -113,7 +116,7 @@ int main(int argc, char* argv[])
 
     if (fs_cg.bootstrapping_flag == 1) {
     	// Allocate for bootstrapping only for cg and only if appropriate
-  		allocate_bootstrapping(&mat_cg, &control_input, 2, mat_cg.fm_matrix_columns);
+  		allocate_bootstrapping(&mat_cg, &control_input, mat_cg.fm_matrix_columns, mat_cg.fm_matrix_columns);
 
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.

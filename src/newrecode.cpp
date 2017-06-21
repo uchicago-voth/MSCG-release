@@ -89,13 +89,13 @@ int main(int argc, char* argv[])
     printf("Beginning to read frames.\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 
-// 
-/* TODO */
-/*    
-    // Read in reference and CG observable values (1 value per frame).
-    read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
-    read_frame_values("observables.cg", control_input.starting_frame, control_input.n_frames, fs_cg.cg_observables);
-*/
+	// The target values are read in from the trajectory (like forces).
+	// At the moment, it is assumed that CG values (for effectively tabulated interactions)
+	// are not needed.
+	// If they are, I suggest having a control.in option and read them from another trajectory
+	// (assuming that the CG positions are the same).
+	// Something similar could also be done for newobs (where only observables.ref is
+	// read by default).
     
 	//  dynamic state sampling for REM systems
 	if (fs_cg.dynamic_state_sampling == 1) {
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     // Initialize the entropy minimizing matrix.
     printf("setting up RE observable matrix\n");
     control_input.matrix_type = kRecode;  
-    MATRIX_DATA mat_cg(&control_input, &cg); /*CHECK*/
+    MATRIX_DATA mat_cg(&control_input, &cg);
     
     if (fs_cg.use_statistical_reweighting == 1) {
         set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 
     if (fs_cg.bootstrapping_flag == 1) {
     	// Allocate for bootstrapping only for cg and only if appropriate
-  		allocate_bootstrapping(&mat_cg, &control_input, 2, mat_cg.fm_matrix_columns);
+  		allocate_bootstrapping(&mat_cg, &control_input, mat_cg.fm_matrix_columns, mat_cg.fm_matrix_columns);
 
     	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
     	// net frame weights and normalizations.
@@ -143,13 +143,6 @@ int main(int argc, char* argv[])
     printf("Writing final output.\n");
     write_fm_interaction_output_files(&cg, &mat_cg);
 
-     /* TODO */
-/*    
-    // Clean-up special data
-    delete [] fs_cg.ref_observables;
-    delete [] fs_cg.cg_observables;
-*/
-  
     // Record the time and print total elapsed time for profiling purposes.
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
@@ -212,14 +205,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	    printf("Failure reading frame %d (%d). Check trajectory for errors.\n", fs->current_frame_n, mat->trajectory_block_index * mat->frames_per_traj_block + trajectory_block_frame_index);
 	    exit(EXIT_FAILURE);
       }
-     
-     /* TODO */
-     /* 
-	  // Accumulate the difference in observable values to the RHS vector
-	  double observable_difference = fs->ref_observables[traj_frame_num] - fs->cg_observables[traj_frame_num];
-	  mat->accumulate_target_force_element(mat, trajectory_block_frame_index, &observable_difference);
-	*/
-	  
+     	  
 	  // If reweighting is being used, scale the block of the FM matrix for this frame
 	  // by the appropriate weighting factor
 	  if (fs->use_statistical_reweighting == 1) {
