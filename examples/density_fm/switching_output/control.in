@@ -23,8 +23,9 @@ dynamic_types 1
 angle_type 1
 density_interactions_flag 2
 density_cutoff_distance 12.5
-density_basis_set_resolution 1.0
-output_density_parameter_distribution 0
+density_basis_set_resolution 0.2
+density_output_binwdith 0.2
+output_density_parameter_distribution 1
 density_excluded_style 0
 excluded_style 2
 density_weights_flag 0
