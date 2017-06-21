@@ -1655,11 +1655,12 @@ void calculate_target_virial_in_accumulation_vector(MATRIX_DATA* const mat, doub
 
 void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &f) 
 {
-    if (mat->matrix_type == kDense || mat->matrix_type == kSparse || mat->matrix_type == kSparseNormal || mat->matrix_type == kSparseSparse) {
+    if (mat->matrix_type == kDense || mat->matrix_type == kSparse || mat->matrix_type == kSparseNormal || mat->matrix_type == kSparseSparse ||
+    	mat->matrix_type == kRecode) {
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
-    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs || mat->matrix_type == kRecode) {
+    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs) {
     // Do not accumulate per-particle values for kREM or kOBs or kRecode.
 	}
 }
