@@ -209,7 +209,7 @@ void DensityClassComputer::class_set_up_computer(void)
 	if(iclass->class_subtype == 1) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			if (iclass->density_sigma[ii] < VERYSMALL_F) {
-				printf("Density sigma parameter is too small!\n");
+				printf("Density sigma parameter (%lf) is too small!\n", iclass->density_sigma[ii]);
 				exit(EXIT_FAILURE);
 			}
 			denomenator[ii] = 2.0 * iclass->density_sigma[ii] * iclass->density_sigma[ii];
@@ -219,7 +219,7 @@ void DensityClassComputer::class_set_up_computer(void)
 	} else if (iclass->class_subtype == 2) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
 			if (iclass->density_sigma[i] < VERYSMALL_F) {
-				printf("Density sigma parameter is too small!\n");
+				printf("Density sigma parameter (%lf) is too small!\n", iclass->density_sigma[ii]);
 				exit(EXIT_FAILURE);
 			}
 			denomenator[ii] = iclass->density_sigma[ii] / 0.5;

@@ -440,9 +440,9 @@ void DensityClassSpec::read_rmin_class(std::string* &elements, const int positio
 	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
 	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
 	sprintf(mode, "%s", elements[position + 2].c_str());	
-	density_sigma[index_among_defined] = atof(elements[position + 2].c_str());
+	density_sigma[index_among_defined] = atof(elements[position + 3].c_str());
 	if (class_subtype == 2 || class_subtype == 4) {
-		density_switch[index_among_defined] = atof(elements[position + 3].c_str());
+		density_switch[index_among_defined] = atof(elements[position + 4].c_str());
 	}
 }
 
