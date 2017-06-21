@@ -235,19 +235,19 @@ void allocate_and_initialize_density_computer_for_range_finding(DensityClassComp
 	if(iclass->class_subtype == 1) {
 		for(int i = 0; i < iclass->get_n_defined(); i++) {
 			if (iclass->density_sigma[i] < VERYSMALL) {
-				printf("Density sigma parameter is too small!\n");
+				printf("Density sigma parameter (%lf) is too small!\n", iclass->density_sigma[i]);
 				exit(EXIT_FAILURE);
 			}
 			icomp->denomenator[i] = 2.0 * iclass->density_sigma[i] * iclass->density_sigma[i];
 			icomp->u_cutoff[i] = - exp( - icomp->cutoff2 / icomp->denomenator[i] );
 			icomp->f_cutoff[i] = - 2.0 * iclass->cutoff * icomp->u_cutoff[i] / icomp->denomenator[i];
 			
-			printf("%d: density_sigma %lf, cutoff %lf, u_cutoff %lf, f_cutoff %lf, denom %lf\n", i, iclass->density_switch[i], iclass->cutoff, icomp->u_cutoff[i], icomp->f_cutoff[i], icomp->denomenator[i]); fflush(stdout);
+			printf("%d: density_sigma %lf, cutoff %lf, u_cutoff %lf, f_cutoff %lf, denom %lf\n", i, iclass->density_sigma[i], iclass->cutoff, icomp->u_cutoff[i], icomp->f_cutoff[i], icomp->denomenator[i]); fflush(stdout);
 		}
 	} else if (iclass->class_subtype == 2) {
 		for(int i = 0; i < iclass->get_n_defined(); i++) {
 			if (iclass->density_sigma[i] < VERYSMALL) {
-				printf("Density sigma parameter is too small!\n");
+				printf("Density sigma parameter (%lf) is too small!\n", iclass->density_sigma[i]);
 				exit(EXIT_FAILURE);
 			}
 			icomp->denomenator[i] = iclass->density_sigma[i] / 0.5;

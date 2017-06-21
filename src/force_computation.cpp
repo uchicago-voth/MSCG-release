@@ -214,7 +214,8 @@ void DensityClassComputer::class_set_up_computer(void)
 			}
 			denomenator[ii] = 2.0 * iclass->density_sigma[ii] * iclass->density_sigma[ii];
 			u_cutoff[ii] = - exp( - cutoff2 / denomenator[ii] );
-			f_cutoff[ii] = - 2.0 * iclass->cutoff * u_cutoff[ii];
+			f_cutoff[ii] = - 2.0 * iclass->cutoff * u_cutoff[ii] / denomenator[ii];
+			printf("%d: density_sigma %lf, cutoff %lf, u_cutoff %lf, f_cutoff %lf, denom %lf\n", i, iclass->density_sigma[i], iclass->cutoff, u_cutoff[i], f_cutoff[i], denomenator[i]); fflush(stdout);
 		}
 	} else if (iclass->class_subtype == 2) {
 		for(int ii = 0; ii < iclass->get_n_defined(); ii++) {
