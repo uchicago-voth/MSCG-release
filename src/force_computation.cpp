@@ -597,12 +597,6 @@ void DensityClassComputer::calculate_interactions(MATRIX_DATA* const mat, int tr
 	// Do intermediate processing (if necessary).
 	process_completed_density(this, process_density, n_cg_types, topo_data.cg_site_types, mat, x, simulation_box_half_lengths);
 
-	/*		
-	for (unsigned ii = 0; ii < topo_data.n_cg_sites; ii++) {
-    	printf("density %u: %lf, %lf, %lf, %lf\n", ii, density_values[0 * topo_data.n_cg_sites + ii], density_values[1 * topo_data.n_cg_sites + ii], density_values[2 * topo_data.n_cg_sites + ii], density_values[3 * topo_data.n_cg_sites + ii]);
-    }
-    */
-
 	// Finally, calculate the matrix elements by combining the density, density derivative, pair distance, and pair derivative.
 	walk_density_neighbor_list(mat, calculate_fm_matrix_elements, n_cg_types, topo_data, pair_cell_list, x, simulation_box_half_lengths);
 }
@@ -1008,8 +1002,7 @@ inline void process_density_matrix_elements(InteractionClassComputer* const info
     
     if (index_among_matched > 0) {
         // Compute the strength of each basis function.
-        //printf("index %d: density %lf; site 1 %d site2 %d\n", index_among_defined, density_value, info->k % 6, info->l % 6);
-       	info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, density_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
+        info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, density_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
 		// Add to the force matching.
         accumulate_matching_order_parameter_forces(info, first_nonzero_basis_index, density_derivative, info->fm_basis_fn_vals, 2, particle_ids, derivatives, mat);
         // Add to virial matching.
@@ -1302,9 +1295,6 @@ void calc_lucy_density_values(InteractionClassComputer* const info, std::array<d
 		// Calculate the weight function
 		double distance = sqrt(distance2);
 		double cutoff_minus_distance = ispec->cutoff - distance;
-		//printf("id %d from %d of index %d contribution %lf\n", icomp->k, icomp->l, index_among_defined, icomp->curr_weight * cutoff_minus_distance * cutoff_minus_distance * cutoff_minus_distance 
-		//								* (ispec->cutoff + 3.0*distance) / icomp->denomenator[index_among_defined]);
-		//printf("%d, %d, %d values\n", icomp->k, icomp->index_among_defined_intrxns, icomp->index_among_matched_interactions);
 		icomp->density_values[icomp->index_among_defined_intrxns * ispec->n_cg_sites + icomp->k] +=
 										icomp->curr_weight * cutoff_minus_distance * cutoff_minus_distance * cutoff_minus_distance 
 										* (ispec->cutoff + 3.0*distance) / icomp->denomenator[index_among_defined];
@@ -1352,9 +1342,8 @@ void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::
 		DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
 	
 		// Look-up this particular interaction's density.
-		//printf("%d, %d, %d, for density elements\n", icomp->k, info->index_among_defined_intrxns, info->index_among_matched_interactions);
 		double density_value = icomp->density_values[info->index_among_defined_intrxns * ispec->n_cg_sites + info->k];
-		//printf("look-up density for index %d of id %d = %lf\n", info->index_among_defined_intrxns, info->k, density_value);
+		
 		// Calculate the weight function derivative.
 		double density_derivative = (*icomp->calculate_density_derivative)(icomp, ispec, distance);
 		density_derivative *= icomp->curr_weight;

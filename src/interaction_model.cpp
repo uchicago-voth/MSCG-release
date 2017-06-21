@@ -344,7 +344,6 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 		if (class_type == kDensity) {
 			read_types(get_n_body(), types, &elements[0], dspec->n_density_groups, name);
 			index_among_defined = calc_asymmetric_interaction_hash(types, dspec->n_density_groups);
-			printf("dg [%d, %d] = %d hash\n", types[0], types[1], index_among_defined);
 		} else if (class_type == kHelical) {
 			read_types(get_n_body(), types, &elements[0], hspec->n_molecule_groups, name);
 			index_among_defined = calc_interaction_hash(types, hspec->n_molecule_groups);
