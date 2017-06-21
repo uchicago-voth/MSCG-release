@@ -675,9 +675,13 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
 	}
 	
 	void determine_defined_intrxns(TopologyData *topo_data) {
-		if (class_subtype == 0) return;
-       	defined_to_possible_intrxn_index_map = std::vector<unsigned>(get_n_defined(), 0);
-      
+		defined_to_possible_intrxn_index_map = std::vector<unsigned>(get_n_defined(), 0);
+      	
+      	if (class_subtype == 0) {
+      		n_to_force_match = 0;
+			return;
+		}
+       	
 		// Set up the hash table for three body nonbonded interactions.
        	int counter = 0;
        	for (int ii = 0; ii < n_cg_types; ii++) {
