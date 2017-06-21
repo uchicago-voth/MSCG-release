@@ -784,13 +784,6 @@ struct DensityClassSpec: InteractionClassSpec {
 		density_weights = topo_data->density_weights;
 		n_defined = n_density_groups * n_density_groups;
 		format = 0;
-		if(n_defined > 0) {
-			density_sigma = new double[n_defined];
-			for(int i=0; i<n_defined; i++) { density_sigma[i] = 1.0;}
-			//defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
-			density_switch = new double[n_defined];
-			for(int i=0; i<n_defined; i++) { density_switch[i] = 1.0;}
-		}
 	};
 	
 	~DensityClassSpec() {
@@ -1109,6 +1102,9 @@ struct CG_MODEL_DATA {
 
 // Read interaction ranges and assign the interactions to be force matched, tabulated, or null.
 void read_all_interaction_ranges(CG_MODEL_DATA* const cg);
+
+// Special set-up density interactions.
+void density_additional_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data);
 
 // Read tabulated interaction data from file
 void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types);

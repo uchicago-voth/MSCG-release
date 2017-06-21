@@ -86,6 +86,15 @@ void initialize_range_finding_temps(CG_MODEL_DATA* const cg)
 	}
     initialize_single_class_range_finding_temps(&cg->three_body_nonbonded_interactions, &cg->three_body_nonbonded_computer, &cg->topo_data);
 	if(cg->density_interactions.class_subtype != 0) {
+		density_additional_setup_for_defined_interactions(&cg->density_interactions, &cg->topo_data);
+		DensityClassSpec* d_spec = static_cast<DensityClassSpec*>(&cg->density_interactions);
+		d_spec->determine_defined_intrxns(&cg->topo_data);
+		if(d_spec->n_defined > 0) {
+			d_spec->density_sigma = new double[d_spec->n_defined];
+			for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_sigma[i] = 1.0;}
+			d_spec->density_switch = new double[d_spec->n_defined];
+			for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_switch[i] = 1.0;}
+		}
 		read_density_parameter_file(&cg->density_interactions);
 		allocate_and_initialize_density_computer_for_range_finding(&cg->density_computer);
 	}

@@ -303,19 +303,8 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
     int total_symmetric_tabulated = 0;
     int total_intrxns = 0;
     int n_fields;
-    int n_expected = 3 + get_n_body();
-    if (class_type == kOneBody) {
-    	n_expected = 1 + get_n_body();
-    } else if (class_type == kHelical) {
-    	n_expected += 2;
-    }
     
-    std::vector<int> types(get_n_body());
-	std::string* elements = new std::string[n_expected + 1];
-    std::string line;
-    char mode[10];
-	
-	DensityClassSpec* dspec;
+    DensityClassSpec* dspec;
 	RadiusofGyrationClassSpec* rgspec;
 	HelicalClassSpec* hspec;
 	if (class_type == kDensity) {
@@ -327,6 +316,23 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 	if (class_type == kHelical) {
 		hspec = static_cast<HelicalClassSpec*>(this);
 	}		
+    
+    int n_expected = 3 + get_n_body();
+    if (class_type == kOneBody) {
+    	n_expected = 1 + get_n_body();
+    } else if (class_type == kHelical) {
+    	n_expected += 2;
+    }
+    
+    if (class_type == kDensity) {
+    	if (class_subtype == 2 || class_subtype == 4) n_expected += 2;
+		if (class_subtype == 1) n_expected += 1;
+    }
+    
+    std::vector<int> types(get_n_body());
+	std::string* elements = new std::string[n_expected + 1];
+    std::string line;
+    char mode[10];
 	
 	std::getline(range_in, line);
 	while(range_in.good() == 1) {
@@ -751,6 +757,18 @@ void InteractionClassSpec::dummy_setup_for_defined_interactions(TopologyData* to
 	upper_cutoffs = new double[1]();
 }
 
+void density_additional_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data)
+{
+	DensityClassSpec* d_spec = static_cast<DensityClassSpec*>(ispec);
+	d_spec->determine_defined_intrxns(topo_data);
+	if(d_spec->n_defined > 0) {
+		d_spec->density_sigma = new double[d_spec->n_defined];
+		for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_sigma[i] = 1.0;}
+		d_spec->density_switch = new double[d_spec->n_defined];
+		for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_switch[i] = 1.0;}
+	}	
+}
+
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data)
 {
     // This is equivalent to determine_defined_intrxns functions inside of setup_for_defined_interactions
@@ -848,6 +866,7 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	}
 
     // Now deal with interactions that do not fit the normal scheme.	
+	density_additional_setup_for_defined_interactions(&cg->density_interactions, &cg->topo_data);
 	three_body_setup_for_defined_interactions(&cg->three_body_nonbonded_interactions, &cg->topo_data);
 
     // Read normal range specifications.
