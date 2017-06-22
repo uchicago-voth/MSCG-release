@@ -2691,7 +2691,7 @@ inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_
     #if _mkl_flag == 1
 	char upper = 'u';
 	char trans = 't';
-	dsyrk_(&upper, &trans, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
+	dsyrk(&upper, &trans, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
 	#else
 	cblas_dsyrk(CblasColMajor, CblasUpper, CblasTrans, mat->fm_matrix_columns, mat->fm_matrix_rows, frame_weight, dense_fm_matrix->values, mat->fm_matrix_rows, oned, normal_matrix->values, mat->fm_matrix_columns);
 	#endif
