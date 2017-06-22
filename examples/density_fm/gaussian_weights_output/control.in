@@ -25,7 +25,7 @@ density_interactions_flag 1
 density_cutoff_distance 12.5
 density_basis_set_resolution 0.1
 density_output_binwidth 0.1
-output_density_parameter_distribution 0
+output_density_parameter_distribution 1
 density_excluded_style 0
 excluded_style 2
 density_weights_flag 1

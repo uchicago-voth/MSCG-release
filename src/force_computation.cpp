@@ -853,11 +853,13 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 		if(interaction_flags % 2 == 1) {
 			// Look-up this index
 			info->index_among_defined_intrxns = index_counter;
-			info->set_indices();
-			info->curr_weight = ispec->density_weights[info->index_among_defined_intrxns];
-			// Check that info->k is part of DG2
+			info->set_indices();			
 			std::vector<int>types = ispec->get_interaction_types(info->index_among_defined_intrxns);
-			if(ispec->density_groups[(types[1] - 1) * ispec->n_cg_types + (cg_site_types[info->k] - 1)] == true) {
+			int group_type_index = (types[1] - 1) * ispec->n_cg_types + (cg_site_types[info->k] - 1);
+			info->curr_weight = ispec->density_weights[group_type_index];
+			
+			// Check that info->k is part of DG2
+			if(ispec->density_groups[group_type_index] == true) {
 				(*calc_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 			}
 		}

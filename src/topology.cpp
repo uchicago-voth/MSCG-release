@@ -205,6 +205,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
 	// Read the section of top.in defining density dependent nonbonded interactions, if present.
 	topo_data->n_density_groups = 0;
 	if(cg->density_interactions.class_subtype > 0) {
+		printf("Reading density groups.\n");
 		line = read_density_groups(topo_data, cg, top_in, line);
 		line = read_density_weights(topo_data, cg, top_in, line);
 	}
@@ -523,7 +524,7 @@ int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::
 	// Then need to pass information from topology into density
 	// Allocate density_weights to match density_groups
 	if(topo_data->n_density_groups <= 0) return line_num;
-
+	
 	topo_data->density_weights = new double[topo_data->n_density_groups * cg->n_cg_types];
 	
 	// Default initialization is for number density (all weights are 1.0)
@@ -533,6 +534,7 @@ int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::
 	
 	// Check if that is all that needs to be done.
 	if (cg->density_interactions.density_weights_flag == 0) return line_num;
+	printf("Reading density weights.\n");
 	
 	// Otherwise read speicific weights
 	std::string buff;
@@ -570,6 +572,7 @@ int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::
 				// Only use weight if it is non-zero.
 				// Weight could also be 0 if this element is non-numeric
 				if ( (weight = atof(elements[2].c_str())) != 0.0) {
+					printf("weight of %lf for type %d (%s) in density_group %d (%s)\n", weight, j + 1, elements[1].c_str(), i + 1, elements[0].c_str()); 
 					topo_data->density_weights[i * cg->n_cg_types + j] = weight;
 				} else {
 					printf("Warning: Detected a density weight of 0 for type %d in density_group %s!\n", j, topo_data->density_group_names[i]);
