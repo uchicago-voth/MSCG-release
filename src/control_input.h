@@ -24,6 +24,7 @@ typedef struct ControlInputs {
     int use_statistical_reweighting;
     int reference_statistical_reweighting;
 	int pressure_constraint_flag;
+	int cg_observable_flag;
 	int position_dimension;
 	
 	// Additional features

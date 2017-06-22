@@ -31,6 +31,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("bootstrapping_num_estimates", parameter_name) == 0) sscanf(val, "%d", &control_input->bootstrapping_num_estimates);
     else if (strcmp("bootstrapping_num_subsamples", parameter_name) == 0) sscanf(val, "%d", &control_input->bootstrapping_num_subsamples);
     else if (strcmp("random_num_seed", parameter_name) == 0) sscanf(val, "%lu", &control_input->random_num_seed);
+    else if (strcmp("cg_observable_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->random_num_seed);
     else if (strcmp("constrain_pressure_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->pressure_constraint_flag);
     else if (strcmp("volume_weighting_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->volume_weighting_flag);
     else if (strcmp("position_dimension", parameter_name) == 0) sscanf(val, "%d", &control_input->position_dimension);
@@ -135,6 +136,7 @@ ControlInputs::ControlInputs(void)
     frames_per_traj_block = 10;
     use_statistical_reweighting = 0;
     reference_statistical_reweighting = 0;
+    cg_observable_flag = 0;
     pressure_constraint_flag = 0;
     volume_weighting_flag = 0;
     position_dimension = 3;
