@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
 
     // Read in reference and CG observable values (1 value per frame).
     read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
-    if (control_input->cg_observable_flag == 1) {
+    if (control_input.cg_observable_flag == 1) {
     	read_frame_values("observables.cg", control_input.starting_frame, control_input.n_frames, fs_cg.cg_observables);
     } else {
     	fs_cg.cg_observables = new double[control_input.n_frames]();
