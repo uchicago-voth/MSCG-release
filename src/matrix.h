@@ -29,7 +29,7 @@ void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter);
 // Matrix-equation-related type definitions
 //-------------------------------------------------------------
 
-enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kREM = 5, kObs = 6, kRecode = 7, kDummy = -1};
+enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kREM = 5, kObs = 6, kDummy = -1};
 
 // Linked-list-based sparse row matrix element struct. x,y,z components are stored together.
 
@@ -403,10 +403,6 @@ struct MATRIX_DATA {
 	    	delete dense_fm_matrix;
 	    	delete dense_fm_normal_matrix;
 	 	} else if (matrix_type == kObs) {
-	 		// This is a copy of kDense
-	 		delete [] dense_fm_rhs_vector;
-			delete [] dense_fm_normal_rhs_vector;
-	 	} else if (matrix_type == kRecode) {
 	 		// This is a copy of kDense
 	 		delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;

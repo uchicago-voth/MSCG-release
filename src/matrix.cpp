@@ -32,7 +32,6 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
-void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
 
@@ -341,10 +340,6 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     case kObs: // Used for relative entropy framewise observables (e.g., newobs)
     	matrix_type = kObs;
     	initialize_frame_observable_matrix(this, control_input, cg);
-    	break;
-    case kRecode: // Used for relative entropy per-particle observables (e.g., newrecode)
-    	matrix_type = kRecode;
-    	initialize_recode_matrix(this, control_input, cg);
     	break;
     default:
         printf("Invalid matrix type.");
@@ -842,65 +837,6 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   // mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
   // These commented out function pointers are set in FM
   // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-
-  // Allocate the basic relative entropy matrix parts
-  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-  mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
-  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns); 
-  mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
-  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
-  printf("Initialized a relative entropy matrix for framewise observables.\n");
-}
-
-// Initialize a matrix for relative entropy determination/update of per-particle observables.
-// Using the "Gaussian relaxation", this become a least squares problem.
-
-void initialize_recode_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
-{
-  // Set (and override) matrix function pointers
-  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
-  /* TODO??? */
-  mat->accumulate_matching_forces            = accumulate_scalar_entropy_elements;
-  mat->accumulate_symmetric_matching_forces  = accumulate_scalar_entropy_elements;
-  mat->accumulate_one_body_force 			 = accumulate_scalar_one_body_force;
-  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
-  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
-  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
-  mat->accumulate_target_force_element       = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
-  mat->accumulate_fm_matrix_element          = insert_dense_matrix_element;
-  
-  // For normal form (least squares from Gaussian relaxation)
-  if (control_input->bootstrapping_flag == 1) {
-    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
-  } else { 
-	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
-  }
-
-  // For solving normal form
-  if (control_input->bootstrapping_flag == 1) {
-    mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
-  } else {
-	mat->finish_fm = solve_dense_fm_normal_equations;
-  }
-  
-  // Constraint elements do not make sense for this matrix type.
-  
-  // The default matrix size is OK.
-  
-  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
-  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
-
-  // Set the appropriate matrix variables
-  mat->accumulation_matrix_columns = mat->fm_matrix_columns;
-  mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
-
-  // These are variables from REM matrix that look like they are not needed here.
-  // These commented out function pointers are set in FM
-  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-  // mat->temperature = control_input->temperature;
-  // mat->rem_chi = control_input->REM_iteration_step_size;
-  // mat->boltzmann = control_input->boltzmann;
-  // mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
 
   // Allocate the basic relative entropy matrix parts
   mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
@@ -1655,8 +1591,7 @@ void calculate_target_virial_in_accumulation_vector(MATRIX_DATA* const mat, doub
 
 void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &f) 
 {
-    if (mat->matrix_type == kDense || mat->matrix_type == kSparse || mat->matrix_type == kSparseNormal || mat->matrix_type == kSparseSparse ||
-    	mat->matrix_type == kRecode) {
+    if (mat->matrix_type == kDense || mat->matrix_type == kSparse || mat->matrix_type == kSparseNormal || mat->matrix_type == kSparseSparse) {
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
