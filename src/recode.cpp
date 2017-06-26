@@ -1,5 +1,5 @@
 //
-//  newobs.cpp
+//  recode.cpp
 //
 //  The driver implements relative entropy for (scalar) frame-wise observables.
 //  It uses least squares fitting.
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 
     // Initialize the entropy minimizing matrix.
     printf("setting up RE observable matrix\n");
-    control_input.matrix_type = kObs;  
+    control_input.matrix_type = kRecode;  
     MATRIX_DATA mat_cg(&control_input, &cg); /*CHECK*/
     
     if (fs_cg.use_statistical_reweighting == 1) {

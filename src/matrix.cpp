@@ -337,8 +337,8 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
         matrix_type = kREM;
         initialize_rem_matrix(this, control_input, cg);
         break;
-    case kObs: // Used for relative entropy framewise observables (e.g., newobs)
-    	matrix_type = kObs;
+    case kRecode: // Used for relative entropy framewise observables (e.g., newobs)
+    	matrix_type = kRecode;
     	initialize_frame_observable_matrix(this, control_input, cg);
     	break;
     default:
@@ -1595,8 +1595,8 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
-    } else if (mat->matrix_type == kREM || mat->matrix_type == kObs) {
-    // Do not accumulate per-particle values for kREM or kOBs or kRecode.
+    } else if (mat->matrix_type == kREM || mat->matrix_type == kRecode) {
+    // Do not accumulate per-particle values for kREM or kRecode.
 	}
 }
 
