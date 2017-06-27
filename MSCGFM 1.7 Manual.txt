@@ -1,8 +1,8 @@
 Multi-scale coarse-graining force-matching (MSCGFM)
-MSCGFM version 1.7  = 1.60 + MS-CODE, Density, Radius-of-Gyration Dimension, and ScalarFM
+MSCGFM version 1.7  = 1.60 + MS-CODE, RE-CODE, Density, RG, Helical, 1-3, 1-4, 1-5, Dimension, ScalarFM
 Manual author: Jacob Wagner
 Prior versions by James Dama, Lanyuan Lu, and Ron Hills
-Last updated 03/08/17 by Jacob Wagner
+Last updated 06/27/17 by Jacob Wagner
 
 
 I) Introduction
@@ -41,9 +41,9 @@ This package also provides support for the methods described in these references
 8. J. F. Dama, J. Jin, and G. A. Voth, "The Theory of Ultra-Coarse-Graining. 3. 
 	Coarse-Grained Sites with Rapid Local Equilibrium of Internal States", Journal of 
 	Chemical Theory and Computation, 2017 ASAP Article. doi: 10.1021/acs.jctc.6b01081
-9. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Introducing 
-	Order Parameter Interactions for Multiscale Coarse-graining (MS-CG)", Journal of
-	Chemical Physics, 2017 in preparation.
+9. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Extending the Range and 
+	Physical Accuracy of Coarse-grained Models: Order Parameter Dependent Interactions", 
+	Journal of Chemical Physics, 2017 submitted.
 10. J. W. Wagner, T. Dannenhoffer-Lafage, and G. A. Voth, "Multiscale Compatible 
 	Observable Decomposition (MS-CODE) for Coarse-grained Observable Representation",
 	Journal of Chemical Physics, 2017 in preparation. 
@@ -512,6 +512,10 @@ output_radius_of_gyration_parameter_distribution (0)
     * 0: no
     * 1: yes
     * 2: yes and keep individual values in *.dist files
+output_raw_frameblocks (0)
+	Output matrix information for each frameblock in CSR format
+	* 0: no
+	* 1: yes
 stillinger_weber_gamma (.12) 
     A fixed parameter for Stillinger-Weber type three body non-bonded interactions
     This determines the radial dependence of the interaction
@@ -621,6 +625,11 @@ REM_reference_style (0)
 	* 2: distribution functions (i.e., RDFs for each interaction). 
 	Note: Distribution functions can be generated from rangefinder using the 
 	  output_*_parameter_distribution options.
+cg_observable_flag (0)
+	Whether or not CG observable values are read in from observables.cg
+	(only for recode.x)
+	* 0: no
+	* 1: yes
 
 ------------------------------------------------------------------------------------------
 
@@ -693,7 +702,7 @@ for the next iteration of the entropy minimization. The lammps_rem example has a
 can be used to perform multiple iterations. 
 
 Note: The *.dat files here will contain potentials instead of forces.
-
+Note: Forces are not needed in the input mapped trajectory.
 
 III.D) Check results
 ~~~~~~~~~~~~~~~~~~~~
@@ -815,14 +824,14 @@ papers were listed at the beginning of this manual.
    This frame is resampled with different state assignments
    (dynamic_state_samples_per_frame).
       
-9. The "local" density interactions in "Introducing Order Parameter Interactions for 
-	Multiscale Coarse-graining (MS-CG)" are described in the "density supplement".
-	This paper used the Lucy weight function (density_interactions_flag 3) with a 
-	density_cutoff_distance of 10 A. Additionally, this paper used a "global" wall
-	interaction. This was parameterized by projecting the system down to one dimension
-	(x and fx only). Then, a one-dimensional version of the code was complied 
-	(set the DIMENSION variable in the Makefile to 1) and run (with position_dimension 1
-	in control.in).
+9. The "local" density interactions in "Extending the Range and Physical Accuracy of
+	Coarse-grained Models: Order Parameter Dependent Interactions " are described in 
+	the "density supplement". This paper used the Lucy weight function 
+	(density_interactions_flag 3) with a density_cutoff_distance of 10 A. Additionally, 
+	this paper used a "global" wall interaction. This was parameterized by projecting the 
+	system down to one dimension (x and fx only). Then, a one-dimensional version of the 
+	code was complied (set the DIMENSION variable in the Makefile to 1) and run (with 
+	position_dimension 1 in control.in).
 	The LAMMPS pair_styles and fixes used to run with these interactions are in the
 	LAMMPS-ADD-ON repository.
 	
