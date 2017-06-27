@@ -93,6 +93,7 @@ struct FrameSource {
     int pressure_constraint_flag;           // 1 to use the virial constraint; 0 otherwise
     int dynamic_types;						// 1 to use dynamic type tracking; 0 otherwise
     int molecule_flag;						// 2 to use molecule tracking from LAMMPS trajectory; 1 to set molecule information from top.in; 0 otherwise
+    int no_forces;							// 1 to NOT read forces (e.g. framewise observables); 0 to read forces (default)
     int dynamic_state_sampling;				// 1 to use dynamic state sampling; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times each frame is resampled if dynamic_state_sampling is 1
     int bootstrapping_flag;					// 1 to use bootstrapping; 0 otherwise

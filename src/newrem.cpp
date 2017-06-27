@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
 	copy_control_inputs_to_frd(&control_input, &fs_cg, &fs_ref);
+    fs_cg.no_forces = 1; // Forces are not needed from the trajectory for this method.
     
     // Read the topology file top.in to determine the definitions of
     // all molecules in the system and their topologies, then to 

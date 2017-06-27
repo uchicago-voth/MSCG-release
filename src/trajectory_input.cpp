@@ -42,7 +42,7 @@ struct LammpsData {
 	int header_size;		// Number of columns for header/body of frame
 	std::string* elements; 	// Array to store tokenized header elements 
 	double* cg_site_state_probabilities;   // A list of the probabilities for all states of all CG particles (used if dynamic_state_sampling = 1) (currently only for 2 states)
-	int (*read_lammps_body)(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling);
+	int (*read_lammps_body)(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces);
 };
 
 //-------------------------------------------------------------
@@ -122,9 +122,9 @@ void finish_xtc_reading(FrameSource* const frame_source);
 void finish_lammps_reading(FrameSource* const frame_source);
 
 // Additional helper functions.
-void read_lammps_header(LammpsData* const lammps_data, int* const current_n_sites, int* const timestep, real* const time, matrix box, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling);
-int read_dimension_lammps_body(LammpsData* const lammps_data, FrameConfig* const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling);
-int read_scalar_lammps_body(LammpsData* const lammps_data, FrameConfig* const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling);
+void read_lammps_header(LammpsData* const lammps_data, int* const current_n_sites, int* const timestep, real* const time, matrix box, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces);
+int read_dimension_lammps_body(LammpsData* const lammps_data, FrameConfig* const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces);
+int read_scalar_lammps_body(LammpsData* const lammps_data, FrameConfig* const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces);
 inline void set_random_number_seed(const uint_fast32_t random_num_seed);
 
 //-------------------------------------------------------------
@@ -328,6 +328,7 @@ void copy_control_inputs_to_frd(ControlInputs* const control_input, FrameSource*
     frame_source->starting_frame = control_input->starting_frame;
     frame_source->n_frames = control_input->n_frames;
     frame_source->scalar_matching_flag = control_input->scalar_matching_flag;
+    frame_source->no_forces = 0;
     
     if(frame_source->position_dimension != DIMENSION) {
     	printf("The value of position_dimension(%d) in control_input does not match the compiled dimension(%d)!\n", control_input->position_dimension, DIMENSION);
@@ -533,7 +534,7 @@ void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_s
 	}
 	
 	//read header for first frame 
-	read_lammps_header(frame_source->lammps_data, &n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling);
+	read_lammps_header(frame_source->lammps_data, &n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling, frame_source->no_forces);
 	if(n_sites <= 0) {
 		exit(EXIT_FAILURE);
     }
@@ -560,7 +561,7 @@ void read_initial_lammps_frame(FrameSource* const frame_source, const int n_cg_s
 	}
     
     //read the body of the frame into memory
-    if ( frame_source->lammps_data->read_lammps_body(frame_source->lammps_data, frame_source->frame_config, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling) != 1 ) {
+    if ( frame_source->lammps_data->read_lammps_body(frame_source->lammps_data, frame_source->frame_config, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling, frame_source->no_forces) != 1 ) {
     	printf("Cannot read the first frame!\n");			
     	if ( (frame_source->dynamic_types == 1) || (frame_source->dynamic_state_sampling == 1) ) frame_source->frame_config->cg_site_types = NULL; //undo aliasing to cg.topo_data.cg_site_types
 		if (frame_source->molecule_flag == 1) {
@@ -644,12 +645,12 @@ int read_next_lammps_frame(FrameSource* const frame_source)
 	int return_value = 1;  
 	int reference_atoms  = frame_source->frame_config->current_n_sites;
 
-	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling);    
+	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling, frame_source->no_forces);    
 
  	if (reference_atoms != frame_source->frame_config->current_n_sites) {
  		printf("Warning: Number of CG sites defined in top.in is not consistent with trajectory!\n");
  		return_value = 0;
- 	} else if ( frame_source->lammps_data->read_lammps_body(frame_source->lammps_data, frame_source->frame_config, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling) != 1) {
+ 	} else if ( frame_source->lammps_data->read_lammps_body(frame_source->lammps_data, frame_source->frame_config, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling, frame_source->no_forces) != 1) {
     	printf("Cannot read the frame at time %lf!\n", frame_source->time);
     	return_value = 0;
     }
@@ -668,7 +669,7 @@ int read_junk_lammps_frame(FrameSource* const frame_source)
 	int reference_atoms  = frame_source->frame_config->current_n_sites;
 	std::string line;
 
-	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling);    
+	read_lammps_header(frame_source->lammps_data, &frame_source->frame_config->current_n_sites, &frame_source->current_timestep, &frame_source->time, frame_source->simulation_box_limits, frame_source->dynamic_types, frame_source->molecule_flag, frame_source->dynamic_state_sampling, frame_source->no_forces);    
 
  	if (reference_atoms != frame_source->frame_config->current_n_sites) {
  		printf("Warning: Number of CG sites defined in top.in is not consistent with trajectory!\n");
@@ -706,7 +707,7 @@ void default_move_to_starting_frame(FrameSource* const frame_source) {
 // Helper functions for reading LAMMPS header and body
 //-------------------------------------------------------------
 
-void read_lammps_header(LammpsData *const lammps_data, int* const current_n_sites, int *const timestep, real *const time, matrix box, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling)
+void read_lammps_header(LammpsData *const lammps_data, int* const current_n_sites, int *const timestep, real *const time, matrix box, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces)
 {
 	double low = 0.0;
 	double high = 0.0;
@@ -800,8 +801,12 @@ void read_lammps_header(LammpsData *const lammps_data, int* const current_n_site
                 }
 				
 				//verify that necessary information was extracted to input
-				if( (set_x == 0) || (set_f == 0) ) {
-					printf("Warning: Was not able to find either x position or f position when parsing LAMMPS frame header!\n");
+				if(set_x == 0 ) {
+					printf("Warning: Was not able to find either x (positions) when parsing LAMMPS frame header!\n");
+					exit(EXIT_FAILURE);
+				}
+				if( (no_forces == 0) && (set_f == 0) ) {
+					printf("Warning: Was not able to fx (forces) when parsing LAMMPS frame header!\n");
 					exit(EXIT_FAILURE);
 				}
 				if ( (dynamic_types == 1) && (set_type == 0) ) {
@@ -825,7 +830,7 @@ void read_lammps_header(LammpsData *const lammps_data, int* const current_n_site
 	return;
 }
 
-int read_dimension_lammps_body(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling)
+int read_dimension_lammps_body(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces)
 {
 	//read in current_n_sites lines to extract position and force information
 	int j = 0;
@@ -850,10 +855,12 @@ int read_dimension_lammps_body(LammpsData *const lammps_data, FrameConfig *const
 		}
 		
 		//extract force information
-		for(j = 0; j < DIMENSION; j++) {
-			frame_config->f[i][j] = atof( lammps_data->elements[j + lammps_data->f_pos].c_str() );
+		if (no_forces == 0) {
+			for(j = 0; j < DIMENSION; j++) {
+				frame_config->f[i][j] = atof( lammps_data->elements[j + lammps_data->f_pos].c_str() );
+			}
 		}
-
+		
 		//extract type information
 		if(dynamic_types == 1) { //check if dynamic_type is set
 			frame_config->cg_site_types[i] = atoi( lammps_data->elements[lammps_data->type_pos].c_str() );
@@ -868,7 +875,7 @@ int read_dimension_lammps_body(LammpsData *const lammps_data, FrameConfig *const
 	return return_value;
 }
 
-int read_scalar_lammps_body(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling)
+int read_scalar_lammps_body(LammpsData *const lammps_data, FrameConfig *const frame_config, const int dynamic_types, const int molecule_flag, const int dynamic_state_sampling, const int no_forces)
 {
 	//read in current_n_sites lines to extract position and force information
 	int j = 0;
@@ -892,8 +899,10 @@ int read_scalar_lammps_body(LammpsData *const lammps_data, FrameConfig *const fr
 		}
 		
 		//extract scalar "force" information
-		frame_config->f[i][0] = atof( lammps_data->elements[lammps_data->f_pos].c_str() );
-
+		if (no_forces == 0) {
+			frame_config->f[i][0] = atof( lammps_data->elements[lammps_data->f_pos].c_str() );
+		}
+		
 		//extract type information
 		if(dynamic_types == 1) { //check if dynamic_type is set
 			frame_config->cg_site_types[i] = atoi( lammps_data->elements[lammps_data->type_pos].c_str() );
