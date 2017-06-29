@@ -589,7 +589,7 @@ void setup_periodic_index(InteractionClassSpec* iclass)
 			// For example, this can be specified as either +140 to -140 or +140 to +220.
 			printf("Treating dihedral interaction range (%lf to %lf) as going through periodic wrapping.\n", iclass->lower_cutoffs[i], iclass->upper_cutoffs[i]);
 			iclass->defined_to_periodic_intrxn_index_map[i] = 2;	
-			if (iclass->upper_cutoffs[i] < -180.0) {
+			if (iclass->upper_cutoffs[i] < 180.0) {
 				iclass->upper_cutoffs[i] += 360.0;
 			}
 		}
