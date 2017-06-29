@@ -273,9 +273,9 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		dtf = pb[i] / (rrbc * pb2);				                
 		dth = - pc[i] / (rrbc * pc2);
 		
-		derivatives[0][i] = dtf; // first normal times projection of bond onto it
-		derivatives[1][i] = dth; //second normal times projection of bond onto it
-		derivatives[2][i] = - dtf * fcoef - dth * hcoef;
+		derivatives[0][i] = -dtf; // first normal times projection of bond onto it
+		derivatives[1][i] = -dth; //second normal times projection of bond onto it
+		derivatives[2][i] = dtf * fcoef + dth * hcoef;
 	}
     return true;
 }
