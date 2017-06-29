@@ -344,6 +344,9 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
    	 	trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	std::vector<double> corrected_potential_vals;
    	 	integrate_force(axis_vals, force_vals, corrected_potential_vals);
+   	 	for (unsigned i = 0; i < corrected_potential_vals.size(); i++) {
+   	 		corrected_potential_vals[i] /= DEGREES_PER_RADIAN;
+   	 	}
    	 	write_LAMMPS_table_output_file(char_id, basename, axis_vals, corrected_potential_vals, force_vals); 
     } else {		
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
