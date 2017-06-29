@@ -318,7 +318,7 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 	// If there is only 1 value than it is probably a rounding issue with the spline table.
 	// If there are more values, then this interaction range probably passed through a periodic boundary.
 	if (counter <= 1) return;
-	
+		
 	double axis_value, force_value;
 	std::vector<double>::iterator axis_it;
   	std::vector<double>::iterator force_it;
@@ -330,7 +330,7 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 		
 		// Remove value
 		axis_vals.pop_back();
-		axis_vals.pop_back();
+		force_vals.pop_back();
 		
 		// Adjust axis
 		axis_value -= 360.0;
@@ -340,7 +340,7 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
  		force_it = force_vals.begin();
 		axis_vals.insert(axis_it, axis_value);
 		force_vals.insert(force_it, force_value);	
-
+		
 		// adjust counter
 		counter--;
 	}
