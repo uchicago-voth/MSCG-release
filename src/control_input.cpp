@@ -80,6 +80,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("lanyuan_iterative_method_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->iterative_calculation_flag);
     else if (strcmp("regularization_scalar", parameter_name) == 0) sscanf(val, "%lf", &control_input->tikhonov_regularization_param);
     else if (strcmp("regularization_style", parameter_name) == 0) sscanf(val, "%d", &control_input->regularization_style);
+    else if (strcmp("dihedral_periodicity_contraint_strength", parameter_name) == 0) sscanf(val, "%lf", &control_input->dihedral_periodicity_contraint_strength);
     else if (strcmp("one_body_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->one_body_flag);
     else if (strcmp("angle_type", parameter_name) == 0) sscanf(val, "%d", &control_input->angle_interaction_style);
     else if (strcmp("dihedral_type", parameter_name) == 0) sscanf(val, "%d", &control_input->dihedral_interaction_style);
@@ -194,6 +195,7 @@ ControlInputs::ControlInputs(void)
     iterative_calculation_flag = 0;
     tikhonov_regularization_param = 0.0;
     regularization_style = 0;
+    dihedral_periodicity_contraint_strength = 100.0;
     one_body_flag = 0;
     angle_interaction_style = 0;
     dihedral_interaction_style = 0;

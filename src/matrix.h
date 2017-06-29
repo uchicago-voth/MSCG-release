@@ -345,6 +345,7 @@ struct MATRIX_DATA {
 	double force_sq_total;							
 	int bayesian_flag;								// 1 to use Bayesian MS-CG to calculate regularization and interactions
 	int bayesian_max_iter;
+    double dihedral_contraint_strength;				// Strength of constraint for dihedral periodicity
     int regularization_style;                       // 0 to use no regularization; 1 to calculate results using single scalar regularization; 2 to calculate results using a set of regularization parameters in file lambda.in
 	double tikhonov_regularization_param;           // Parameter for Tikhonov regularization. (regularization_style = 1)
 	double* regularization_vector;					// Vector for regularization_style 2.

@@ -556,6 +556,10 @@ regularization_style (0)
          This file has one value per line with the number of lines equaling the
          number of basis functions
          This vector is applied as is to the normal matrix before preconditioning.
+dihedral_periodicity_contraint_strength (100.0)
+	When there are periodic dihedral interactions (range -180 to 180),
+	a constraint is added for every such interaction to enforce periodicity
+	(and continuity) in the dihedral potential.
 bayesian_mscg_flag (0)
     Whether or not to use the Bayesian MS-CG method
     This works for newfm matrix_types 0, 3, and 4 and combinefm matrix_type 0.

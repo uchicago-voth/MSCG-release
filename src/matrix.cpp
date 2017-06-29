@@ -258,6 +258,7 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	// Copy residual, regularization, and bayesian options.
 	regularization_style 			= control_input->regularization_style;
     tikhonov_regularization_param 	= control_input->tikhonov_regularization_param;
+	dihedral_contraint_strength 	= control_input->dihedral_periodicity_contraint_strength;
 	bayesian_flag					= control_input->bayesian_flag;
 	bayesian_max_iter				= control_input->bayesian_max_iter;
     output_residual                 = control_input->output_residual;

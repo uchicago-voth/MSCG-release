@@ -134,6 +134,7 @@ typedef struct ControlInputs {
     double iterative_update_rate_coeff;
     double tikhonov_regularization_param;
     int regularization_style;
+    double dihedral_periodicity_contraint_strength;
     double rcond;
 	double sparse_safety_factor; 
 	int num_sparse_threads;

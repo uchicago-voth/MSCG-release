@@ -1409,7 +1409,7 @@ void accumulate_dihedral_constraint_for_frame(InteractionClassComputer* const ic
 			int start_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched - 1];
 			int stop_column  = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched];
 			for (int this_column = start_column; i < stop_column; i++) {
-				mat->dense_fm_matrix->assign_scalar(this_row,this_column,1.0);
+				mat->dense_fm_matrix->assign_scalar(this_row,this_column,mat->dihedral_contraint_strength);
 			}
 		}
 	}
