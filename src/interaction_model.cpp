@@ -592,6 +592,11 @@ void setup_periodic_index(InteractionClassSpec* iclass)
 			if (iclass->upper_cutoffs[i] < 180.0) {
 				iclass->upper_cutoffs[i] += 360.0;
 			}
+			if (iclass->upper_cutoffs[i] - iclass->lower_cutoffs[i] > 350.0 - VERYSMALL_F) {
+				printf("This dihedral interaction is nearly the entire interaction range!\n");
+				printf("Please change the interaction range to -180 to 180 to take advantage of periodic features.\n");
+				exit(EXIT_FAILURE);
+			}
 		}
 		// Make sure that these cutoff values are within the right range.
 		if (iclass->lower_cutoffs[i] < -180.0 - VERYSMALL_F || iclass->lower_cutoffs[i] > 540.0 ||
