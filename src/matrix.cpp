@@ -375,7 +375,7 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 	    else if (control_input->iterative_calculation_flag == 1) mat->do_end_of_frameblock_matrix_manipulations = convert_dense_target_force_vector_to_normal_form_and_accumulate;
 	}
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_dense_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_dense_matrix_virial_element;
 
 	if (control_input->bootstrapping_flag == 1) {
 		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
@@ -442,7 +442,7 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
 		mat->do_end_of_frameblock_matrix_manipulations = accumulate_accumulation_matrices;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_accumulation_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_accumulation_matrix_virial_element;
     
     if (control_input->bootstrapping_flag == 1) {
 		mat->finish_fm = solve_accumulation_form_bootstrapping_equations;
@@ -500,7 +500,7 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 	    mat->do_end_of_frameblock_matrix_manipulations = solve_sparse_matrix;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
    	if (control_input->bootstrapping_flag == 1) {
     	 mat->finish_fm = average_sparse_bootstrapping_solutions;
@@ -544,8 +544,8 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
@@ -588,7 +588,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_dense_normal_form_and_accumulate;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
     if (control_input->bootstrapping_flag == 1) {
     	mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
@@ -636,8 +636,8 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
@@ -675,7 +675,7 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate;
 	}
 	
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
     if (control_input->bootstrapping_flag == 1) {
     	mat->finish_fm = solve_sparse_fm_bootstrapping_equations;
@@ -725,8 +725,8 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
@@ -851,8 +851,9 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
 
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg) 
 {
-    mat->rows_less_virial_constraint_rows = 0;
+    mat->rows_less_constraint_rows = 0;
     mat->virial_constraint_rows = 0;
+    mat->dihedral_constraint_rows = 0;
     mat->dense_fm_rhs_vector = new double[DIMENSION * cg->n_cg_sites];
     mat->dense_fm_normal_rhs_vector = new double[1];
     mat->fm_solution = std::vector<double>(1);
@@ -948,6 +949,9 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 {
 	// Determine total number of columns by adding up all the columns for all classes of interaction.
 	mat->fm_matrix_columns = 0;
+	mat->dihedral_constraint_rows = 0;
+	mat->virial_constraint_rows = 0;
+	int dihedral_constraint_count = 0;	
 	printf("Number of basis functions by interaction class:\n");
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -955,6 +959,13 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 		log_n_basis_functions(**(iclass_iterator));
 	}    
 
+	for (int i = 0; i < cg->dihedral_interactions.get_n_defined(); i++) {
+		if ((cg->dihedral_interactions.defined_to_matched_intrxn_index_map[i] != 0) &&
+			(cg->dihedral_interactions.defined_to_periodic_intrxn_index_map[i] == 1)) {
+			dihedral_constraint_count++;
+		}
+	}
+	
 	if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
 		mat->fm_matrix_columns += cg->three_body_nonbonded_interactions.get_num_basis_func();
 		log_n_basis_functions(cg->three_body_nonbonded_interactions);
@@ -962,14 +973,16 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 
     // Determine the number of rows by seeing the number of particles and the number of auxiliary scalar restraints,
 	// then multiplying by the block size.
-	mat->rows_less_virial_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
-    if (pressure_constraint_flag == 0) {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * mat->size_per_vector;
-        mat->virial_constraint_rows = 0;
-    } else {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * mat->size_per_vector + frames_per_traj_block;
+	mat->rows_less_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
+    if (pressure_constraint_flag != 0) {
         mat->virial_constraint_rows = frames_per_traj_block;
+        mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector + frames_per_traj_block;
     }
+    if (dihedral_constraint_count > 0) {
+    	mat->dihedral_constraint_rows = dihedral_constraint_count * frames_per_traj_block;
+    }
+	mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector +
+						  mat->virial_constraint_rows + mat->dihedral_constraint_rows;
 }
 
 void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
@@ -1061,7 +1074,7 @@ inline void set_sparse_matrix_to_zero(MATRIX_DATA* const mat)
 	// The row head and element information is cleared in convert_linked_list_to_csr_matrix.
 
     // Set the elements of the dense part of the matrix to zero.
-	for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
+	for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
         mat->dense_fm_matrix->values[k] = 0.0;
     }
 }
@@ -1073,7 +1086,7 @@ inline void set_sparse_accumulation_matrix_to_zero(MATRIX_DATA* const mat)
 	// The row head and element information is cleared in convert_linked_list_to_csr_matrix.
 
     // Set the elements of the dense part of the matrix to zero.
-   for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
+   for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
         mat->dense_fm_matrix->values[k] = 0.0;
     }
 }
@@ -1244,7 +1257,7 @@ void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, co
    int this_column;
    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
    int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
-   int n_cg_sites = mat->rows_less_virial_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int n_cg_sites = mat->rows_less_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
@@ -1257,7 +1270,7 @@ void accumulate_frame_entropy_elements(InteractionClassComputer* const info, con
    int this_column;
    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
    int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
-   int n_cg_sites = mat->rows_less_virial_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int n_cg_sites = mat->rows_less_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
@@ -1533,7 +1546,7 @@ inline void insert_scalar_accumulation_matrix_element(const int i, const int j, 
 
 inline void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_virial_constraint_rows * mat->size_per_vector, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * mat->size_per_vector, n, x);
 }
 
 // Add a scalar virial contribution to a sparse matrix.
@@ -1547,7 +1560,7 @@ inline void insert_sparse_matrix_virial_element(const int m, const int n, const 
 
 inline void insert_accumulation_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_virial_constraint_rows * mat->size_per_vector + mat->accumulation_row_shift, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * mat->size_per_vector + mat->accumulation_row_shift, n, x);
 }
 
 //--------------------------------------------------------------------
@@ -1572,7 +1585,7 @@ void calculate_target_virial_in_dense_vector(MATRIX_DATA* const mat, double *pre
 {
 	int frame_sample  =  mat->trajectory_block_index * mat->virial_constraint_rows;
     for (int k = 0; k < mat->virial_constraint_rows; k++) {
-        mat->dense_fm_rhs_vector[mat->rows_less_virial_constraint_rows * DIMENSION + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k)/ mat->dynamic_state_samples_per_frame)];
+        mat->dense_fm_rhs_vector[mat->rows_less_constraint_rows * DIMENSION + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k)/ mat->dynamic_state_samples_per_frame)];
         frame_sample++;
     }
 }
@@ -1584,7 +1597,7 @@ void calculate_target_virial_in_accumulation_vector(MATRIX_DATA* const mat, doub
 {
 	int frame_sample  =  mat->trajectory_block_index * mat->virial_constraint_rows;
     for (int k = 0; k < mat->virial_constraint_rows; k++) {
-        mat->dense_fm_matrix->values[mat->fm_matrix_columns * mat->accumulation_matrix_rows + mat->rows_less_virial_constraint_rows * DIMENSION + mat->accumulation_row_shift + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k) / mat->dynamic_state_samples_per_frame)];
+        mat->dense_fm_matrix->values[mat->fm_matrix_columns * mat->accumulation_matrix_rows + mat->rows_less_constraint_rows * DIMENSION + mat->accumulation_row_shift + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k) / mat->dynamic_state_samples_per_frame)];
     	frame_sample++;
     }
 }
@@ -1640,12 +1653,12 @@ void accumulate_force_into_accumulation_target_vector(MATRIX_DATA* mat, int part
 
 void accumulate_constraint_into_dense_target_vector(MATRIX_DATA* mat, int frame_index, double constraint_element)
 {
-    mat->dense_fm_rhs_vector[mat->rows_less_virial_constraint_rows * DIMENSION + frame_index] += constraint_element;
+    mat->dense_fm_rhs_vector[mat->rows_less_constraint_rows * DIMENSION + frame_index] += constraint_element;
 }
 
 void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA* mat, int frame_index, double constraint_element)
 {
-	mat->dense_fm_matrix->add_scalar(DIMENSION * mat->rows_less_virial_constraint_rows + frame_index, mat->accumulation_matrix_rows, constraint_element); 
+	mat->dense_fm_matrix->add_scalar(DIMENSION * mat->rows_less_constraint_rows + frame_index, mat->accumulation_matrix_rows, constraint_element); 
 }
 
 void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element)
@@ -2231,12 +2244,12 @@ int get_n_nonzero_matrix_elements(MATRIX_DATA* const mat)
 	int n_nonzero_matrix_elements = 0;	
 	
     // Begin by calculating the total number of non-zero elements in this block
-    for (int k = 0; k < mat->rows_less_virial_constraint_rows; k++) {
+    for (int k = 0; k < mat->rows_less_constraint_rows; k++) {
         n_nonzero_matrix_elements += mat->ll_sparse_matrix_row_heads[k].n;
     }
     n_nonzero_matrix_elements *= DIMENSION;
-    if (mat->virial_constraint_rows > 0) {
-        for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
+    if (mat->virial_constraint_rows > 0 || mat->dihedral_constraint_rows > 0) {
+        for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
             if (mat->dense_fm_matrix->values[k] > VERYSMALL 
                 || mat->dense_fm_matrix->values[k] < -VERYSMALL) {
                     n_nonzero_matrix_elements++;
@@ -2254,7 +2267,7 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
    struct linked_list_sparse_matrix_element* curr_elem, *prev_elem;
    double value;
    	
-   for (int k = 0; k < mat->rows_less_virial_constraint_rows; k++) {
+   for (int k = 0; k < mat->rows_less_constraint_rows; k++) {
         curr_elem = mat->ll_sparse_matrix_row_heads[k].h;
         row_counter = 0;
         while (curr_elem != NULL) {
@@ -2288,9 +2301,9 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
         mat->ll_sparse_matrix_row_heads[k].n = 0;
 	}
 
-    if (mat->virial_constraint_rows > 0) {
-        row_counter = csr_fm_matrix.row_sizes[mat->rows_less_virial_constraint_rows * DIMENSION] - 1; // remove one-base for processing
-        for (int k = 0; k < mat->virial_constraint_rows; k++) {
+    if (mat->virial_constraint_rows > 0 || mat->dihedral_constraint_rows > 0) {
+        row_counter = csr_fm_matrix.row_sizes[mat->rows_less_constraint_rows * DIMENSION] - 1; // remove one-base for processing
+        for (int k = 0; k < mat->virial_constraint_rows + mat->dihedral_constraint_rows; k++) {
             for (int l = 0; l < mat->fm_matrix_columns; l++) {
                 value = mat->dense_fm_matrix->values[l * mat->virial_constraint_rows + k];
                 if (value > VERYSMALL || value < -VERYSMALL) {
@@ -2298,7 +2311,7 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
                     csr_fm_matrix.column_indices[row_counter] = l + 1; // re-apply one-base to columns
                     row_counter++;
                 }
-                csr_fm_matrix.row_sizes[mat->rows_less_virial_constraint_rows * DIMENSION + k + 1] = row_counter + 1; // re-apply one-base to rows
+                csr_fm_matrix.row_sizes[mat->rows_less_constraint_rows * DIMENSION + k + 1] = row_counter + 1; // re-apply one-base to rows
             }
         }
     }
@@ -3059,7 +3072,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
     	double residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 		printf("iteration %d: residual %lf\n", iteration, residual);
 		
-	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
 	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
@@ -3412,7 +3425,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	    
     	double residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 	    
-	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
 	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);

@@ -274,9 +274,10 @@ struct MATRIX_DATA {
     // Basic layout implementation details
     int fm_matrix_rows;                             // Number of rows for FM matrix
     int fm_matrix_columns;                          // Number of columns for FM matrix
-    int rows_less_virial_constraint_rows;           // Rows less the rows reserved for virial constraints
+    int rows_less_constraint_rows;           		// Rows less the rows reserved for virial constraints
     int virial_constraint_rows;                     // Rows specifically for virial constraints
-    int frames_per_traj_block;              // Number of frames to read in a single block of FM matrix construction
+    int dihedral_constraint_rows;					// Rows specifically for periodic dihedrals
+    int frames_per_traj_block;              		// Number of frames to read in a single block of FM matrix construction
     int position_dimension;							// The number of elements needed to specify each particle's position.
     int size_per_vector;							// Either 1 or DIMENSION based on scalar_matching_flag(1 or 0, respectively);
 
@@ -375,15 +376,13 @@ struct MATRIX_DATA {
    	    // Free FM matrix building temps
 	    printf("Freeing equation building temporaries.\n");
 
-    	if (matrix_type == kDense) {
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+		if (matrix_type == kDense) {
 			delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
 		} else if (matrix_type == kSparse) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] block_fm_solution;
 			delete [] dense_fm_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kAccumulation) {
 			delete [] lapack_temp_workspace;
 			delete [] lapack_tau;
@@ -391,11 +390,9 @@ struct MATRIX_DATA {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kSparseSparse) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] dense_fm_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kDummy) {
 		    delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
@@ -433,13 +430,13 @@ struct MATRIX_DATA {
     	}
     	
     	int new_rows_less_virial = new_cg_sites * DIMENSION * frames_per_traj_block;
-    	if (new_rows_less_virial + virial_constraint_rows == fm_matrix_rows) {
+    	if (new_rows_less_virial + virial_constraint_rows + dihedral_constraint_rows == fm_matrix_rows) {
     		printf("Resize_matrix is not doing anything since matrix is the same size as before.\n");
     		return;
     	}
         // Update mat's copy of row variables.	
-    	rows_less_virial_constraint_rows = new_rows_less_virial;
-    	fm_matrix_rows = new_rows_less_virial + virial_constraint_rows;
+    	rows_less_constraint_rows = new_rows_less_virial;
+    	fm_matrix_rows = new_rows_less_virial + virial_constraint_rows + dihedral_constraint_rows;
 
 		// Update dense_fm_rhs_vector.
 		delete [] dense_fm_rhs_vector;
