@@ -123,7 +123,7 @@ batch_fm_combination_mkl.o: batch_fm_combination.cpp batch_fm_combination.h exte
 control_input.o: control_input.cpp control_input.h misc.h
 	$(CC) $(CFLAGS) -c control_input.cpp
 
-geometry.o: geometry.h
+geometry.o: geometry.cpp geometry.h
 	$(CC) $(CFLAGS) -c geometry.cpp -DDIMENSION=$(DIMENSION)
 
 fm_output.o: fm_output.cpp fm_output.h force_computation.h misc.h
@@ -150,7 +150,7 @@ misc.o: misc.cpp misc.h
 range_finding.o: range_finding.cpp range_finding.h force_computation.h interaction_model.h matrix.h misc.h
 	$(CC) $(CFLAGS) -c range_finding.cpp -DDIMENSION=$(DIMENSION)
 
-splines.o: splines.h interaction_model.h
+splines.o: splines.cpp splines.h interaction_model.h
 	$(CC) $(CFLAGS) -c splines.cpp -DDIMENSION=$(DIMENSION)
 
 topology.o: topology.cpp topology.h interaction_model.h misc.h
