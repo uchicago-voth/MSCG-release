@@ -151,10 +151,8 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std
 
         for (unsigned i = 0; i < DIMENSION; i++) {
         	// derivatives for the end particles
-        	//derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
-            //derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
-        	derivatives[0][i] = 0.5 *  DEGREES_PER_RADIAN *  DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = 0.5 *  DEGREES_PER_RADIAN *  DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
+        	derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
+            derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
         }
         delete [] dist_derivs_20;
     	delete [] dist_derivs_21;
