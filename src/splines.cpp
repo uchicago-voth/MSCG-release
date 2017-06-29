@@ -11,7 +11,6 @@
 
 // Helper function to print a sizing error message.
 inline void check_bspline_size(const int control_points, const int order);
-inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart);
 inline double check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff);
 inline void check_bspline_sizing(const size_t coeffs_size, const int first_nonzero_basis_index, const int index_among_matched_interactions, const int ici_index, const int tn, const size_t istart);
 
@@ -127,7 +126,6 @@ void BSplineComputer::calculate_basis_fn_vals(const int index_among_defined, con
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
-    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
     first_nonzero_basis_index = istart;
     
     for (unsigned i = 0; i < n_coef; i++) {
@@ -205,7 +203,6 @@ void BSplineAndDerivComputer::calculate_bspline_deriv_vals(const int index_among
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_deriv_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], (size_t)(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched]);
-    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
     first_nonzero_basis_index = istart;
     
     for (unsigned i = 0; i < n_coef; i++) {
@@ -222,8 +219,7 @@ void BSplineAndDerivComputer::calculate_basis_fn_vals(const int index_among_defi
     
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(param_less_lower_cutoff + ispec_->lower_cutoffs[index_among_defined], bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
-    if (ispec_->defined_to_periodic_intrxn_index_map[index_among_defined] != 1) check_matching_istart(first_nonzero_basis_index, istart);
-	first_nonzero_basis_index = istart;
+    first_nonzero_basis_index = istart;
     
     for (unsigned i = 0; i < n_coef; i++) {
         vals[i] = gsl_vector_get(bspline_vectors, i);
@@ -369,13 +365,6 @@ inline void check_bspline_size(const int control_points, const int order)
 		fprintf(stderr, "Either decrease the bin width or decrease the spline order for this interaction.\n");
 		exit(EXIT_FAILURE);
 	}
-}
-
-inline void check_matching_istart(const int first_nonzero_basis_index, const size_t istart)
-{
-	if( abs(first_nonzero_basis_index - (int)(istart)) > 1) {
-    	fprintf(stderr, "Internal failure! first_nonnero_basis_index %d != gsl_bspline_eval_nonzero %d!\n", first_nonzero_basis_index, (int)(istart));
-    }
 }
 
 inline double check_against_cutoffs(const double axis, const double lower_cutoff, const double upper_cutoff)
