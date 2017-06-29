@@ -1,0 +1,16 @@
+cgsites 4
+cgtypes 1
+1
+moltypes 1
+mol 4 3
+sitetypes
+1
+1
+1
+1
+bonds 3
+1 2
+2 3
+3 4
+system 1
+1 1
