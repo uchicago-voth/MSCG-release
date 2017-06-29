@@ -229,7 +229,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
     // Find the relevant displacements for defining the angle.
     std::array<double, DIMENSION> disp03, disp23, disp12;
     int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
-    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]}; // intentionally flipped
     int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
     subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
@@ -448,7 +448,7 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
     // Find the relevant displacements for defining the angle.
     std::array<double, DIMENSION> disp03, disp23, disp12;
     int particle_ids_03[2] = {particle_ids[3], particle_ids[0]};
-    int particle_ids_23[2] = {particle_ids[3], particle_ids[2]};
+    int particle_ids_23[2] = {particle_ids[2], particle_ids[3]}; // intentionally flipped
     int particle_ids_12[2] = {particle_ids[2], particle_ids[1]};
     subtract_min_image_vectors(particle_ids_03, particle_positions, simulation_box_half_lengths, disp03);
     subtract_min_image_vectors(particle_ids_23, particle_positions, simulation_box_half_lengths, disp23);
