@@ -1411,6 +1411,7 @@ void accumulate_dihedral_constraint_for_frame(InteractionClassComputer* const ic
 			for (int this_column = start_column; i < stop_column; i++) {
 				mat->dense_fm_matrix->assign_scalar(this_row,this_column,mat->dihedral_contraint_strength);
 			}
+			mat->dense_fm_rhs_vector[this_row] = 0.0;
 		}
 	}
 }
