@@ -22,22 +22,28 @@ This package also provides support for the methods described in these references
 2. P. Liu, Q. Shi, H. D. Daume III, and G. A. Voth, "A Bayesian statistics approach
       to multiscale coarse graining" Journal of Chemical Physics, 129, 214114 (2008).
       doi:10.1063/1.3033218
-3. L. Lu, J. F. Dama, and G. A. Voth, "Fitting coarse-grained distribution functions 
+3. L. Larini, L. Lu, and G. A. Voth, "The multiscale coarse-graining method. VI. 
+	  Implementation of three-body coarse-grained potentials" Journal of Chemical Physics,
+	  132, 164107 (2010). doi:10.1063/1.3394863
+4. L. Lu, J. F. Dama, and G. A. Voth, "Fitting coarse-grained distribution functions 
      through an iterative force-matching method" Journal of Chemical Physics, 139, 
      121906 (2013). doi:10.1063/1.4811667
-4. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
+5. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
      Ultra-Coarse-Graining. 2. Numerical Implementation" Journal of Chemical Theory and
-     Computation, 10 (12), 5265–5275 (2014). 
-5. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
+     Computation, 10 (12), 5265–5275 (2014). doi:10.1021/ct500834t
+6. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
      Accurate interactions based on the centers of charge of coarse-grained sites", 
      Journal of Chemical Physics, 143, 243116 (2015). doi:10.1063/1.4933249
-6. J. W. Wagner, J. F. Dama, and G. A. Voth, "Predicting the Sensitivity of Multiscale 
+7. J. W. Wagner, J. F. Dama, and G. A. Voth, "Predicting the Sensitivity of Multiscale 
      Coarse-Grained Models to their Underlying Fine-Grained Model Parameters" Journal of 
      Chemical Theory and Computation, 11(8), 3547–3560 (2015). 
      doi:10.1021/acs.jctc.5b00180
-7. T. Dannenhoffer-Lafage, A. D. White, and G. A. Voth, "A Direct Method for Incorporating 
+8. T. Dannenhoffer-Lafage, A. D. White, and G. A. Voth, "A Direct Method for Incorporating 
     Experimental Data into Multiscale Coarse-Grained Models", Journal of Chemical Theory 
     and Computation, 12(5), 2144–2153 (2016). doi:10.1021/acs.jctc.6b00043 
+9. J. F. Dama, J. Jin, and G. A. Voth, "The Theory of Ultra-Coarse-Graining. 3. 
+	Coarse-Grained Sites with Rapid Local Equilibrium of Internal States", Journal of 
+	Chemical Theory and Computation, 2017 ASAP Article. doi: 10.1021/acs.jctc.6b01081
 
 Note: This code uses C++11, which may not be supported by older compilers.
 
@@ -620,7 +626,20 @@ papers were listed at the beginning of this manual.
    matrix in the next iteration. One should look for convergence of either alpha/beta or
    the solution elements as stopping criteria.
 
-3. To use iterative force matching, one must first run the code using 
+3. To use Stillinger-Weber-type three body interactions in MS-CG, one must perform two
+	stages of force matching: one to determine the equilibrium angle, and then another to
+	determine the interaction strength. In all cases, the top.in file should have a line 
+	specifying the number of three body interactions (#) in the form "threebody #" followed
+	by that number of lines, where each line lists the types involved in the interaction (t#),
+	the theta_0 value and the cutoff distance (r_cut) in the format "t1 t2 t3 theta_0 r_cut".
+	For the first run, set "three_body_nonbonded_style" to 2. Look at the output interaction 
+	to determine the theta value. Then replace the cos_theta value in top.in with the
+	appropriate value. For the second run, set "three_body_nonbonded_style" to 3. The interaction
+	strength determined will be in 3b.dat.
+	For a worked example, please look at the "threebody_fm" sub-directory of the
+    examples.
+    
+4. To use iterative force matching, one must first run the code using 
    "primary_output_style 2" and "output_solution_flag 1". Then,rename result.out to 
    result.in and x.out to x.in.  Finally, use the "lanyuan_iterative_method_flag" and 
    "iterative_update_rate_coeff" options in control.in when running the code again with
@@ -629,17 +648,17 @@ papers were listed at the beginning of this manual.
    force matching code again with additional data.
    For a worked example, please look at the "iterative_fm" sub-directory of the examples.
     
-4. To force match interactions between sites where the site's type changes during the 
+5. To force match interactions between sites where the site's type changes during the 
    course of the simulation, use "dynamic_types 1". Make sure that mapped trajectory has
    the correct type assigned to it under the "type" field.
    Note: Dynamic types is only supported for LAMMPS trajectories.
    There is a worked example in the "ucg_lammps_fm_dynamic_type" sub-directory of the
    examples.
 
-5. To create center-of-charge MS-CG models, apply the mapping described in J. Chem. Phys.,
+6. To create center-of-charge MS-CG models, apply the mapping described in J. Chem. Phys.,
    143, 243116 (2015) to the FG trajectory. Then, prepare all other inputs as usual.
  
-6. There are two new methods described in J. Chem. Theory and Comput., 11(8), 3547–3560 
+7. There are two new methods described in J. Chem. Theory and Comput., 11(8), 3547–3560 
    (2015).
     a) MS-CG models can be constructed by reweighting frames at a different state-point or 
        from an enhanced sampling method using "use_statistical_reweighting". Any bias 
@@ -660,8 +679,16 @@ papers were listed at the beginning of this manual.
        trajectory where the result of that right-hand side is in place of the forces. 
        Then, run the package as usual.
  
-7. This package provides support for the fitting of CG interactions as described in 
+8. This package provides support for the fitting of CG interactions as described in 
    J. Chem. Theory Comput., 12(5), 2144–2153 (2016). The frames generated using resulting 
    EDS potential can be used as input to this package. Then, run the package as usual.
+
+9. The sampling issues related to states mentioned in doi: 10.1021/acs.jctc.6b01081
+   are handled through the "dynamic_state_sampling" feature -- specified in control.in.
+   This feature reads an extra column from the input trajectory (LAMMPS trajectory only)
+   that contains the "state" probability. Then, the state for each of these particles
+   is assigned between states 1 and 2 based on a random number (random_number_seed).
+   This frame is resampled with different state assignments
+   (dynamic_state_samples_per_frame).
 
    
