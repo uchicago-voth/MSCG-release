@@ -125,7 +125,7 @@ cgsites Ncg (* Ncg =Total number of coarse-grained sites)
 cgtypes Nt  (* Nt = Total number of coarse-grained site types)
 ( Site type names, row number corresponding to type number)
 ...
-(Additional add-ons go here for radius-of-gyration, three-body, and density interactions)
+(Additional add-ons go here for radius-of-gyration, and-body, and density interactions)
 moltypes Nm (* Nm = Total number of molecule types)
 mol Ns b    (Header for the block defining the first molecule type)
             (* Ns = number of coarse-grained sites in this molecule)
