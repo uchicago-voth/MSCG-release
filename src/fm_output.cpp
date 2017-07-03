@@ -122,9 +122,9 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 							exit(EXIT_FAILURE);
 						}
 					}
-	      		} else {		
-	      		// This is for force matching, MS-CODE (sym), and relative entropy of framewise observables (kObs)
-	      		// Write output based on force splines		
+	      		} else {	
+	      			// This is for force matching, MS-CODE (sym), and relative entropy of framewise observables (kObs)
+	      			// Write output based on force splines		
    					if (mat->bootstrapping_flag == 1) {
 	                	// Write tabular output, regardless of spline type.
  	   	            	write_bootstrapping_one_param_table_files(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
@@ -281,16 +281,13 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	// Correct name is selected in calling function write_interaction_data_to_file
     std::vector<double> axis_vals, force_vals, potential_vals;
     int index_among_tabulated = icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
-    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
-      {
+    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
     	icomp->calc_one_force_val(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals, potential_vals);
-      } 
-    else
-      {
+    } else {
     	icomp->calc_grid_of_force_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals);
     	// Integrate force starting from cutoff = 0.0 potential.
     	integrate_force(axis_vals, force_vals, potential_vals);
-      }
+    }
     
     // Determine base for output filenames.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
