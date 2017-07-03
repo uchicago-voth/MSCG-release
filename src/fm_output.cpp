@@ -347,6 +347,9 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
    	 	for (unsigned i = 0; i < corrected_potential_vals.size(); i++) {
    	 		corrected_potential_vals[i] /= DEGREES_PER_RADIAN;
    	 	}
+   	 	// rewrite force file with wrapped forces
+   	 	write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
+		// wire LAMMPS table with force and potential
    	 	write_LAMMPS_table_output_file(char_id, basename, axis_vals, corrected_potential_vals, force_vals); 
     } else {		
     	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
@@ -743,8 +746,8 @@ void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DAT
             // and it is periodic,
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0 &&
             	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] != 0) {
-            	int first_index = (*icomp_iterator)->ispec->interaction_column_indices[i - 1];
-            	int last_index  = (*icomp_iterator)->ispec->interaction_column_indices[i];
+            	int first_index = (*icomp_iterator)->ispec->interaction_column_indices[i];
+            	int last_index  = (*icomp_iterator)->ispec->interaction_column_indices[i+1];
             	
             	// Insert n_coef elements from the beginning of the interaction at the end of this interaction
             	for (int j = 0; j < n_coef; j++) {
