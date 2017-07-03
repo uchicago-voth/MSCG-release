@@ -306,7 +306,7 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 
 void wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
 {
-	// Determine how many values there are to wrap
+	// Determine how many values there are to wrap past the upper boundary.
 	int counter = 0;
 	int index = axis_vals.size() - 1;
 	while (axis_vals[index] > high_value + VERYSMALL_F) {
@@ -314,48 +314,98 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 		index--;
 	}
 	
+	// Only continue this direction if there is more than 1 value to wrap.
+	// If there is only 1 value than it is probably a rounding issue with the spline table.
+	// If there are more values, then this interaction range probably passed through a periodic boundary.
+	if (counter > 1) {
+		printf("At start of wrap_periodic_axis positive end\n");
+		for (unsigned i = 0; i < axis_vals.size(); i++) {
+			printf("%lf\t%lf\n", axis_vals[i], force_vals[i]);
+		}
+		printf("\n");
+		fflush(stdout);
+	
+		double axis_value, force_value;
+		std::vector<double>::iterator axis_it;
+		std::vector<double>::iterator force_it;
+
+		while (counter > 0) {
+			// Store last value
+			axis_value = axis_vals.back();
+			force_value = force_vals.back();
+		
+			printf("last values %lf\t%lf\n", axis_value, force_value);
+		
+			// Remove value
+			axis_vals.pop_back();
+			force_vals.pop_back();
+		
+			// Adjust axis
+			axis_value -= 360.0;
+		
+			// Insert value 
+			axis_it = axis_vals.begin();
+			force_it = force_vals.begin();
+			axis_vals.insert(axis_it, axis_value);
+			force_vals.insert(force_it, force_value);	
+		
+			printf("inserted values (first %lf\t%lf\n", axis_vals[0], force_vals[0]);
+			printf("\n");
+			fflush(stdout);
+		
+			// adjust counter
+			counter--;
+		}
+	}
+	
+	// Determine how many values there are to wrap past the lower boundary.
+	counter = 0;
+	index = 0;
+	while (axis_vals[index] < low_value + VERYSMALL_F) {
+		counter++;
+		index++;
+	}
+	
 	// Only continue if there is more than 1 value to wrap.
 	// If there is only 1 value than it is probably a rounding issue with the spline table.
 	// If there are more values, then this interaction range probably passed through a periodic boundary.
-	if (counter <= 1) return;
-	
-	printf("At start of wrap_periodic_axis\n");
-	for (unsigned i = 0; i < axis_vals.size(); i++) {
-		printf("%lf\t%lf\n", axis_vals[i], force_vals[i]);
-	}
-	printf("\n");
-	fflush(stdout);
-	
-	double axis_value, force_value;
-	std::vector<double>::iterator axis_it;
-  	std::vector<double>::iterator force_it;
-
-	while (counter > 0) {
-		// Store last value
-		axis_value = axis_vals.back();
-		force_value = force_vals.back();
-		
-		printf("last values %lf\t%lf\n", axis_value, force_value);
-		
-		// Remove value
-		axis_vals.pop_back();
-		force_vals.pop_back();
-		
-		// Adjust axis
-		axis_value -= 360.0;
-		
-		// Insert value 
-		axis_it = axis_vals.begin();
- 		force_it = force_vals.begin();
-		axis_vals.insert(axis_it, axis_value);
-		force_vals.insert(force_it, force_value);	
-		
-		printf("inserted values (first %lf\t%lf\n", axis_vals[0], force_vals[0]);
+	if (counter > 1) {
+		printf("At start of wrap_periodic_axis negative end\n");
+		for (unsigned i = 0; i < axis_vals.size(); i++) {
+			printf("%lf\t%lf\n", axis_vals[i], force_vals[i]);
+		}
 		printf("\n");
 		fflush(stdout);
+	
+		double axis_value, force_value;
+		std::vector<double>::iterator axis_it;
+		std::vector<double>::iterator force_it;
+
+		while (counter > 0) {
+			// Store last value
+			axis_value = axis_vals[0];
+			force_value = force_vals[0];
 		
-		// adjust counter
-		counter--;
+			printf("first values %lf\t%lf\n", axis_value, force_value);
+		
+			// Remove value
+			axis_vals.erase(axis_vals.begin());
+			force_vals.erase(axis_vals.begin());
+		
+			// Adjust axis
+			axis_value += 360.0;
+		
+			// Insert value 
+			axis_vals.push_back(axis_value);
+			force_vals.push_back(force_value);	
+		
+			printf("inserted values (last %lf\t%lf\n", axis_vals[axis_vals.size()-1], force_vals[force_vals.size()-1]);
+			printf("\n");
+			fflush(stdout);
+		
+			// adjust counter
+			counter--;
+		}
 	}
 }
 
