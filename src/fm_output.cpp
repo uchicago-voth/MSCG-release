@@ -742,7 +742,7 @@ void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DAT
             // If that interaction is being matched (includes forces and symmetric/DOOM)
             // and it is periodic,
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0 &&
-            	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] != 0) {
+            	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] == 1) {
             	int first_index = (*icomp_iterator)->ispec->interaction_column_indices[i];
             	int last_index  = (*icomp_iterator)->ispec->interaction_column_indices[i+1];
             	

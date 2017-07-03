@@ -1080,6 +1080,7 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
 	
 	if ( conditionally_calc_dihedral_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, dihedral, derivatives) ) {
     	if (info->ispec->class_subtype == 0 && 
+    		dihedral < info->ispec->lower_cutoffs[index_among_defined] &&
     		info->ispec->defined_to_periodic_intrxn_index_map[index_among_defined] == 2) {
         		dihedral += 360.0;
         }

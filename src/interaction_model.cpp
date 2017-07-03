@@ -696,7 +696,7 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 			// BSplines include an extra bspline_k - 2 knots.
 			if ((basis_type == kBSpline) || (basis_type == kBSplineAndDeriv)) {
 				interaction_column_indices[counter + 1] -= 2;
-				if(defined_to_periodic_intrxn_index_map[i] == 0) interaction_column_indices[counter + 1] += get_bspline_k();
+				if(defined_to_periodic_intrxn_index_map[i] != 1) interaction_column_indices[counter + 1] += get_bspline_k();
 			}
 			// Delta basis is only 1 column wide.
 			else if (basis_type == kDelta) interaction_column_indices[counter + 1] = interaction_column_indices[counter] + 1;
