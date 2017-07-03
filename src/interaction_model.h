@@ -174,7 +174,8 @@ struct InteractionClassSpec {
 	};
 
 	InteractionClassSpec() {
-		n_tabulated = 0;
+		n_tabulated = n_to_force_match = n_symmetric = n_from_table = n_tabsym = 0;
+		n_defined = 0;
 		class_subtype = 0;
 	};
 	
