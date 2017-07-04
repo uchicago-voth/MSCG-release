@@ -304,9 +304,10 @@ void trim_excess_axis(const double low_value, const double high_value, std::vect
 
 // Wrap the axis around a boundary if there is more than 1 value to wrap.
 
-void wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
+double wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
 {
 	// Determine how many values there are to wrap past the upper boundary.
+	double first_axis_value = 180.0;
 	int counter = 0;
 	int index = axis_vals.size() - 1;
 	while (axis_vals[index] > high_value + VERYSMALL_F) {
@@ -318,6 +319,7 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 	// If there is only 1 value than it is probably a rounding issue with the spline table.
 	// If there are more values, then this interaction range probably passed through a periodic boundary.
 	if (counter > 1) {
+		first_axis_value = axis_vals[0];
 		printf("At start of wrap_periodic_axis positive end\n");
 		for (unsigned i = 0; i < axis_vals.size(); i++) {
 			printf("%lf\t%lf\n", axis_vals[i], force_vals[i]);
@@ -370,6 +372,7 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 	// If there is only 1 value than it is probably a rounding issue with the spline table.
 	// If there are more values, then this interaction range probably passed through a periodic boundary.
 	if (counter > 1) {
+		first_axis_value = axis_vals[axis_vals.size() - 1];
 		printf("At start of wrap_periodic_axis negative end\n");
 		for (unsigned i = 0; i < axis_vals.size(); i++) {
 			printf("%lf\t%lf\n", axis_vals[i], force_vals[i]);
@@ -407,7 +410,32 @@ void wrap_periodic_axis(const double low_value, const double high_value, std::ve
 			counter--;
 		}
 	}
+	return first_axis_value;
 }
+
+void shift_potential_for_periodicity(const std::vector<double> &axis_vals, const std::vector<double> &force_vals, std::vector<double> &potential_vals, const double wrapped_axis_value, const double lower_limit, const double upper_limit)
+{
+	int last = axis_vals.size() - 1;
+	int index = last;
+	double delta_low = axis_vals[0] - lower_limit;
+	double delta_high = upper_limit - axis_vals[last];
+	
+	// See if there are values to wrap.
+	if ( (upper_limit - wrapped_axis_value) <= VERYSMALL_F) return;
+	
+	// Determine what the potential offset is based on the difference between the actual last value
+	// and the estimated value (the first pot_value - dx * ave_force).
+	double ave_force = 0.5 * (force_vals[0] + force_vals[last]);
+	double estimated_top_potential = potential_vals[0] - ave_force * (delta_low + delta_high);
+	double pot_offset = potential_vals[last] - estimated_top_potential;
+	
+	// Apply this potential shift starting at the last value and working backwards
+	// until we hit the "wrapped_axis_value" limit.
+	while (axis_vals[index] > wrapped_axis_value + VERYSMALL_F) {
+		potential_vals[index] -= pot_offset;
+		index--;
+	}
+}   	 	
 
 // Find the index of the minimum value in a vector.
 

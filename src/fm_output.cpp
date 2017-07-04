@@ -337,10 +337,11 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
     	integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
 	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
     } else if (char_id == 'd') {
-   	 	wrap_periodic_axis(-180.0, 180.0, axis_vals, force_vals);
+   	 	double first_axis_wrapped = wrap_periodic_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	std::vector<double> corrected_potential_vals;
    	 	integrate_force(axis_vals, force_vals, corrected_potential_vals);
+   	 	shift_potential_for_periodicity(axis_vals, force_vals, corrected_potential_vals, first_axis_wrapped, -180.0, 180.0);
    	 	for (unsigned i = 0; i < corrected_potential_vals.size(); i++) {
    	 		corrected_potential_vals[i] /= DEGREES_PER_RADIAN;
    	 	}

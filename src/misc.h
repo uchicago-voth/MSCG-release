@@ -58,7 +58,10 @@ void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &f
 void trim_excess_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 
 // Wrap the axis around a boundary if there is more than 1 value to wrap.
-void wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals);
+double wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals);
+
+// Adjust the potential for interactions that wrap around a periodic boundary.
+void shift_potential_for_periodicity(const std::vector<double> &axis_vals, const std::vector<double> &force_vals, std::vector<double> &corrected_potential_vals, const double wrapped_axis_value, const double lower_limit, const double upper_limit);
 
 // Find the index of the minimum value in a vector.
 unsigned get_min_index(const std::vector<double> &potential_vals);
