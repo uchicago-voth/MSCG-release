@@ -854,6 +854,7 @@ void read_one_param_dist_file_pair(InteractionClassComputer* const icomp, char**
       } else {
       	normalized_counts = 0.0;
       	potential = 100.0;
+      	printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.\n");
       }
       if (potential > VERYLARGE || potential < - VERYLARGE) {
       	potential = VERYLARGE;
@@ -903,7 +904,7 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       } else {
       	normalized_counts = 0.0;
       	potential = 100.0;
-	printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.\n");
+		printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.\n");
       }
 	  if (potential > VERYLARGE || potential < - VERYLARGE) {
       	potential = VERYLARGE;
