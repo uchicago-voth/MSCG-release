@@ -8,6 +8,7 @@ Version 1.6.8 (July 10, 2017)
 	* Refactor interaction input processing
 	* Refactor interaction output processing
 	* Update object dependency in makefiles
+	* Add validate-dihedral-0 example
 	
 Version 1.6.7 (July 2, 2017)
 	* Update manual for three-body interactions
