@@ -17,8 +17,6 @@
 #include "range_finding.h"
 #include "misc.h"
 
-const double VERYLARGE = 1000.0;
-
 //----------------------------------------------------------------------------
 // Prototypes for private implementation routines.
 //----------------------------------------------------------------------------

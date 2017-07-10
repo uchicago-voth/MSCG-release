@@ -529,13 +529,18 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
     std::array<double, 3>* derivatives = new std::array<double, 3>[3];
     int index_among_defined = info->index_among_defined_intrxns;
     double dihedral;
-
-    if ( conditionally_calc_dihedral_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, dihedral, derivatives) ) {
-        if (dihedral < info->ispec->lower_cutoffs[index_among_defined] ||
-        	dihedral > info->ispec->upper_cutoffs[index_among_defined]) {
+	
+	if ( conditionally_calc_dihedral_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, dihedral, derivatives) ) {
+    	if (info->ispec->class_subtype == 0 && 
+    		dihedral < info->ispec->lower_cutoffs[index_among_defined] &&
+    		info->ispec->defined_to_periodic_intrxn_index_map[index_among_defined] == 2) {
+        		dihedral += 360.0;
+        }
+    	if ( dihedral < info->ispec->lower_cutoffs[index_among_defined] ||
+        	 dihedral > info->ispec->upper_cutoffs[index_among_defined] ) {
         	delete [] derivatives;
         	return;
-        }
+        } 
 		info->process_interaction_matrix_elements(info, mat, 4, particle_ids, derivatives, dihedral, 0, 0.0, 0.0);
     }
 	delete [] derivatives;

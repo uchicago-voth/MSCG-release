@@ -14,8 +14,6 @@
 enum BasisType {kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2};
 
 struct InteractionClassSpec;
-struct InteractionClassComputer;
-struct ThreeBodyNonbondedClassComputer;
 
 class SplineComputer {
 
@@ -26,11 +24,12 @@ protected:
     double binwidth;
 
     InteractionClassSpec *ispec_;
+    std::vector<unsigned> interaction_column_indices_;
     double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     
 public:
-    inline SplineComputer(InteractionClassSpec* ispec) : ispec_(ispec) {}
-    inline virtual ~SplineComputer() {}
+    SplineComputer(InteractionClassSpec* ispec);
+    inline virtual ~SplineComputer() { }
     void get_bin(void);
     inline int get_n_coef(void) { return n_coef; };
     virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals) = 0;

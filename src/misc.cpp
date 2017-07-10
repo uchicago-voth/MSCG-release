@@ -15,6 +15,7 @@
 
 // Global variable assignments
 
+const double VERYLARGE = 1000.0;
 const double VERYSMALL = 1.0e-14;
 const float VERYSMALL_F = 1.0e-6; // Small number for single precision
 const double MAX_INPUT_FORCE_VALUE = 1000.0; // Filter some noisy data
@@ -44,6 +45,373 @@ void integrate_force(const std::vector<double> &axis_vals, const std::vector<dou
         potential_vals[k] = potential_vals[k+1] + 0.5 * (axis_vals[k + 1] - axis_vals[k]) * (force_vals[k] + force_vals[k + 1]);
     }
 }
+
+void make_negative(std::vector<double> &force_vals)
+{
+  for(int k = force_vals.size() - 1; k >= 0; k--)
+    {
+      force_vals[k] = -force_vals[k];
+    }
+}
+
+
+// Function to pad 2 vectors so that the first runs between low and high values with fpad
+
+void pad_values_front(const double low, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+	std::vector<double>::iterator axis_it;
+  	std::vector<double>::iterator force_it;
+ 
+	double spacing = axis_vals[1] - axis_vals[0];
+	while (axis_vals[0] - spacing > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, axis_vals[0] - spacing);
+		force_vals.insert(force_it, fpad);	
+	}
+	
+	if (axis_vals[0] - VERYSMALL_F > low) {
+		axis_it = axis_vals.begin();
+ 		force_it = force_vals.begin();
+ 
+		axis_vals.insert(axis_it, low);
+		force_vals.insert(force_it, fpad);
+	}
+}
+
+void pad_values_back(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double fpad)
+{
+  double spacing = axis_vals[2] - axis_vals[1];
+  int last = axis_vals.size() - 1;
+	
+  while(force_vals.size() > axis_vals.size()) {
+  	force_vals.pop_back();
+  }
+
+  while (axis_vals[last] + spacing < high) {
+	axis_vals.push_back(axis_vals[last] + spacing);
+	force_vals.push_back(fpad);
+	last++;
+  }
+	
+  if (axis_vals[last] + VERYSMALL_F < high) { 
+	axis_vals.push_back(high);
+	force_vals.push_back(fpad);
+  }	
+}
+
+// Function to pad vectors so that the first runs between low and high values after checking
+// that the signs and slopes are reasonable for the front and back.
+
+int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double>& force_vals)
+{
+  std::vector<double>::iterator axis_it;
+  std::vector<double>::iterator force_it;
+  int last = axis_vals.size() - 1;
+  int flag = 1;
+  double spacing = axis_vals[1] - axis_vals[0];
+  int i = 0;
+
+  // Find a positive value
+  while(force_vals[i] < 0)
+    {
+      i++;
+      if (i  >= last) {
+      	// We are out of room
+      	flag = -1;
+      	i = last - 1;
+      	break;
+      }
+    }
+    
+  // Keep going until it is non-decreasing
+  while(force_vals[i]<force_vals[i+1])
+    {
+      i++;
+      if (i  >= last - 1) {
+      	// we are out of room
+      	i = last - 1;
+      	flag = -1;
+      	break;
+      }
+    }
+
+  // If it failed to meet these requirements (it ran out of room),
+  // print a warning to the user 
+  // and try again without the positivity requirement.
+  if (flag == -1) {
+  	i = 0;
+  	// Go until it is non-decreasing
+  	while(force_vals[i]<force_vals[i+1])
+    {
+      i++;
+      if (i  >= last - 1) {
+      	// we are out of room
+      	// this time, abort padding front
+      	return flag;
+      }
+    }
+  }
+  
+  // Now, pad interaction
+  // first filling in the existing spaces
+  while(i > 0)
+    {
+      force_vals[i-1]=2*force_vals[i]-force_vals[i+1];
+      i--;
+    }
+  // And then adding new ones
+  while(axis_vals[0] - spacing > spacing)
+    {
+      axis_it = axis_vals.begin();
+      force_it = force_vals.begin();
+
+      axis_vals.insert(axis_it, axis_vals[0] - spacing);
+      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
+    }
+  return flag;
+}
+
+int pad_values_back_with_fix(const double high, std::vector<double>& axis_vals, std::vector<double>& force_vals)
+{
+  double spacing = axis_vals[2] - axis_vals[1];
+  int last = axis_vals.size() - 1;
+  int i = last;
+  int flag = 1;
+ 
+  if(axis_vals[last] > high) {
+  	return flag;
+ }
+ 
+  while(force_vals.size() > axis_vals.size()) {
+  	force_vals.pop_back();
+  }
+
+  // Find a negative value
+  while(force_vals[i]>0)
+    {
+      i--;
+      if (i < 1) {
+      	i = 1;
+      	flag = -1;
+      	break;
+      }
+    }
+  // Keep going until it is non-increasing
+  while(force_vals[i]>force_vals[i-1])
+    {
+      i--;
+      if (i < 1) {
+      	i = 1;
+      	flag = -1;
+      	break;
+      	}
+    }
+
+  // If it failed to meet these requirements (it ran out of room),
+  // print a warning to the user 
+  // and try again without the negativity requirement.
+  if (flag == -1) {
+  	i = last;
+  	while(force_vals[i]>force_vals[i-1]) {
+      i--;
+      if (i < 1) {
+      	// we are out of room
+      	// this time, abort padding back
+      	return flag;
+      }
+    }
+  }
+  
+  
+  // Now, pad interaction
+  // first filling in the existing spaces
+  while(i<last)
+    {
+      force_vals[i+1]= 2.0*force_vals[i] -  force_vals[i-1];
+      i++;
+    }
+  // And then adding new ones
+  while (axis_vals[last] + spacing < high)
+    {
+      axis_vals.push_back(axis_vals[last] + spacing);
+      force_vals.push_back(2.0*force_vals[last]  - force_vals[last-1]);
+      last++;
+    }
+  return flag;
+}
+
+// Add two sets of "forces" based on their axis values
+
+void add_force_vals(const std::vector<double> &axis_vals, std::vector<double> &force_vals, const std::vector<double> &tab_axis_vals, const std::vector<double> &tab_force_vals)
+{
+	// Search for the first common axis value between the splines
+	int axis_index = 0;
+	int tab_index  = 0;
+	int last_axis  = axis_vals.size() - 1;
+	int last_tab   = tab_axis_vals.size() - 1;
+	
+	// If tab is lower
+	while (axis_vals[axis_index] > tab_axis_vals[tab_index] + VERYSMALL_F) {
+		tab_index++;
+		if (tab_index >= last_tab) return; // There is no overlap
+	}
+	// If axis is lower
+	while (axis_vals[axis_index] + VERYSMALL_F < tab_axis_vals[tab_index]) {
+		axis_index++;
+		if (axis_index >= last_axis) return; // There is no overlap
+	}
+	
+	// Now add values until the end
+	for ( ; (axis_index < last_axis) && (tab_index < last_tab); axis_index++, tab_index++) {
+		force_vals[axis_index] += tab_force_vals[tab_index];
+	}
+}
+    		  
+// Remove entries with axis values out of the specified range.
+
+void trim_excess_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
+{
+	int last = axis_vals.size() - 1;
+	int first = 0;
+	while (axis_vals[last] > VERYSMALL_F + high_value) {
+		// remove last entry
+		axis_vals.pop_back();
+		force_vals.pop_back();
+		last--;
+	}
+
+	// Check lower value(s)
+	while (axis_vals[first] < low_value - VERYSMALL_F) {
+		first++;
+	}
+	if (first != 0) {
+		// remove these leading entries
+		// only do this once because the operation is rather inefficient
+		if (first == 1) {
+			//remove a sigle entry
+			axis_vals.erase(axis_vals.begin());
+			force_vals.erase(force_vals.begin());
+		} else {
+			// remove a range of entries
+			axis_vals.erase(axis_vals.begin(), axis_vals.begin() + first);
+			force_vals.erase(force_vals.begin(), force_vals.begin() + first);
+		}
+	}
+
+}
+
+// Wrap the axis around a boundary if there is more than 1 value to wrap.
+
+double wrap_periodic_axis(const double low_value, const double high_value, std::vector<double> &axis_vals, std::vector<double> &force_vals)
+{
+	// Determine how many values there are to wrap past the upper boundary.
+	double first_axis_value = 180.0;
+	int counter = 0;
+	int index = axis_vals.size() - 1;
+	while (axis_vals[index] > high_value + VERYSMALL_F) {
+		counter++;
+		index--;
+	}
+	
+	// Only continue this direction if there is more than 1 value to wrap.
+	// If there is only 1 value than it is probably a rounding issue with the spline table.
+	// If there are more values, then this interaction range probably passed through a periodic boundary.
+	if (counter > 1) {
+		first_axis_value = axis_vals[0];
+	
+		double axis_value, force_value;
+		std::vector<double>::iterator axis_it;
+		std::vector<double>::iterator force_it;
+
+		while (counter > 0) {
+			// Store last value
+			axis_value = axis_vals.back();
+			force_value = force_vals.back();
+		
+			// Remove value
+			axis_vals.pop_back();
+			force_vals.pop_back();
+		
+			// Adjust axis
+			axis_value -= 360.0;
+		
+			// Insert value 
+			axis_it = axis_vals.begin();
+			force_it = force_vals.begin();
+			axis_vals.insert(axis_it, axis_value);
+			force_vals.insert(force_it, force_value);	
+
+			// adjust counter
+			counter--;
+		}
+	}
+	
+	// Determine how many values there are to wrap past the lower boundary.
+	counter = 0;
+	index = 0;
+	while (axis_vals[index] < low_value + VERYSMALL_F) {
+		counter++;
+		index++;
+	}
+	
+	// Only continue if there is more than 1 value to wrap.
+	// If there is only 1 value than it is probably a rounding issue with the spline table.
+	// If there are more values, then this interaction range probably passed through a periodic boundary.
+	if (counter > 1) {
+		first_axis_value = axis_vals[axis_vals.size() - 1];
+	
+		double axis_value, force_value;
+		std::vector<double>::iterator axis_it;
+		std::vector<double>::iterator force_it;
+
+		while (counter > 0) {
+			// Store last value
+			axis_value = axis_vals[0];
+			force_value = force_vals[0];
+		
+			// Remove value
+			axis_vals.erase(axis_vals.begin());
+			force_vals.erase(axis_vals.begin());
+		
+			// Adjust axis
+			axis_value += 360.0;
+		
+			// Insert value 
+			axis_vals.push_back(axis_value);
+			force_vals.push_back(force_value);	
+
+			// adjust counter
+			counter--;
+		}
+	}
+	return first_axis_value;
+}
+
+void shift_potential_for_periodicity(const std::vector<double> &axis_vals, const std::vector<double> &force_vals, std::vector<double> &potential_vals, const double wrapped_axis_value, const double lower_limit, const double upper_limit)
+{
+	int last = axis_vals.size() - 1;
+	int index = last;
+	double delta_low = axis_vals[0] - lower_limit;
+	double delta_high = upper_limit - axis_vals[last];
+	
+	// See if there are values to wrap.
+	if ( (upper_limit - wrapped_axis_value) <= VERYSMALL_F) return;
+	
+	// Determine what the potential offset is based on the difference between the actual last value
+	// and the estimated value (the first pot_value - dx * ave_force).
+	double ave_force = 0.5 * (force_vals[0] + force_vals[last]);
+	double estimated_top_potential = potential_vals[0] - ave_force * (delta_low + delta_high);
+	double pot_offset = potential_vals[last] - estimated_top_potential;
+	
+	// Apply this potential shift starting at the last value and working backwards
+	// until we hit the "wrapped_axis_value" limit.
+	while (axis_vals[index] > wrapped_axis_value + VERYSMALL_F) {
+		potential_vals[index] -= pot_offset;
+		index--;
+	}
+}   	 	
 
 // Find the index of the minimum value in a vector.
 
@@ -108,7 +476,6 @@ int match_type(std::string &source, char** name, const int n_types)
 {
 	char unknown[10];
 	sprintf(unknown, "%s", source.c_str());
-	
 	// Check if this type is a name.
 	for (int i = 0; i < n_types; i++) {
 		if( strcmp(unknown, name[i]) == 0 ) {
@@ -148,7 +515,6 @@ void check_and_read_next_line(std::ifstream &in_stream, std::string &line, int &
 	check_and_read_next_line(in_stream, line);
 	line_num++;	
 }
-
 
 void swap_pair(int& a, int& b) 
 {

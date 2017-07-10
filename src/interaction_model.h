@@ -28,6 +28,8 @@ struct ThreeBodyNonbondedClassComputer;
 
 // Function called externally
 void free_interaction_data(CG_MODEL_DATA* cg);
+// Variable checking routine
+void check_input_values(CG_MODEL_DATA* cg);
 
 //-------------------------------------------------------------
 // Enumerated type definitions
@@ -77,6 +79,7 @@ struct InteractionClassSpec {
     std::vector<unsigned> defined_to_possible_intrxn_index_map;
     std::vector<unsigned> defined_to_matched_intrxn_index_map;
     std::vector<unsigned> defined_to_tabulated_intrxn_index_map;
+    std::vector<unsigned> defined_to_periodic_intrxn_index_map;
     std::vector<unsigned> interaction_column_indices;
     int n_to_force_match;
     int n_force;
@@ -107,6 +110,7 @@ struct InteractionClassSpec {
     virtual void setup_indices_in_fm_matrix(void);
 	
 	// Helper and implementation functions.
+	std::string get_basename(char **type_names, const int intrxn_index_among_defined, const std::string& delimiter);
 	void adjust_cutoffs_for_basis(int i);
     void adjust_cutoffs_for_type(int i);
     void setup_for_defined_interactions(TopologyData* topo_data); 
@@ -115,6 +119,7 @@ struct InteractionClassSpec {
 	void smart_read_interaction_class_ranges(std::ifstream &range_in, char** name);
     int read_table(std::ifstream &external_spline_table, int line, int offset);
 	int read_bspline_table(std::ifstream &external_spline_table, int line, int offset);
+	void copy_table(const int base_defined, const int target_defined, const int num_lines);
 	void free_force_tabulated_interaction_data(void);
 	
 	inline int get_index_from_hash(const int hash_val) const {if (defined_to_possible_intrxn_index_map.size() == 0) return hash_val; else return SearchIntTable(defined_to_possible_intrxn_index_map, hash_val);}
@@ -126,6 +131,10 @@ struct InteractionClassSpec {
 		n_defined = n;
 	};
 	
+	inline void set_basis_type(BasisType type) {
+		basis_type = type;
+	};
+		
 	// Accessor (getter) functions.
 	inline int get_num_basis_func(void) const {
 		return interaction_column_indices[n_to_force_match];
@@ -145,8 +154,10 @@ struct InteractionClassSpec {
 	};
 
 	InteractionClassSpec(void) {
-		n_tabulated = 0;
-	}
+		n_tabulated = n_to_force_match = n_from_table = 0;
+		n_defined = 0;
+		class_subtype = 0;
+	};
 	
 	~InteractionClassSpec() {
 		delete [] lower_cutoffs;
@@ -211,6 +222,7 @@ struct InteractionClassComputer {
 	void set_up_computer(InteractionClassSpec* const ispec_pt, int *curr_iclass_col_index);	
 
 	void calc_external_spline_interaction(void);
+	void calc_grid_of_table_force_vals(const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals);
 	
@@ -270,7 +282,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
 	inline PairBondedClassSpec(ControlInputs* control_input) {
 		class_type = kPairBonded;
 		class_subtype = 1;
-		cutoff = control_input->pair_nonbonded_cutoff;
+		cutoff = VERYLARGE;
 		basis_type = (BasisType) control_input->basis_set_type;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		fm_binwidth = control_input->pair_bond_fm_binwidth;
@@ -299,6 +311,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
 struct AngularClassSpec: InteractionClassSpec {
 	inline AngularClassSpec(ControlInputs* control_input) {
 		class_type = kAngularBonded;
+		cutoff = VERYLARGE;
     	basis_type = (BasisType) control_input->basis_set_type;
     	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
     	class_subtype = control_input->angle_interaction_style;
@@ -329,6 +342,7 @@ struct DihedralClassSpec: InteractionClassSpec {
 	inline DihedralClassSpec(ControlInputs* control_input) {
 		class_type = kDihedralBonded;
     	basis_type = (BasisType) control_input->basis_set_type;
+    	cutoff = VERYLARGE;
     	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
     	class_subtype = control_input->dihedral_interaction_style;
     	fm_binwidth = control_input->dihedral_fm_binwidth;
@@ -368,6 +382,7 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
 	inline ThreeBodyNonbondedClassSpec(ControlInputs* control_input) {
 		class_type = kThreeBodyNonbonded;
 		basis_type = (BasisType) control_input->basis_set_type;
+		cutoff = VERYLARGE;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		class_subtype = control_input->three_body_flag;
 		fm_binwidth = control_input->three_body_fm_binwidth;
@@ -386,9 +401,13 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
 	}
 	
 	void determine_defined_intrxns(TopologyData *topo_data) {
-		if (class_subtype == 0) return;
-       	defined_to_possible_intrxn_index_map = std::vector<unsigned>(get_n_defined(), 0);
-      
+		defined_to_possible_intrxn_index_map = std::vector<unsigned>(get_n_defined(), 0);
+      	
+      	if (class_subtype == 0) {
+      		n_to_force_match = 0;
+			return;
+		}
+       	
 		// Set up the hash table for three body nonbonded interactions.
        	int counter = 0;
        	for (int ii = 0; ii < n_cg_types; ii++) {
@@ -523,6 +542,9 @@ struct CG_MODEL_DATA {
 		icomp_list.push_back(&pair_bonded_computer);
 		icomp_list.push_back(&angular_computer);
 		icomp_list.push_back(&dihedral_computer);
+
+		check_input_values(this);
+
 	}
 		
 	~CG_MODEL_DATA() {    
@@ -557,5 +579,8 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg);
 
 // Read tabulated interaction data from file
 void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types);
+
+// Select the correct type name array for the interaction.
+char** select_name(InteractionClassSpec* const ispec, char ** const cg_name);
 
 #endif

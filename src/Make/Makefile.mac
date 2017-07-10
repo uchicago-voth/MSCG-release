@@ -70,7 +70,7 @@ fm_output.o: fm_output.cpp fm_output.h force_computation.h misc.h
 force_computation.o: force_computation.cpp force_computation.h interaction_model.h matrix.h trajectory_input.h misc.h
 	$(CC) $(CFLAGS) -c force_computation.cpp
 
-geometry.o: geometry.h
+geometry.o: geometry.cpp geometry.h
 	$(CC) $(CFLAGS) -c geometry.cpp
 
 interaction_hashing.o: interaction_hashing.cpp interaction_hashing.h
@@ -88,7 +88,7 @@ misc.o: misc.cpp misc.h
 range_finding.o: range_finding.cpp range_finding.h force_computation.h interaction_model.h matrix.h misc.h
 	$(CC) $(CFLAGS) -c range_finding.cpp
 
-splines.o: splines.h interaction_model.h
+splines.o: splines.cpp splines.h interaction_model.h
 	$(CC) $(CFLAGS) -c splines.cpp
 
 topology.o: topology.cpp topology.h interaction_model.h misc.h
