@@ -276,7 +276,6 @@ struct MATRIX_DATA {
     int fm_matrix_columns;                          // Number of columns for FM matrix
     int rows_less_constraint_rows;           		// Rows less the rows reserved for virial constraints
     int virial_constraint_rows;                     // Rows specifically for virial constraints
-    int dihedral_constraint_rows;					// Rows specifically for periodic dihedrals
     int frames_per_traj_block;              		// Number of frames to read in a single block of FM matrix construction
     int position_dimension;							// The number of elements needed to specify each particle's position.
     int size_per_vector;							// Either 1 or DIMENSION based on scalar_matching_flag(1 or 0, respectively);
@@ -345,7 +344,6 @@ struct MATRIX_DATA {
 	double force_sq_total;							
 	int bayesian_flag;								// 1 to use Bayesian MS-CG to calculate regularization and interactions
 	int bayesian_max_iter;
-    double dihedral_contraint_strength;				// Strength of constraint for dihedral periodicity
     int regularization_style;                       // 0 to use no regularization; 1 to calculate results using single scalar regularization; 2 to calculate results using a set of regularization parameters in file lambda.in
 	double tikhonov_regularization_param;           // Parameter for Tikhonov regularization. (regularization_style = 1)
 	double* regularization_vector;					// Vector for regularization_style 2.
@@ -431,13 +429,13 @@ struct MATRIX_DATA {
     	}
     	
     	int new_rows_less_virial = new_cg_sites * DIMENSION * frames_per_traj_block;
-    	if (new_rows_less_virial + virial_constraint_rows + dihedral_constraint_rows == fm_matrix_rows) {
+    	if (new_rows_less_virial + virial_constraint_rows == fm_matrix_rows) {
     		printf("Resize_matrix is not doing anything since matrix is the same size as before.\n");
     		return;
     	}
         // Update mat's copy of row variables.	
     	rows_less_constraint_rows = new_rows_less_virial;
-    	fm_matrix_rows = new_rows_less_virial + virial_constraint_rows + dihedral_constraint_rows;
+    	fm_matrix_rows = new_rows_less_virial + virial_constraint_rows;
 
 		// Update dense_fm_rhs_vector.
 		delete [] dense_fm_rhs_vector;

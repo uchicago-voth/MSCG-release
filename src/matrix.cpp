@@ -258,7 +258,6 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	// Copy residual, regularization, and bayesian options.
 	regularization_style 			= control_input->regularization_style;
     tikhonov_regularization_param 	= control_input->tikhonov_regularization_param;
-	dihedral_contraint_strength 	= control_input->dihedral_periodicity_contraint_strength;
 	bayesian_flag					= control_input->bayesian_flag;
 	bayesian_max_iter				= control_input->bayesian_max_iter;
     output_residual                 = control_input->output_residual;
@@ -854,7 +853,6 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 {
     mat->rows_less_constraint_rows = 0;
     mat->virial_constraint_rows = 0;
-    mat->dihedral_constraint_rows = 0;
     mat->dense_fm_rhs_vector = new double[DIMENSION * cg->n_cg_sites];
     mat->dense_fm_normal_rhs_vector = new double[1];
     mat->fm_solution = std::vector<double>(1);
@@ -950,22 +948,13 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 {
 	// Determine total number of columns by adding up all the columns for all classes of interaction.
 	mat->fm_matrix_columns = 0;
-	mat->dihedral_constraint_rows = 0;
 	mat->virial_constraint_rows = 0;
-	int dihedral_constraint_count = 0;	
 	printf("Number of basis functions by interaction class:\n");
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
 		mat->fm_matrix_columns += (*iclass_iterator)->get_num_basis_func();
 		log_n_basis_functions(**(iclass_iterator));
 	}    
-
-	for (int i = 0; i < cg->dihedral_interactions.get_n_defined(); i++) {
-		if ((cg->dihedral_interactions.defined_to_matched_intrxn_index_map[i] != 0) &&
-			(cg->dihedral_interactions.defined_to_periodic_intrxn_index_map[i] == 1)) {
-			dihedral_constraint_count++;
-		}
-	}
 	
 	if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
 		mat->fm_matrix_columns += cg->three_body_nonbonded_interactions.get_num_basis_func();
@@ -979,11 +968,7 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
         mat->virial_constraint_rows = frames_per_traj_block;
         mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector + frames_per_traj_block;
     }
-    if (dihedral_constraint_count > 0) {
-    	mat->dihedral_constraint_rows = dihedral_constraint_count * frames_per_traj_block;
-    }
-	mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector +
-						  mat->virial_constraint_rows + mat->dihedral_constraint_rows;
+	mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector + mat->virial_constraint_rows;
 }
 
 void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
@@ -1075,7 +1060,7 @@ inline void set_sparse_matrix_to_zero(MATRIX_DATA* const mat)
 	// The row head and element information is cleared in convert_linked_list_to_csr_matrix.
 
     // Set the elements of the dense part of the matrix to zero.
-	for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
+	for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
         mat->dense_fm_matrix->values[k] = 0.0;
     }
 }
@@ -1087,7 +1072,7 @@ inline void set_sparse_accumulation_matrix_to_zero(MATRIX_DATA* const mat)
 	// The row head and element information is cleared in convert_linked_list_to_csr_matrix.
 
     // Set the elements of the dense part of the matrix to zero.
-   for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
+   for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
         mat->dense_fm_matrix->values[k] = 0.0;
     }
 }
@@ -2249,8 +2234,8 @@ int get_n_nonzero_matrix_elements(MATRIX_DATA* const mat)
         n_nonzero_matrix_elements += mat->ll_sparse_matrix_row_heads[k].n;
     }
     n_nonzero_matrix_elements *= DIMENSION;
-    if (mat->virial_constraint_rows > 0 || mat->dihedral_constraint_rows > 0) {
-        for (int k = 0; k < (mat->virial_constraint_rows + mat->dihedral_constraint_rows) * mat->fm_matrix_columns; k++) {
+    if (mat->virial_constraint_rows > 0) {
+        for (int k = 0; k < mat->virial_constraint_rows * mat->fm_matrix_columns; k++) {
             if (mat->dense_fm_matrix->values[k] > VERYSMALL 
                 || mat->dense_fm_matrix->values[k] < -VERYSMALL) {
                     n_nonzero_matrix_elements++;
@@ -2302,9 +2287,9 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
         mat->ll_sparse_matrix_row_heads[k].n = 0;
 	}
 
-    if (mat->virial_constraint_rows > 0 || mat->dihedral_constraint_rows > 0) {
+    if (mat->virial_constraint_rows > 0) {
         row_counter = csr_fm_matrix.row_sizes[mat->rows_less_constraint_rows * DIMENSION] - 1; // remove one-base for processing
-        for (int k = 0; k < mat->virial_constraint_rows + mat->dihedral_constraint_rows; k++) {
+        for (int k = 0; k < mat->virial_constraint_rows; k++) {
             for (int l = 0; l < mat->fm_matrix_columns; l++) {
                 value = mat->dense_fm_matrix->values[l * mat->virial_constraint_rows + k];
                 if (value > VERYSMALL || value < -VERYSMALL) {

@@ -65,7 +65,6 @@ double calc_lucy_density_derivative(DensityClassComputer* const icomp, DensityCl
 double calc_re_density_derivative(DensityClassComputer* const icomp, DensityClassSpec* const ispec, const double distance);
 void do_nothing(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void accumulate_matching_order_parameter_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, double extra_derivative_value, std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
-void accumulate_dihedral_constraint_for_frame(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int trajectory_block_frame_index);
 
 //--------------------------------------------------------------------
 // Initialization routines to start the FM matrix calculation
@@ -336,7 +335,6 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
         (*icomp_iterator)->calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
     }
     cg->three_body_nonbonded_computer.calculate_3B_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, three_body_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
-	if (mat->dihedral_constraint_rows > 0) accumulate_dihedral_constraint_for_frame(&cg->dihedral_computer, mat, trajectory_block_frame_index);
 }
 
 //--------------------------------------------------------------------
@@ -1391,30 +1389,6 @@ double calc_re_density_derivative(DensityClassComputer* const icomp, DensityClas
 	double density_derivative = 2.0 * icomp->c2[index_among_defined] - 4.0 * distance2 * icomp->c4[index_among_defined] + 6.0 * distance2 * distance2 * icomp->c6[index_among_defined];
 	density_derivative *= distance;	
 	return density_derivative;
-}
-
-void accumulate_dihedral_constraint_for_frame(InteractionClassComputer* const icomp, MATRIX_DATA* const mat, const int trajectory_block_frame_index)
-{
-	int index_among_matched, starting_row_for_dihedral_frame;
-	if (mat->matrix_type == kDense || mat->matrix_type == kREM || mat->matrix_type == kRecode || mat->matrix_type == kAccumulation) {
-		starting_row_for_dihedral_frame = mat->fm_matrix_rows - (mat->frames_per_traj_block - trajectory_block_frame_index) * mat->dihedral_constraint_rows;
-	} else {
-		starting_row_for_dihedral_frame = mat->virial_constraint_rows + trajectory_block_frame_index* mat->dihedral_constraint_rows;
-	}
-	
-	for (int i = 0; i < icomp->ispec->get_n_defined(); i++) {
-		index_among_matched = icomp->ispec->defined_to_matched_intrxn_index_map[i];
-		if ((index_among_matched != 0) &&
-			(icomp->ispec->defined_to_periodic_intrxn_index_map[i] == 1) ) {
-			int this_row = starting_row_for_dihedral_frame + i;
-			int start_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched - 1];
-			int stop_column  = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[index_among_matched];
-			for (int this_column = start_column; i < stop_column; i++) {
-				mat->dense_fm_matrix->assign_scalar(this_row,this_column,mat->dihedral_contraint_strength);
-			}
-			mat->dense_fm_rhs_vector[this_row] = 0.0;
-		}
-	}
 }
 
 void do_nothing(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat) 
