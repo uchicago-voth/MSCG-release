@@ -337,7 +337,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
 	inline PairBondedClassSpec(ControlInputs* control_input) {
 		class_type = kPairBonded;
 		class_subtype = 1;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
 		basis_type = (BasisType) control_input->basis_set_type;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		fm_binwidth = control_input->pair_bond_fm_binwidth;
@@ -373,7 +373,7 @@ struct AngularClassSpec: InteractionClassSpec {
     	bspline_k = control_input->angle_bspline_k;
     	output_binwidth = control_input->angle_output_binwidth;
 		output_parameter_distribution = control_input->output_angle_parameter_distribution;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
 		
 		if (class_subtype == 1) {
 			printf("The use of distance based angles (angle_type = 1) is now deprecated.\n");
@@ -409,7 +409,7 @@ struct DihedralClassSpec: InteractionClassSpec {
 		bspline_k = control_input->dihedral_bspline_k;
 		output_binwidth = control_input->dihedral_output_binwidth;
 		output_parameter_distribution = control_input->output_dihedral_parameter_distribution;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
 		
 		if (class_subtype == 1) {
 			printf("The use of distance based dihedrals (dihedral_type = 1) is now deprecated.\n");
@@ -439,7 +439,7 @@ struct R13ClassSpec: InteractionClassSpec {
 	inline R13ClassSpec(ControlInputs* control_input) {
 		class_type = kR13Bonded;
     	basis_type = (BasisType) control_input->basis_set_type;
-    	cutoff = 1000.0;
+    	cutoff = VERYLARGE;
     	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
     	class_subtype = control_input->r13_distance_flag;
     	fm_binwidth = control_input->r13_fm_binwidth;
@@ -470,7 +470,7 @@ struct R14ClassSpec: InteractionClassSpec {
 		class_type = kR14Bonded;
     	basis_type = (BasisType) control_input->basis_set_type;
     	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
-    	cutoff = 1000.0;
+    	cutoff = VERYLARGE;
     	class_subtype = control_input->r14_distance_flag;
     	fm_binwidth = control_input->r14_fm_binwidth;
     	bspline_k = control_input->r14_bspline_k;
@@ -498,7 +498,7 @@ struct R14ClassSpec: InteractionClassSpec {
 struct R15ClassSpec: InteractionClassSpec {
 	inline R15ClassSpec(ControlInputs* control_input) {
 		class_type = kR15Bonded;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
     	basis_type = (BasisType) control_input->basis_set_type;
     	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
     	class_subtype = control_input->r15_distance_flag;
@@ -541,7 +541,7 @@ struct HelicalClassSpec: InteractionClassSpec {
 	inline HelicalClassSpec(ControlInputs* control_input) {
 		class_type = kHelical;
 		class_subtype = control_input->helical_flag;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
 		basis_type = (BasisType) control_input->basis_set_type;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		fm_binwidth = control_input->helical_fm_binwidth;
@@ -608,7 +608,7 @@ struct RadiusofGyrationClassSpec: InteractionClassSpec {
 	inline RadiusofGyrationClassSpec(ControlInputs* control_input) {
 		class_type = kRadiusofGyration;
 		class_subtype = control_input->radius_of_gyration_flag;
-		cutoff = 1000.0;
+		cutoff = VERYLARGE;
 		basis_type = (BasisType) control_input->basis_set_type;
 		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
 		fm_binwidth = control_input->radius_of_gyration_fm_binwidth;
