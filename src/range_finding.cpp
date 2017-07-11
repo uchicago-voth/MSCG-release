@@ -892,19 +892,16 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
   std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
   char buffer[100];
   fgets(buffer,100,curr_dist_input_file); 
-  printf("setup: %lf norm, %lf pairs, %lf kbt\n", mat->normalization, num_of_pairs, mat->temperature * mat->boltzmann);
   for(int i = 0; i < num_entries; i++)
     {
 	  int first_nonzero_basis_index;
 	  double normalized_counts;
       fscanf(curr_dist_input_file,"%lf %d\n",&r,&counts);
       if (counts > 0) {
-	      normalized_counts = (double)(counts);
-    	  normalized_counts *= 2.0 * mat->normalization / num_of_pairs;
+	      normalized_counts = (double)(counts) * 2.0 * mat->normalization / num_of_pairs;
     	  potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
     	  printf("%lf: %d counts, potential = %lf\n", r, counts, potential);
       } else {
-      	printf("%lf: ZERO counts\n", r);
       	normalized_counts = 0.0;
       	potential = 100.0;
 		printf("Warning: Bin with no sampling encountered. Please increase bin size or use BI potenials with care.\n");
@@ -913,8 +910,6 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       	potential = VERYLARGE;
       }
       
-      fprintf(rdf_file, "%lf %lf\n", r, normalized_counts);
-
       icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
       mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
       mat->accumulate_target_force_element(mat, counter, &potential);
