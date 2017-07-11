@@ -1,6 +1,9 @@
 Release Notes
 =============
 
+Version 1.6.9 (July 11, 2017)
+	* Update license to GNU General Public License version 3 (GPLv3)
+	
 Version 1.6.8 (July 10, 2017)
 	* Adjustment and padding of output interactions
 	* Support for periodic and wrapping dihedral ranges

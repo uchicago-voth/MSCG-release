@@ -181,6 +181,9 @@ Copyright Notice
 ================
 MSCG Copyright (c) 2016, The Voth Group at The University of Chicago. All rights reserved.
 
+The code is distributed under the GNU General Public License version 3 (GPLv3). For details,
+see the LICENSE file.
+
 If you have questions about your rights to use or distribute this software,
 please contact the University of Chicago's Technology Transfer Office at 
 info-uchicagotech@uchicago.edu.
