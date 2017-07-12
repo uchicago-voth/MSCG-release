@@ -7,31 +7,52 @@ ID, group-ID are documented in fix command
 mscg = style name of this fix command
 N = envoke this fix every this many timesteps
 zero or more keyword/value pairs may be appended
-keyword = range or name or max
+keyword = range or rem or name or max
 
 range arg = on or off
   on = range finding functionality is performed
-  off = force matching functionality is performed
+  off = force matching functionality is performed if rem is also no, otherwise perform
+  		relative entropy functionality
+rem arg = on or off
+	on = relative entropy functionality is performed
+	off = force matching functionality is performed if range is also no, otherwise perform
+		 range finding functionality
 name args = name1 ... nameN
   name1,...,nameN = string names for each atom type (1-Ntype)
 max args = maxb maxa maxd
   maxb,maxa,maxd = maximum bonds/angles/dihedrals per atom
 
-~~~~~Examples~~~~~
+Note: range and rem CANNOT be set to "on" simultaneously.
 
+-----------Examples---------------
+
+# This does force matching. The output interactions are named by type number.
 fix 1 all mscg 1
+# This does range finding. The output interactions are named using the type names provided.
 fix 1 all mscg 1 range on name A B
+# This uses relative entropy to determine interactions
+fix 1 all mscg 1 rem on
+# This does does force matching. The maximum number of bond (4), angles (8), and dihedrals
+	(20) have been modified from their default values.
 fix 1 all mscg 1 max 4 8 20
 
 -----------Description---------------
 
-This fix applies the Multi-Scale Coarse-Graining (MSCG) method to snapshots from a dump 
+This fix applies the Multi-scale Coarse-graining (MS-CG) method to snapshots from a dump 
 file to generate potentials for coarse-grained simulations from all-atom simulations, 
 using a force-matching technique (Izvekov, Noid).
 
+This fix also allows the use of relative entropy to determine interactions as described by
+Shell et. al. (Shell, Chaimovich).
+
+The range finding functionality allows for the determination of interactions via Boltzmann
+Inversion when the appropriate output_*_parameter_distribution options are turned on in
+the control.in file. See the manual for more details.
+
 It makes use of the MS-CG library, written and maintained by Greg Voth’s group at the 
-University of Chicago, which is freely available on their MS-CG GitHub site. See 
-\instructions on obtaining and installing the MS-CG library in the src/MSCG/README file, 
+University of Chicago, which is freely available on their MS-CG GitHub site:
+https://github.com/uchicago-voth/MSCG-release
+See instructions on obtaining and installing the MS-CG library in the src/MSCG/README file, 
 which must be done before you build LAMMPS with this fix command and use the command in 
 a LAMMPS input script.
 
@@ -43,7 +64,7 @@ coarse-grained model and run coarse-grained simulations is as follows:
 1) Perform all-atom simulations on the system to be coarse grained.
 2) Generate a trajectory mapped to the coarse-grained model.
 3) Create input files for the MS-CG library.
-4) Run the range finder functionality of the MS-CG library.
+4) Run the range finding functionality of the MS-CG library.
 5) Run the force matching functionality of the MS-CG library.
 6) Check the results of the force matching.
 7) Run coarse-grained simulations using the new coarse-grained potentials.
@@ -65,15 +86,16 @@ examples/mscg/control.in file as an example. And see the documentation provided 
 MS-CG library for more info on this file.
 
 When this fix is used to perform steps 4 and 5, the MS-CG library also produces additional 
-output files. The range finder functionality (step 4) outputs files defining pair and 
+output files. The range finding functionality (step 4) outputs files defining pair and 
 bonded interaction ranges. The force matching functionality (step 5) outputs tabulated 
 force files for every interaction in the system. Other diagnostic files can also be output 
 depending on the parameters in the MS-CG library input script. Again, see the documentation 
 provided with the MS-CG library for more info.
 
-The range keyword specifies which MS-CG library functionality should be invoked. If on, 
-the step 4 range finder functionality is invoked. off, the step 5 force matching 
-functionality is invoked.
+The range and rem keywords specify which MS-CG library functionality should be invoked. If
+range is on, the step 4 range finding functionality is invoked. If rem is on, relative 
+entropy is used to to determine the step 5 interactions. If both range and rem are off, 
+the step 5 force matching functionality is invoked.
 
 If the name keyword is used, string names are defined to associate with the integer atom 
 types in LAMMPS. Ntype names must be provided, one for each atom type (1-Ntype).
@@ -104,3 +126,7 @@ The default keyword settings are range off, max 4 12 36.
 (Izvekov) Izvekov, Voth, J Chem Phys 123, 134105 (2005).
 
 (Noid) Noid, Chu, Ayton, Krishna, Izvekov, Voth, Das, Andersen, J Chem Phys 128, 134105 (2008).
+
+(Shell) Shell, J Chem Phys 129, 144108 (2008).
+
+(Chaimovich) Chaimovich, Shell, J Chem Phys 134, 094112 (2011).
