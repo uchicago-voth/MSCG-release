@@ -1,6 +1,9 @@
 Release Notes
 =============
 
+Version 1.6.10 (July 12, 2017)
+	* Added (and updated) fix mscg text for LAMMPS Manual
+	
 Version 1.6.9 (July 11, 2017)
 	* Update license to GNU General Public License version 3 (GPLv3)
 	
