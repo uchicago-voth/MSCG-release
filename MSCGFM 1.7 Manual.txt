@@ -175,11 +175,13 @@ Mt Mn       (* Mt = The molecule type using the ordering of the mol labels above
             (* Mn = The number molecules of this type that continuous in frame ordering) 
 ... ...     (Should have s rows of data)
 
-Note: lines (including comments) longer than 100 characters in top.in may 
-confuse the parser, which can lead to a crash or nonsense output.
+Note: There is no longer a limitation to line length (including comments) in
+control.in, top.in, or the rmin*.in files. However, comments should be on the same line
+as the content. Also, type names longer than 24 characters or spaces are not permitted.
 
-For examples of systems with non-trivial topologies, please examine the "lipid_fm" and
-"table_fm" sub-directories of the examples.
+For examples of systems with non-trivial topologies, please examine the "lipid_fm",
+"table_fm", "validate-bond", "validate-angle-180", and "validate-dihedral-0" 
+sub-directories of the examples.
 
 III.B.2) Creating tabulated interactions
 ========================================
