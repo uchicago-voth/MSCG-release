@@ -830,14 +830,6 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   mat->accumulation_matrix_columns = mat->fm_matrix_columns;
   mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
   
-  // These are variables from REM matrix that look like they are not needed here.
-  // mat->temperature = control_input->temperature;
-  // mat->rem_chi = control_input->REM_iteration_step_size;
-  // mat->boltzmann = control_input->boltzmann;
-  // mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
-  // These commented out function pointers are set in FM
-  // mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
-
   // Allocate the basic relative entropy matrix parts
   mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
   mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
