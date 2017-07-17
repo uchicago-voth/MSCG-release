@@ -791,7 +791,7 @@ papers were listed at the beginning of this manual.
 4. To use iterative force matching, one must first run the code using 
    "primary_output_style 2" and "output_solution_flag 1". Then,rename result.out to 
    result.in and x.out to x.in.  Finally, use the "lanyuan_iterative_method_flag" and 
-   "iterative_update_rate_coeff" options in control.in when running the code again with
+   "iteration_step_size" options in control.in when running the code again with
    the CG simulation as described in the reference. For additional iterations, copy the 
    new "result.out" to "result.in" and the new "x.out" to "x.in" before running the
    force matching code again with additional data.
