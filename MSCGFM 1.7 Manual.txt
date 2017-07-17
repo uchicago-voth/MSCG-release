@@ -579,10 +579,6 @@ lanyuan_iterative_method_flag (0)
     Whether or not to use Lanyuan's iterative FM method instead of the usual FM
     * 0: no 
     * 1: yes
-iterative_update_rate_coeff (1.0) 
-    A parameter used to control rate of convergence in iterative force-matching
-    Lower values imply a less aggressive fixed-point iteration
-    Only used when lanyuan_iterative_method_flag = 1
 primary_output_style (0) 
     Used to specify how this force-matching run's results should be used
     The binary matrix output is written to "result.out"
@@ -620,9 +616,13 @@ boltzmann (0.0019872041)
     The default value assumes energy units of kcal/mol.
     The value needs to be adjusted so that the units match those of the interaction energy.
     Only used in newrem.
-REM_iteration_step_size (1.0)
-     This is the adjustable step size parameter used in the gradient decent routine in 
-     newrem. 
+iteration_step_size (1.0)
+     This is used in both relative entropy (newrem) and iterative force-matching.
+     * For newrem, it is the adjustable step size parameter used in the gradient decent 
+     routine in newrem. 
+     * For iterative force-matching, it control rates of convergence.
+     Lower values imply a less aggressive fixed-point iteration.
+     Only used when lanyuan_iterative_method_flag = 1
 REM_reference_style (0)
 	What format information about the reference model is provided in.
 	* 0: trajectory (usual command line options, e.g. -l_ref ref.lammpstrj)

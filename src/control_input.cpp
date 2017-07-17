@@ -119,10 +119,9 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
 	else if (strcmp("output_density_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_density_parameter_distribution);
     else if (strcmp("output_raw_splines", parameter_name) == 0) sscanf(val, "%d", &control_input->output_raw_splines);
     else if (strcmp("output_raw_frame_blocks", parameter_name) == 0) sscanf(val, "%d", &control_input->output_raw_frame_blocks);
-    else if (strcmp("iterative_update_rate_coeff", parameter_name) == 0) sscanf(val, "%lf", &control_input->iterative_update_rate_coeff);
     else if ((strcmp("temperature", parameter_name) == 0) || (strcmp("Temperature", parameter_name) == 0)) sscanf(val, "%lf", &control_input->temperature);
     else if (strcmp("boltzmann", parameter_name) == 0) sscanf(val, "%lf", &control_input->boltzmann);
-    else if (strcmp("REM_iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->REM_iteration_step_size);
+    else if (strcmp("iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->iteration_step_size);
     else if (strcmp("REM_reference_style", parameter_name) == 0) sscanf(val, "%d", &control_input->REM_reference_style);
     else printf("Warning: Unknown parameter name '%s' in control.in: line %d!\n", parameter_name, line);
 }
@@ -233,9 +232,8 @@ ControlInputs::ControlInputs(void)
 	output_density_parameter_distribution = 0;
 	output_raw_splines = 0;
 	output_raw_frame_blocks = 0;
-    iterative_update_rate_coeff = 1.0;
     REM_reference_style = 0;
-    REM_iteration_step_size = 1.0;
+    iteration_step_size = 1.0;
     temperature = 300;
     boltzmann = 0.0019872041;
 

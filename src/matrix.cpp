@@ -777,7 +777,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
     mat->accumulation_matrix_columns = mat->fm_matrix_columns;
     mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
     mat->temperature = control_input->temperature;
-    mat->rem_chi = control_input->REM_iteration_step_size;
+    mat->iteration_step_size = control_input->iteration_step_size;
     mat->boltzmann = control_input->boltzmann;
 
 	// Allocate the basic relative entropy matrix parts
@@ -3540,7 +3540,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         for (i = 0; i < mat->fm_matrix_columns; i++) fscanf(x_in, "%le", x0 + i);
         fclose(x_in);
         //test
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
+        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iteration_step_size + x0[i];
         delete [] x0;
     }
 
@@ -3742,7 +3742,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         for (int i = 0; i < mat->fm_matrix_columns; i++) x_in >> x0[i];
         x_in.close();
         
-        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iteration_step_size + x0[i];
         delete [] x0;
     }
 
@@ -3768,13 +3768,13 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
-  update_these_rem_parameters(beta, mat_cg->rem_chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
+  update_these_rem_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
 }
 
 void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
-  double chi = mat_cg->rem_chi;
+  double chi = mat_cg->iteration_step_size;
   std::vector<double> back_previous_rem_solution(mat_ref->fm_matrix_columns);
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   // copy previous_rem_solution to bootstrapping copies

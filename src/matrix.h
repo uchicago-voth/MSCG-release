@@ -292,7 +292,7 @@ struct MATRIX_DATA {
 	// REM variables
 	std::vector<double> previous_rem_solution;        // Previous spline coeffs to be used in REM iteration
     double temperature;
-    double rem_chi;
+    double iteration_step_size;
     double boltzmann;
     
     // Optional extras for any matrix_type
@@ -303,8 +303,6 @@ struct MATRIX_DATA {
     // Optional extras for dense-matrix-based calculations
     double current_frame_weight;
     int iterative_calculation_flag;         // 0 for a non-iterative calculation; 1 to use Lanyuan's iterative force matching method
-    double iterative_update_rate_coeff;                     // The parameter setting the aggressiveness of the fixed-point iteration used in Lanyuan's iterative force matching method
-
 	
 	// Optional extras for bootstrapping (dense and sparse)
 	int bootstrapping_flag;

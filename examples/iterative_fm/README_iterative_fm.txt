@@ -33,7 +33,7 @@ sampling to produce a converged result.
    "MeOH_MeOH.table" are provided as "MeOH_CG.dat".
    
 7) It is important that the "control.in" file has "lanyuan_iterative_method_flag 1". The
-   "iterative_update_rate_coeff" can also be set to a non-default value (1.0 is default).
+   "iteration_step_size" can also be set to a non-default value (1.0 is default).
    If additional runs are anticipated, than the other flags in mentioned in step 3 must 
    be set as in that step. Copy the "control1.in" file as "control.in". Then, run the 
    force matching executable again using LAMMPS trajectory input on the CG trajectory

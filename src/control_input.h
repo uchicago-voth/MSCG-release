@@ -123,7 +123,7 @@ typedef struct ControlInputs {
     
     //REM specification
     int REM_reference_style;
-  	double REM_iteration_step_size;
+  	double iteration_step_size;
   	double temperature;
   	double boltzmann;
 
@@ -131,7 +131,6 @@ typedef struct ControlInputs {
     int matrix_type;
     int itnlim;
     int iterative_calculation_flag;
-    double iterative_update_rate_coeff;
     double tikhonov_regularization_param;
     int regularization_style;
     double rcond;
