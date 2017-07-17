@@ -1,12 +1,12 @@
-block_size 1  
-start_frame 1 
-n_frames 19      
-nonbonded_cutoff 10.0            
-basis_type 0                    
-primary_output_style 0
-output_solution_flag 1
-output_spline_coeffs_flag 1
-pair_nonbonded_bspline_basis_order 6
-pair_nonbonded_basis_set_resolution 0.7
-pair_nonbonded_output_binwidth 0.1
-matrix_type 0
+block_size 1  	# Number of frames processed before normal form accumulation (for dense matrix it must be 1)
+start_frame 1 	# First frame to start processing (1 is the first frame)
+n_frames 19     # Number of frames to process (this runs from start_frame to start_frame + n_frames)
+nonbonded_cutoff 10.0 # Cutoff distance for non-bonded interactions. This is in the same units as the input trajectory. It is used to determine cell/neighbor list size.
+basis_type 0          # 0 uses B-splines (default)
+primary_output_style 0 # (only) output tabulated interactions (default)
+output_solution_flag 1 # Output singular values in sol_info.out (for dense matrix)
+output_spline_coeffs_flag 1 # Write spline coefficients to b-spline.out
+pair_nonbonded_bspline_basis_order 6 # B-spline order for pair non-bonded interactions.
+pair_nonbonded_basis_set_resolution 0.7 # Spacing of spline knots for pair non-bonded B-splines (internal representation).
+pair_nonbonded_output_binwidth 0.1	# Spacing output files for pair non-bonded interactions.
+matrix_type 0 # dense matrix (default)

@@ -20,5 +20,5 @@ regularization_style 1
 regularization_scalar 1.0
 dynamic_types 1
 angle type 1
-bayesian_mscg_flag 1
-bayesian_max_iterations 10
+bayesian_mscg_flag 1		# Use Bayesian (refinement) MS-CG
+bayesian_max_iterations 10  # Number of iterations for Bayesian MS-CG

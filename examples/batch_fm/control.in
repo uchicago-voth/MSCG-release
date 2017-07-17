@@ -1,12 +1,12 @@
-block_size 10 
-start_frame 1        
+block_size 10 	# irrelevent to combinefm
+start_frame 1   # irrelevant to combinefm
 n_frames 100000   
-nonbonded_cutoff 1.6          
-basis_type 1         
-pair_nonbonded_basis_set_resolution 0.002 
-pair_nonbonded_output_binwidth 0.002
+nonbonded_cutoff 1.6  # This value needs to match the value for the individual runs  
+basis_type 1          # Use linear splines. This value needs to match the value for the individual runs 
+pair_nonbonded_basis_set_resolution 0.002 # This value needs to match the value for the individual runs 
+pair_nonbonded_output_binwidth 0.002 # This value needs to match the value for the individual runs 
 matrix_type 0         
-primary_output_style 2         
+primary_output_style 2  # Output tables and binary representations (x.out) of the blockwise matrix equations
 output_solution_flag 1
 output_spline_coeffs_flag 1
 

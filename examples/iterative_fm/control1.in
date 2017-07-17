@@ -7,7 +7,7 @@ pair_nonbonded_bspline_basis_order 6
 pair_nonbonded_basis_set_resolution 0.7    
 matrix_type 0          
 pair_nonbonded_output_binwidth 0.1
-primary_output_style 2       
+primary_output_style 2       # output tables and binary representations of the blockwise matrix equations
 output_solution_flag 1
 output_spline_coeffs_flag 1
-lanyuan_iterative_method_flag 1
+lanyuan_iterative_method_flag 1 # Do iterative force-matching with specified (step-size, default 1)

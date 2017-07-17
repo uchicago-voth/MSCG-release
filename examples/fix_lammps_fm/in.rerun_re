@@ -4,14 +4,17 @@ atom_style	full
 
 read_data data.MeOH_CG
 
+# Use pair_style that does not compute interactions, but does generate neighbor lists
 pair_style zero 10.0
+pair_coeff * *
+
 kspace_style none
 bond_style	none
 angle_style     none
 dihedral_style  none
 
-pair_coeff * *
-
+# Create fix for relative entropy (rem on) with first type called "MeMe"
 fix 1 all mscg 1 rem on name MeMe
 
+# Process trajectory via rerun
 rerun MeOH_example.dat first 0 last 2000000 every 1 dump x y z box yes

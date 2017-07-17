@@ -17,4 +17,4 @@ max_pair_bonds_per_site 6
 regularization_style 1
 regularization_scalar 1.0
 iteration_step_size 0.1
-output_pair_nonbonded_parameter_distribution 1
+output_pair_nonbonded_parameter_distribution 1 # BI is done for interactions with the output*parameter_distribution flag set for rangefinder. This option also generates histograms *.hist and rdfs *.rdf

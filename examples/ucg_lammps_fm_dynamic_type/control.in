@@ -12,4 +12,4 @@ primary_output_style 2
 output_solution_flag 1
 output_spline_coeffs_flag 1
 lanyuan_iterative_method_flag 0
-dynamic_types 1
+dynamic_types 1 # Update types each frame by reading them from trajectory
