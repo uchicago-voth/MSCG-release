@@ -1,13 +1,13 @@
 cgsites 500
-cgtypes 2
-1
+cgtypes 2	# Number of CG types
+1			# Name for each CG type (1 per line)
 2
-moltypes 1 
-mol 2 3
-sitetypes
-1
+moltypes 1  # Number of molecule types
+mol 2 3		# Information on first molecule (number of sites, topology style)
+sitetypes	
+1			# List the type of each site in the molecule (1 per line)
 2
-bonds 1
-1 2
+bonds 1		# Number of bonds in molecule (if yes, list pairs in extra lines)
+1 2			# List pair of sites based on index (ordering) in sitetypes
 system 1
 1 250

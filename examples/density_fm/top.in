@@ -2,11 +2,11 @@ cgsites 500
 cgtypes 2
 1
 2
-density_nonbonded 2
-ALL 1 2
+density_nonbonded 2 # When density_interactions_flag != 0, number of density_groups
+ALL 1 2				# Name of density group followed by types in group (1 group per line)
 T1 1
-density_weights 3
-ALL 1 1.0
+density_weights 3   # When density_weights_flag != 0, number of weights specified
+ALL 1 1.0			# Name of density group (above), type in density group, weight for this pairing
 ALL 2 1.0
 T1 1 2.0
 moltypes 1 

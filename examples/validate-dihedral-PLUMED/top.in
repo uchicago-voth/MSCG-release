@@ -39,8 +39,8 @@ angles 10 0	//list the numbers in the order middle-end-end
 9 8 10
 10 9 11
 11 10 12
-dihedrals 9 0
-3 2 1 4
+dihedrals 9 0 # Number of dihedrals in molecule (9) and format (0 = middle_A - middle_B - end_A - end_B)
+3 2 1 4 # List sets of sites that are angles based on ordering in siteypes (see format above)
 4 3 2 5
 5 4 3 6
 6 5 4 7
