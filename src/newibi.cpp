@@ -3,7 +3,7 @@
 //
 //  The driver implements iterative Boltzmann inversion for interaction potentials.
 //
-//  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
+//  Copyright (c) 2017 The Voth Group at The University of Chicago. All rights reserved.
 //
 
 // Note: This currently only does reweighting of REF trajectory.
@@ -115,8 +115,8 @@ int main(int argc, char* argv[])
     set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
-    printf("Initializing up REM matrix.\n");
-    control_input.matrix_type = kREM;
+    printf("Initializing BI matrix.\n");
+    control_input.matrix_type = kREM; // Intentionally re-using REM matrix for BI
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
     

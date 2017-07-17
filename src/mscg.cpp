@@ -133,7 +133,7 @@ void* rem_startup_part1(void* void_in)
 
     // It is assumed that the trajectory run through LAMMPS is the "CG" trajectory.
     // Information about the reference trajectory must be input as a pre-processed
-    // matrix or rdf using either option 1 or 2 for REM_reference_style in control.in.
+    // matrix or rdf using either option 1 or 2 for reference_input_style in control.in.
     // Note: Rangefinder will generate *.rdf files when the output_*_parameter_distribution
     // options are enabled.
         	
@@ -670,24 +670,29 @@ void* rem_process_frame(void* void_in, double* const x, double* const f)
 	
 	// Read reference matrix if this is the first frame processed
 	if (mscg_struct->curr_frame == 0) {
-	  	// Read in the reference data from file based on the REM_reference_style setting.
-	  	if (mscg_struct->control_input->REM_reference_style == 0) {
+	  	// Read in the reference data from file based on the reference_input_style setting.
+	  	if (mscg_struct->control_input->reference_input_style == 0) {
     		printf("When using LAMMPS, reference information cannot be read from frames.\n");
-    		printf("Please change your REM_reference_style and try again!\n");
+    		printf("Please change your reference_input_style and try again!\n");
     		fflush(stdout);
     		exit(EXIT_FAILURE);
-		} else if (mscg_struct->control_input->REM_reference_style == 1) {
+		} else if (mscg_struct->control_input->reference_input_style == 1) {
 			printf("Reading reference matrix from file.\n");
     		construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat);
-    	} else if (mscg_struct->control_input->REM_reference_style == 2) {
+    	} else if (mscg_struct->control_input->reference_input_style == 2) {
     		printf("Reading reference distribution functions.\n");
     		// The CG box size is used for volume since there is no box size specified for the reference system.
 	    	construct_rem_matrix_from_rdfs(p_cg, mscg_struct->ref_mat, calculate_volume(p_frame_source->simulation_box_limits));
 		} else {
-   			printf("Unrecognized REM_reference_style (%d)!\n", mscg_struct->control_input->REM_reference_style);
+   			printf("Unrecognized reference_input_style (%d)!\n", mscg_struct->control_input->reference_input_style);
    			fflush(stdout);
    			exit(EXIT_FAILURE);
     	}
+    	// CG input must be via trajectory here 
+		if (mscg_struct->control_input->cg_input_style != 0) {
+			printf("REM does not support non-zero cg_input_styles!\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	
 	// Initialize the cell linked lists for finding neighbors in the provided frames;

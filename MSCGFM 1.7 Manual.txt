@@ -623,7 +623,7 @@ iteration_step_size (1.0)
      * For iterative force-matching, it control rates of convergence.
      Lower values imply a less aggressive fixed-point iteration.
      Only used when lanyuan_iterative_method_flag = 1
-REM_reference_style (0)
+reference_input_style (0)
 	What format information about the reference model is provided in.
 	* 0: trajectory (usual command line options, e.g. -l_ref ref.lammpstrj)
 	* 1: matrix from previous iteration (reference_matrix.out)

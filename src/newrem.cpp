@@ -52,6 +52,10 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
+	if (control_input.cg_input_style != 0) {
+		printf("REM does not support non-zero cg_input_styles!\n");
+		exit(EXIT_FAILURE);
+	}
 	copy_control_inputs_to_frd(&control_input, &fs_cg, &fs_ref);
     
     // Forces are not needed from the trajectory for this method.
@@ -116,7 +120,7 @@ int main(int argc, char* argv[])
     set_up_force_computers(&cg);
 
     // Initialize the entropy minimizing matrix.
-    printf("Initializing up REM matrix.\n");
+    printf("Initializing REM matrix.\n");
     control_input.matrix_type = kREM;
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
@@ -146,19 +150,19 @@ int main(int argc, char* argv[])
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
     // Process FG data
-    // The manner of constructing the reference matrix depends on REM_reference_style.
-	if (control_input.REM_reference_style == 0) {
+    // The manner of constructing the reference matrix depends on reference_input_style.
+	if (control_input.reference_input_style == 0) {
     	printf("Reading reference frames.\n");
     	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
-	} else if (control_input.REM_reference_style == 1) {
+	} else if (control_input.reference_input_style == 1) {
 		printf("Reading reference matrix from file.\n");
     	construct_rem_matrix_from_input_matrix(&mat_ref);
-    } else if (control_input.REM_reference_style == 2) {
+    } else if (control_input.reference_input_style == 2) {
     	printf("Reading reference distribution functions.\n");
     	// The CG box size is used for volume since there is no box size specified for the reference system.
     	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
 	} else {
-   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
+   		printf("Unrecognized reference_input_style (%d)!\n", control_input.reference_input_style);
    		fflush(stdout);
    		exit(EXIT_FAILURE);
     }

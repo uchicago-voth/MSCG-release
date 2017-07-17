@@ -121,8 +121,9 @@ typedef struct ControlInputs {
     int output_raw_splines;
     int output_raw_frame_blocks;
     
-    //REM specification
-    int REM_reference_style;
+    //REM and IBI specification
+    int reference_input_style;
+    int cg_input_style;
   	double iteration_step_size;
   	double temperature;
   	double boltzmann;

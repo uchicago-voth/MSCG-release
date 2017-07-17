@@ -122,7 +122,8 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if ((strcmp("temperature", parameter_name) == 0) || (strcmp("Temperature", parameter_name) == 0)) sscanf(val, "%lf", &control_input->temperature);
     else if (strcmp("boltzmann", parameter_name) == 0) sscanf(val, "%lf", &control_input->boltzmann);
     else if (strcmp("iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->iteration_step_size);
-    else if (strcmp("REM_reference_style", parameter_name) == 0) sscanf(val, "%d", &control_input->REM_reference_style);
+    else if (strcmp("reference_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->reference_input_style);
+    else if (strcmp("cg_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->cg_input_style);
     else printf("Warning: Unknown parameter name '%s' in control.in: line %d!\n", parameter_name, line);
 }
 
@@ -232,7 +233,8 @@ ControlInputs::ControlInputs(void)
 	output_density_parameter_distribution = 0;
 	output_raw_splines = 0;
 	output_raw_frame_blocks = 0;
-    REM_reference_style = 0;
+    reference_input_style = 0;
+    cg_input_style = 0;
     iteration_step_size = 1.0;
     temperature = 300;
     boltzmann = 0.0019872041;

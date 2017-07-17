@@ -350,14 +350,24 @@ void copy_control_inputs_to_frd(ControlInputs * const control_input, FrameSource
 	// so set the ref bootstrapping flag to 0
 	fs_ref->bootstrapping_flag = 0;
 	
-	// Handle non-trajectory reference input.
-	if (control_input->REM_reference_style != 0) {
+	// Handle non-trajectory reference input (for REM and IBI only).
+	if (control_input->reference_input_style != 0) {
 		fs_ref->trajectory_type = kRef;
 		fs_ref->get_first_frame = initial_nothing;
 		fs_ref->get_next_frame = next_nothing;
 		fs_ref->get_junk_frame = next_nothing;
 		fs_ref->cleanup = finish_general_reading;
 	}
+	
+	// Handle non-trajectory CG input (for IBI only).
+	if (control_input->cg_input_style != 0) {
+		fs_cg->trajectory_type = kRef;
+		fs_cg->get_first_frame = initial_nothing;
+		fs_cg->get_next_frame = next_nothing;
+		fs_cg->get_junk_frame = next_nothing;
+		fs_cg->cleanup = finish_general_reading;
+	}
+
 }
 
 inline void finish_general_reading(FrameSource *const frame_source)
