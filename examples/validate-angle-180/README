@@ -1,8 +1,7 @@
-The example is used to validate the handling and fitting on angular interactions.
-The system is a single molecule consisting of 2 particles that only interact through a harmonic angle
+The example is used to validate the handling and fitting of angular interactions.
+The system is a single molecule consisting of 3 particles that only interact through a harmonic angle
 with spring constant 100.0 kcal/mol rad^2 and an equilibrium angle of 180 degrees.
 There are 5,000 frames provided.
-The reference forces (that should be produced from fitting) are reference_bond.dat
 
 3particles.lammpstrj is a lammps trajectory of 3 partilces. 
 3particles_dump_ang.txt is a lammps dump of the angle and energy at the angle
