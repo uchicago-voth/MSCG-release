@@ -888,7 +888,7 @@ void* rem_solve_and_output(void* void_in)
 
 	//Read in spline coefficents used in the previous iteration.
     printf("Reading in previous iteration's solution.\n");
-    read_previous_rem_solution(p_cg, mat);
+    read_previous_solution(p_cg, mat);
 
 	printf("Finished constructing REM equations.\n");
     if (p_frame_source->bootstrapping_flag == 1) {

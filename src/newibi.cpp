@@ -141,18 +141,38 @@ int main(int argc, char* argv[])
     }
 
 	// Process CG data
+/* 
+    // The manner of constructing the CG matrix depends on cg_input_style.
+	if (control_input.cg_input_style == 0) {
+    	printf("Reading CG frames.\n");
+    	construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);    
+	} else if (control_input.cg_input_style == 1) {
+		printf("Reading CG matrix from file.\n");
+    	construct_rem_matrix_from_input_matrix(&mat_cg);
+    } else if (control_input.cg_input_style == 2) {
+    	printf("Reading CG distribution functions.\n");
+    	// How do I do this if both CG and REF do not provide a trajectory?
+    	// The CG box size is used for volume since there is no box size specified for the reference system.
+    	construct_rem_matrix_from_rdfs(&cg, &mat_cg, calculate_volume(fs_cg.simulation_box_limits));
+	} else {
+   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
+   		fflush(stdout);
+   		exit(EXIT_FAILURE);
+    }
+
+*/
     printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    // Process FG data
-    // The manner of constructing the reference matrix depends on REM_reference_style.
-	if (control_input.REM_reference_style == 0) {
+    // Process REF data
+    // The manner of constructing the reference matrix depends on reference_input_style.
+	if (control_input.reference_input_style == 0) {
     	printf("Reading reference frames.\n");
     	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
-	} else if (control_input.REM_reference_style == 1) {
+	} else if (control_input.reference_input_style == 1) {
 		printf("Reading reference matrix from file.\n");
     	construct_rem_matrix_from_input_matrix(&mat_ref);
-    } else if (control_input.REM_reference_style == 2) {
+    } else if (control_input.reference_input_style == 2) {
     	printf("Reading reference distribution functions.\n");
     	// The CG box size is used for volume since there is no box size specified for the reference system.
     	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
@@ -161,11 +181,13 @@ int main(int argc, char* argv[])
    		fflush(stdout);
    		exit(EXIT_FAILURE);
     }
-    
+
+/**/    
     //Read in spline coefficents used in the previous iteration.
     printf("Reading in previous iteration's solution.\n");
     read_previous_rem_solution(&cg, &mat_cg);
 
+/**/
     //Find the solution to the entropy minimization equations.
     printf("Calculating new REM parameters.\n");
     if (fs_cg.bootstrapping_flag == 1) {

@@ -482,8 +482,8 @@ void read_binary_matrix(MATRIX_DATA* const mat);
 // Methods of constructing reference data for relative entropy.
 void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat);
 
-// Read text file of previous iteration b-spline coefficients for relative entropy.
-void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
+// Read text file of previous iteration b-spline coefficients for relative entropy and iterative boltzmann_inversion.
+void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, const double volume);
 
 // "Finish FM" for REM

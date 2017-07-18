@@ -145,11 +145,11 @@ int main(int argc, char* argv[])
     	set_bootstrapping_normalization(&mat_cg, fs_cg.bootstrapping_weights, fs_cg.n_frames);
     }
 
-	// Process CG data
+	// Process (new) CG data
     printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
-    // Process FG data
+    // Process REF data
     // The manner of constructing the reference matrix depends on reference_input_style.
 	if (control_input.reference_input_style == 0) {
     	printf("Reading reference frames.\n");
@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
     
     //Read in spline coefficents used in the previous iteration.
     printf("Reading in previous iteration's solution.\n");
-    read_previous_rem_solution(&cg, &mat_cg);
+    read_previous_solution(&cg, &mat_cg);
 
     //Find the solution to the entropy minimization equations.
     printf("Calculating new REM parameters.\n");

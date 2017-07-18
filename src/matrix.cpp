@@ -4248,7 +4248,7 @@ void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat)
 	mat->dense_fm_normal_matrix->read_dense_matrix("reference_matrix.out");
 }
 
-void read_previous_rem_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
+void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
 {
   FILE* spline_input_file = open_file("b-spline-previous.out","r");
 
