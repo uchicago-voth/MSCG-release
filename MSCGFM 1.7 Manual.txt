@@ -630,6 +630,14 @@ reference_input_style (0)
 	* 2: distribution functions (i.e., RDFs for each interaction). 
 	Note: Distribution functions can be generated from rangefinder using the 
 	  output_*_parameter_distribution options.
+cg_input_style (0)
+	What format information about the (new) CG model is provided in.
+	* 0: trajectory (usual command line options, e.g. -l_cg ref.lammpstrj)
+	* 1: matrix from previous iteration (cg_matrix.out)
+	* 2: distribution functions (i.e., RDFs for each interaction). 
+	Note: Distribution functions can be generated from rangefinder using the 
+	  output_*_parameter_distribution options.
+	Note: when either cg or reference input style is 2, the other input_style must be 0. 
 cg_observable_flag (0)
 	Whether or not CG observable values are read in from observables.cg
 	(only for recode.x)
@@ -644,6 +652,7 @@ III.C) Interaction Determination
 *Boltzmann inversion
 *Force-Matching
 *Relative entropy minimization
+*Iterative Boltzmann inversion
 
 III.C.1) Boltzmann inversion
 ============================
@@ -700,7 +709,7 @@ trajectory (similar to the trajectory you would give to newfm.x) and a cg trajec
 simulated using either initial guess interactions or the iteractions provided by the previous
 iteration of newrem.x. The executable also expects a file "b-spline-previous.out", which contains
 the basis set coefficients used in creating the cg trajectory (using interactions generated via 
-BI from rangefinder.x is recommended). After the execuatble is run, the code will output a 
+BI from rangefinder.x is recommended). After the executable is run, the code will output a 
 tabulated force file for every interaction in the system, labeled by the CG site types involved 
 and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
 for the next iteration of the entropy minimization. The lammps_rem example has a script that
@@ -708,6 +717,33 @@ can be used to perform multiple iterations.
 
 Note: The *.dat files here will contain potentials instead of forces.
 Note: Forces are not needed in the input mapped trajectory.
+Note: The reference information can be provided via distribution functions or a pre-processed
+matrix using the reference_input_style.
+
+III.C.4) Iterative Boltzmann inversion
+============================
+
+Once all of the files have been prepared, newibi.x can be used to calculate interactions
+via iterative Boltzmann inversion.
+
+To use newibi.x, set "primary_output_style" in "control.in" to either 0 or 2. The executable
+newibi.x expects two trajectories, a reference trajectory that is made from a mapped atomistic
+trajectory (similar to the trajectory you would give to newfm.x) and a cg trajectory that is
+simulated using either initial guess interactions or the iteractions provided by the previous
+iteration of newrem.x. The executable also expects a file "b-spline-previous.out", which contains
+the basis set coefficients used in creating the cg trajectory (using interactions generated via 
+BI from rangefinder.x is recommended). After the executable is run, the code will output a 
+tabulated force file for every interaction in the system, labeled by the CG site types involved 
+and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
+for the next iteration of the entropy minimization. The lammps_rem example has a script that
+can be used to perform multiple iterations. 
+
+Note: The *.dat files here will contain potentials instead of forces.
+Note: Forces are not needed in the input mapped trajectory.
+Note: The reference and cg information can be provided via distribution functions or a pre-processed
+matrix using the reference_input_style.
+Note: Only one model (reference or cg) can be input via distribution function at a time. 
+When it is, the other model must be input via trajectory.
 
 III.D) Check results
 ~~~~~~~~~~~~~~~~~~~~
