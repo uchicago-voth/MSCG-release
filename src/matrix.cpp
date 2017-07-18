@@ -4317,9 +4317,9 @@ void read_regularization_vector(MATRIX_DATA* const mat)
     lambda_in.close();
 }
 
-void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, std::string &filename)
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, const char* filename)
 {
-	mat->dense_fm_normal_matrix->read_dense_matrix(filename.c_str());
+	mat->dense_fm_normal_matrix->read_dense_matrix(filename);
 }
 
 void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)

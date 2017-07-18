@@ -480,7 +480,7 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
 void read_binary_matrix(MATRIX_DATA* const mat);
 
 // Methods of constructing reference data for relative entropy.
-void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, std::string &filename);
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, const char * filename);
 
 // Read text file of previous iteration b-spline coefficients for relative entropy and iterative boltzmann_inversion.
 void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
