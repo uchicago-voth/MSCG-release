@@ -181,20 +181,18 @@ int main(int argc, char* argv[])
    		fflush(stdout);
    		exit(EXIT_FAILURE);
     }
-
-/**/    
+   
     //Read in spline coefficents used in the previous iteration.
     printf("Reading in previous iteration's solution.\n");
-    read_previous_rem_solution(&cg, &mat_cg);
+    read_previous_solution(&cg, &mat_cg);
 
-/**/
     //Find the solution to the entropy minimization equations.
     printf("Calculating new REM parameters.\n");
     if (fs_cg.bootstrapping_flag == 1) {
-    	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
+    	calculate_new_ibi_parameters_and_bootstrap(&mat_cg, &mat_ref);
 		free_bootstrapping_weights(&fs_cg);
 	} else {
-		calculate_new_rem_parameters(&mat_cg, &mat_ref);
+		calculate_new_ibi_parameters(&mat_cg, &mat_ref);
 	} 
 
     // Write tabulated interaction files resulting from the basis set

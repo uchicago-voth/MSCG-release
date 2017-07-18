@@ -35,6 +35,7 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
 
 // Helper matrix initialization routines
 
+void matrix_sanity_checks(ControlInputs* const control_input);
 void determine_matrix_columns_and_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg, int const frames_per_traj_block, int const pressure_constraint_flag);
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void log_n_basis_functions(InteractionClassSpec &ispec);
@@ -134,6 +135,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
 void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution);
+void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &cg_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution);
 
 // Bootstrapping routines
 
@@ -173,71 +175,7 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg)
 {
     // Perform sanity checks on the new parameters 
-    #if _mkl_flag == 1
-	mkl_set_num_threads(control_input->num_sparse_threads);
-	#else 
-	if (MatrixType(control_input->matrix_type) == kSparse || MatrixType(control_input->matrix_type) == kSparseSparse) {
-        printf("Cannot use sparse solving (matrix_type 1 or 4) unless compiling with MKL (use newfm_mkl.x in makefile).\n");
-		exit(EXIT_FAILURE);
-    }
-	if (MatrixType(control_input->matrix_type) == kSparseNormal) {
-        printf("Cannot use sparse accumulation (matrix_type 3) unless compiling with MKL for the time being (use newfm_mkl.x in makefile).\n");
-		exit(EXIT_FAILURE);
-    }
-	#endif
-    
-    // Ignore a user's choice to output certain quantities if they will not be calculated.
-    if ( ((MatrixType)(control_input->matrix_type) != kDense) && ((MatrixType)(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
-        printf("Cannot output normal equations if normal equations are not being calculated.\n");
-        printf("Use a different FM matrix format.\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Override a user's choice of block_size if it conflicts with use_statistical_reweighting flag
-    if ( (control_input->use_statistical_reweighting == 1) && (control_input->frames_per_traj_block != 1) ) {
-    	printf("Cannot use statistical reweighting with %d frames per trajectory block.\n", control_input->frames_per_traj_block);
-    	printf("Setting block_size to 1.\n");
-    	control_input->frames_per_traj_block = 1;
-    }
-	
-	if ( (control_input->bootstrapping_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
-		printf("Cannot use bootstrapping with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
-		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if ( (control_input->volume_weighting_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
-		printf("Cannot use volume weighting with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
-		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if ( ((MatrixType)(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
-		printf("Cannot use dense matrix_type (0) with %d frames per trajectory block\n", control_input->frames_per_traj_block);
-		printf("Setting block_size to 1.\n");
-		control_input->frames_per_traj_block = 1;
-	}
-	
-	if( ((MatrixType)(control_input->matrix_type) == kREM) && (control_input->frames_per_traj_block == 1) ) {
-	    printf("frame block size must be 1 when doing relative entropy minimization\n");
-	    printf("Setting block_size to 1.\n");
-	    control_input->frames_per_traj_block = 1;
-	}
-	
-	if (control_input->frames_per_traj_block < 1) {
-		printf("Please change the block size to a positive number and recheck your inputs before rerunning.\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if (control_input->position_dimension <= 0) {
-		printf("Position dimension must be a positive integer\n");
-		exit(EXIT_FAILURE);
-    }
-    
-    if (control_input->position_dimension != DIMENSION) {
-    	printf("The value of position_dimension(%d) in control_input does not match the compiled dimension(%d)!\n", control_input->position_dimension, DIMENSION);
-    	exit(EXIT_FAILURE);
-    }
+	matrix_sanity_checks(control_input);
     
     // Copy over basic data members.
     output_style 					= control_input->output_style;
@@ -352,6 +290,76 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	}
 
     printf("Finished initializing FM matrix.\n");
+}
+
+// Perform sanity checks on the new parameters 
+void matrix_sanity_checks(ControlInputs* const control_input) {
+
+    #if _mkl_flag == 1
+	mkl_set_num_threads(control_input->num_sparse_threads);
+	#else 
+	if (MatrixType(control_input->matrix_type) == kSparse || MatrixType(control_input->matrix_type) == kSparseSparse) {
+        printf("Cannot use sparse solving (matrix_type 1 or 4) unless compiling with MKL (use newfm_mkl.x in makefile).\n");
+		exit(EXIT_FAILURE);
+    }
+	if (MatrixType(control_input->matrix_type) == kSparseNormal) {
+        printf("Cannot use sparse accumulation (matrix_type 3) unless compiling with MKL for the time being (use newfm_mkl.x in makefile).\n");
+		exit(EXIT_FAILURE);
+    }
+	#endif
+    
+    // Ignore a user's choice to output certain quantities if they will not be calculated.
+    if ( ((MatrixType)(control_input->matrix_type) != kDense) && ((MatrixType)(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
+        printf("Cannot output normal equations if normal equations are not being calculated.\n");
+        printf("Use a different FM matrix format.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Override a user's choice of block_size if it conflicts with use_statistical_reweighting flag
+    if ( (control_input->use_statistical_reweighting == 1) && (control_input->frames_per_traj_block != 1) ) {
+    	printf("Cannot use statistical reweighting with %d frames per trajectory block.\n", control_input->frames_per_traj_block);
+    	printf("Setting block_size to 1.\n");
+    	control_input->frames_per_traj_block = 1;
+    }
+	
+	if ( (control_input->bootstrapping_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
+		printf("Cannot use bootstrapping with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
+		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	if ( (control_input->volume_weighting_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
+		printf("Cannot use volume weighting with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
+		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if ( ((MatrixType)(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
+		printf("Cannot use dense matrix_type (0) with %d frames per trajectory block\n", control_input->frames_per_traj_block);
+		printf("Setting block_size to 1.\n");
+		control_input->frames_per_traj_block = 1;
+	}
+	
+	if( ((MatrixType)(control_input->matrix_type) == kREM) && (control_input->frames_per_traj_block == 1) ) {
+	    printf("frame block size must be 1 when doing relative entropy minimization\n");
+	    printf("Setting block_size to 1.\n");
+	    control_input->frames_per_traj_block = 1;
+	}
+	
+	if (control_input->frames_per_traj_block < 1) {
+		printf("Please change the block size to a positive number and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	if (control_input->position_dimension <= 0) {
+		printf("Position dimension must be a positive integer\n");
+		exit(EXIT_FAILURE);
+    }
+    
+    if (control_input->position_dimension != DIMENSION) {
+    	printf("The value of position_dimension(%d) in control_input does not match the compiled dimension(%d)!\n", control_input->position_dimension, DIMENSION);
+    	exit(EXIT_FAILURE);
+    }
 }
 
 // Initialize a dense matrix.
@@ -3819,17 +3827,82 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
       //lamda_new = mat_cg->fm_solution
       //lamda_old = mat_cg->previous_rem_solution
       //dS/dlamda = mat_ref->previous_rem_solution
-      //Hessian   = mat-ref->fm_solution
-      new_solution[k] = previous_solution[k] - ref_previous_solution[k] / ref_new_solution[k] * chi;
+      //Hessian   = mat_ref->fm_solution
+      double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
 
 	  // ensure that the solution does not change too much.
-      if((new_solution[k] - previous_solution[k]) > 100.0) {
-	    new_solution[k] = previous_solution[k] + 100.0;
+      if(update > 100.0) {
+	    update = 100.0;
+	  } else if(update < -100.0) {
+	    update = -100.0;
 	  }
-      if((new_solution[k] - previous_solution[k]) < -100.0) {
-	    new_solution[k] = previous_solution[k] - 100.0;
-	  }
+	  new_solution[k] = previous_solution[k] - update;
   }
+}
+
+// Finish IBI by finding new CG parameters
+/* todo */
+void calculate_new_ibi_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  
+  // solve bi for reference? or also cg?
+  
+  update_these_ibi_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
+}
+
+/* todo */
+void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  double chi = mat_cg->iteration_step_size;
+  std::vector<double> back_previous_rem_solution(mat_ref->fm_matrix_columns);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  // copy previous_rem_solution to bootstrapping copies
+  for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    back_previous_rem_solution[l] = mat_ref->previous_rem_solution[l];
+  }
+  
+  // solve bi for reference? (also master cg)?
+  
+  // update for master
+  update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
+
+  // update for bootstrap copies
+  for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
+  	// Restore original previous_rem_solution
+  	for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    	mat_ref->previous_rem_solution[l] = back_previous_rem_solution[l];
+  	}
+    // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
+    
+    // solve bi for each cg?
+    
+    update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k]);
+  }
+}
+
+/* todo */
+void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &cg_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution)
+{  
+  assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
+  assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
+
+  for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
+  
+      //This is the actual IBI update
+      double update = (cg_new_solution[k] - ref_previous_solution[k]) * chi;
+
+	  // ensure that the solution does not change too much.
+      if(update > 100.0) {
+	    update = 100.0;
+	  } else if(update < -100.0) {
+	    update = -100.0;
+	  }
+	  new_solution[k] = previous_solution[k] - update;
+  }
+  	// Do I also want to get new b-spline coeffs ?
 }
 
 // All the individual frame-block matrices have now been accumulated into a single matrix

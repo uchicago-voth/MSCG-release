@@ -14,6 +14,7 @@
 // Internal function prototypes.
 
 void set_control_parameter(const char* parameter_name, const char* val, ControlInputs* const control_input, const int line);
+void check_depricated_options(const char* parameter_name, const int line);
 
 // A simple list-based parser.
 
@@ -124,7 +125,21 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->iteration_step_size);
     else if (strcmp("reference_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->reference_input_style);
     else if (strcmp("cg_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->cg_input_style);
-    else printf("Warning: Unknown parameter name '%s' in control.in: line %d!\n", parameter_name, line);
+    else check_depricated_options(parameter_name, line);
+}
+
+void check_depricated_options(const char* parameter_name, const int line)
+{
+	std::string new_command;
+	if (strcmp("iterative_update_rate_coeff", parameter_name) == 0) {
+		new_command = "iterative_step_size";
+	} else {
+		printf("Warning: Unknown parameter name '%s' in control.in: line %d!\n", parameter_name, line);
+		return;
+	}
+	printf("%s is currently depricated. Please use %s instead.\n", parameter_name, new_command.c_str());
+	exit(EXIT_FAILURE);
+
 }
 
 // Set all defaults and then read the file to overwrite those defaults as necessary.
