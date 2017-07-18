@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
     	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
 	} else if (control_input.reference_input_style == 1) {
 		printf("Reading reference matrix from file.\n");
-    	construct_rem_matrix_from_input_matrix(&mat_ref);
+    	construct_rem_matrix_from_input_matrix(&mat_ref, "reference_matrix.out");
     } else if (control_input.reference_input_style == 2) {
     	printf("Reading reference distribution functions.\n");
     	// The CG box size is used for volume since there is no box size specified for the reference system.

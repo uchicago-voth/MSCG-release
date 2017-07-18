@@ -678,7 +678,7 @@ void* rem_process_frame(void* void_in, double* const x, double* const f)
     		exit(EXIT_FAILURE);
 		} else if (mscg_struct->control_input->reference_input_style == 1) {
 			printf("Reading reference matrix from file.\n");
-    		construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat);
+    		construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat, "reference_matrix.out");
     	} else if (mscg_struct->control_input->reference_input_style == 2) {
     		printf("Reading reference distribution functions.\n");
     		// The CG box size is used for volume since there is no box size specified for the reference system.

@@ -141,26 +141,26 @@ int main(int argc, char* argv[])
     }
 
 	// Process CG data
-/* 
     // The manner of constructing the CG matrix depends on cg_input_style.
 	if (control_input.cg_input_style == 0) {
     	printf("Reading CG frames.\n");
     	construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);    
 	} else if (control_input.cg_input_style == 1) {
 		printf("Reading CG matrix from file.\n");
-    	construct_rem_matrix_from_input_matrix(&mat_cg);
+    	construct_rem_matrix_from_input_matrix(&mat_cg, "cg_matrix.out");
+/*
     } else if (control_input.cg_input_style == 2) {
     	printf("Reading CG distribution functions.\n");
     	// How do I do this if both CG and REF do not provide a trajectory?
     	// The CG box size is used for volume since there is no box size specified for the reference system.
     	construct_rem_matrix_from_rdfs(&cg, &mat_cg, calculate_volume(fs_cg.simulation_box_limits));
+*/
 	} else {
-   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
+   		printf("Unrecognized cg_input_style (%d)!\n", control_input.cg_input_style);
    		fflush(stdout);
    		exit(EXIT_FAILURE);
     }
 
-*/
     printf("Reading CG frames.\n");
     construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);
     
@@ -171,13 +171,13 @@ int main(int argc, char* argv[])
     	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
 	} else if (control_input.reference_input_style == 1) {
 		printf("Reading reference matrix from file.\n");
-    	construct_rem_matrix_from_input_matrix(&mat_ref);
+    	construct_rem_matrix_from_input_matrix(&mat_ref, "reference_matrix.out");
     } else if (control_input.reference_input_style == 2) {
     	printf("Reading reference distribution functions.\n");
     	// The CG box size is used for volume since there is no box size specified for the reference system.
     	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
 	} else {
-   		printf("Unrecognized REM_reference_style (%d)!\n", control_input.REM_reference_style);
+   		printf("Unrecognized reference_input_style (%d)!\n", control_input.reference_input_style);
    		fflush(stdout);
    		exit(EXIT_FAILURE);
     }
