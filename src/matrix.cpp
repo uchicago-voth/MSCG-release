@@ -3841,18 +3841,17 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
 }
 
 // Finish IBI by finding new CG parameters
-/* todo */
 void calculate_new_ibi_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
-  
+
+/* TODO */  
   // solve bi for reference? or also cg?
   
   update_these_ibi_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
 }
 
-/* todo */
 void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
@@ -3863,7 +3862,8 @@ void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
   for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
     back_previous_rem_solution[l] = mat_ref->previous_rem_solution[l];
   }
-  
+
+/* TODO */  
   // solve bi for reference? (also master cg)?
   
   // update for master
@@ -3877,31 +3877,32 @@ void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
   	}
     // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
     
+/* TODO */
     // solve bi for each cg?
     
     update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k]);
   }
 }
 
-/* todo */
 void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &cg_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution)
 {  
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
 
-  for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
   
       //This is the actual IBI update
-      double update = (cg_new_solution[k] - ref_previous_solution[k]) * chi;
+      double update = (ref_previous_solution[k] - cg_new_solution[k]) * chi;
 
 	  // ensure that the solution does not change too much.
-      if(update > 100.0) {
+      if (update > 100.0) {
 	    update = 100.0;
-	  } else if(update < -100.0) {
+	  } else if (update < -100.0) {
 	    update = -100.0;
 	  }
 	  new_solution[k] = previous_solution[k] - update;
   }
+/* TODO */
   	// Do I also want to get new b-spline coeffs ?
 }
 
