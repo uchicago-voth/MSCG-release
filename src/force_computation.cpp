@@ -906,7 +906,7 @@ inline void process_normal_interaction_matrix_elements(InteractionClassComputer*
 			// This is an antisymmetric (i.e. force) interaction table.
     	    mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
     	} else {
-		    // This is a symmetric (i.e. DOOM) interaction table.
+		    // This is a symmetric (i.e. MS-CODE) interaction table.
     	    mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
     	}
     	
@@ -932,7 +932,7 @@ inline void process_normal_interaction_matrix_elements(InteractionClassComputer*
     	    // This interaction is antisymmetric (i.e. force).
 		    mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
     	} else {
-        	// This interaction is symmetric (i.e. DOOM).
+        	// This interaction is symmetric (i.e. MS-CODE).
      		mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
  		}
  			

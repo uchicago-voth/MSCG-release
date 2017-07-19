@@ -175,7 +175,7 @@ void check_input_values(CG_MODEL_DATA* cg)
 void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const ispec, double const cutoff)
 {
 	for (int i = 0; i < ispec->n_defined; i++) {
-		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. DOOM) interactions.
+		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. MS-CODE) interactions.
 			if (ispec->upper_cutoffs[i] > (cutoff + ispec->output_binwidth + VERYSMALL) ) {
 				fprintf(stderr, "An upper cutoff (%lf) specified in the range file is larger than the pair nonbonded cutoff speicified in the control file (%lf).\n", ispec->upper_cutoffs[i], cutoff);
 				fprintf(stderr, "This can lead to unphysical looking interactions.\n");
@@ -191,7 +191,7 @@ void check_nonbonded_interaction_range_cutoffs(PairNonbondedClassSpec *const isp
 void check_angular_interaction_range_cutoffs(AngularClassSpec *const ispec)
 {
 	for (int i = 0; i < ispec->n_defined; i++) {
-		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. DOOM) interactions.
+		if (ispec->defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. MS-CODE) interactions.
 			if (ispec->upper_cutoffs[i] > 180.0 + VERYSMALL_F || ispec->lower_cutoffs[i] < -VERYSMALL_F) {
 				fprintf(stderr, "The interaction range (%lf to %lf) specified in the range file is goes outside of the allowed range (0 to 180).\n", ispec->lower_cutoffs[i], ispec->upper_cutoffs[i]);
 				fprintf(stderr, "Please adjust and run again.\n");
@@ -236,7 +236,7 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
         // If the mode is none, the interaction is not actually in the model.
         // If the mode is fm or fm+tab/tab+fm or fm+tabsym/tabsym+fm, the interaction should be force matched.
         // If the mode is tab or fm+tab or sym+tab, the interaction should be tabulated.
-        // If the mode is sym or sym+tab or sym+tabsym/symtab+sym, the interaction should be determined using symmetric (i.e. DOOM) interactions.
+        // If the mode is sym or sym+tab or sym+tabsym/symtab+sym, the interaction should be determined using symmetric (i.e. MS-CODE) interactions.
         // If the mode is tabsym or fm+tabsym/tabsym+fm or sym+tabsym/tabsym+sym, the interaction should be tabulated using symmetric interactions.
         // Note: For one body interactions, all fitting settings (fm and sym) do the same thing -- as do all table settings (tab and tabsym).
         
@@ -683,7 +683,7 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 	interaction_column_indices = std::vector<unsigned>(n_to_force_match + 1, 0);
 
 	for (int i = 0; i < n_defined; i++) {
-		if (defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. DOOM) interactions.
+		if (defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. MS-CODE) interactions.
 			grid_i = floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) + 1;
 			if (grid_i > 1000) {
 				fprintf(stderr, "\nWarning: An individual interaction has more than 1000 bins associated with it!\n");

@@ -73,18 +73,18 @@ struct InteractionClassSpec {
 	// // to an index that runs along the interaction combinations that actually exist in the model
 	// // (this is all interactions that could "possibly" be force matched in the system).
 	// defined_to_matched_intrxn_index_map indicates (for non-bonded-type interactions) which interactions
-	// // will actually be determined (either through traditional force matching or symmetric DOOM).
+	// // will actually be determined (either through traditional force matching or symmetric MS-CODE).
 	// // n_to_force_match is the total number of interactions to be fit
 	// defined_to_symmetric_intrxn_index_map only includes the interactions that will be determined
-	// // using symmetric basis sets (i.e. DOOM).
+	// // using symmetric basis sets (i.e. MS-CODE).
 	// // n_force is the total number of antisymmetric (i.e. FM) interactions to be determined.
-	// // n_symmetric is the total number of symmetric (i.e. DOOM) interactions to be determined.
+	// // n_symmetric is the total number of symmetric (i.e. MS-CODE) interactions to be determined.
 	// defined_to_tabulated_intrxn_inex_map indicates which interactions are tabulated
-	// // (both traditional force interactions and symmetric DOOM interactions).
+	// // (both traditional force interactions and symmetric MS-CODE interactions).
 	// // n_from_table is the total number of external tables (i.e. both force and symmetric) to be read.
-	// defined_to_symtab_intrxn_index_map only includes the tabulated interactions that are symmetric (i.e. DOOM).
+	// defined_to_symtab_intrxn_index_map only includes the tabulated interactions that are symmetric (i.e. MS-CODE).
 	// // n_force is the total number of antisymmetric tables (i.e. traditional forces).
-	// // n_symmetric is the total number of symmetric tables (i.e. DOOM interactions).
+	// // n_symmetric is the total number of symmetric tables (i.e. MS-CODE interactions).
     int n_cg_types;    
     int n_defined;
     std::vector<unsigned> defined_to_possible_intrxn_index_map;

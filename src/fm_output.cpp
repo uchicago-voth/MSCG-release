@@ -82,7 +82,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 	for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
         // For every defined interaction,
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-            // If that interaction is being matched (includes forces and symmetric/DOOM),
+            // If that interaction is being matched (includes forces and symmetric/MS-CODE),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
             	    
             	// Select the correct type name array for the interaction.
@@ -264,7 +264,7 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
     // Determine base for output filenames.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
-    // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
      {
         basename += "_sym";	
@@ -293,7 +293,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
 
-    // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
    if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
      {
         basename += "_sym";	
@@ -430,7 +430,7 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
 		}
 
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
-    	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    	// Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
 		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
 			basename += "_sym";	
 		}
@@ -582,7 +582,7 @@ void write_bootstrapping_one_param_table_files(InteractionClassComputer* const i
     // Print out tabulated output files in MSCGFM style and LAMMPS style.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
-    // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
 	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
 		basename += "_sym";	
 	}
@@ -640,7 +640,7 @@ void write_bootstrapping_one_param_table_files_energy(InteractionClassComputer* 
         basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
 
-    // Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
 	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
 		basename += "_sym";	
 	}
@@ -695,7 +695,7 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
         std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
         
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
-    	// Select symmetric basename modifier if appropriate (i.e. DOOM interactions)
+    	// Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
 		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
 			basename += "_sym";	
 		}
@@ -740,7 +740,7 @@ void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DAT
         
         // For every defined interaction,
         for (int i = 0; i < size; i++) {
-            // If that interaction is being matched (includes forces and symmetric/DOOM)
+            // If that interaction is being matched (includes forces and symmetric/MS-CODE)
             // and it is periodic,
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0 &&
             	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] == 1) {
