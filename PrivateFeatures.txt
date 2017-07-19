@@ -1,9 +1,8 @@
 #) Item (Related paper/feature)
-1) Boltzmann Inversion and lammps_bi example
-2) Relative entropy via newrem.x and lammps_rem example
-3) Relative entropy in LAMMPS driver via fix_mscg directory
-3) Density interactions with density supplement and density_fm example (OP paper)
-4) Arbitrary dimension (OP paper)
+1) Density interactions with density supplement and density_fm example (OP paper)
+2) Arbitrary dimension (OP paper)
+3) Relative entropy via newrem.x and lammps_rem example
+4) Relative entropy in LAMMPS driver via fix_mscg directory
 5) Symmetric interactions (MS-CODE)
 6) Scalar matching (MS-CODE)
 7) RE-CODE via recode.x (RE-CODE)

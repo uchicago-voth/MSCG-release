@@ -566,6 +566,7 @@ bayesian_mscg_flag (0)
     This works for newfm matrix_types 0, 3, and 4 and combinefm matrix_type 0.
     * 0: no
     * 1: yes
+	* 2: yes, also print out the normal matrix (once) and inverse matrix (each iteration)
 bayesian_max_iterations (1)
     The number of iterations for the Bayesian MS-CG method.
     This is only used if bayesian_mscg_flag is 1.
@@ -609,10 +610,10 @@ output_normal_equations_rhs_flag (0)
     * 0: no
     * 1: yes
 temperature (300)
-    This is used in determining the value of relative entropy derivatives.
+    This is used in determining values in Boltzmann inversion and relative entropy derivatives.
     Only used in newrem. It is in units of Kelvin.
 boltzmann (0.0019872041)
-    Used along with temperature for determining value of relative entropy derivatires.
+    Used along with temperature for determining value in Boltzmann inversion and relative entropy derivatives.
     The default value assumes energy units of kcal/mol.
     The value needs to be adjusted so that the units match those of the interaction energy.
     Only used in newrem.

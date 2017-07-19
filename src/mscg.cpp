@@ -858,6 +858,25 @@ void* rangefinder_solve_and_output(void* void_in)
 		free_bootstrapping_weights(mscg_struct->frame_source);
 	}
 	
+	//This is part of the BI routine
+    //Only calculate if at least one parameter distribution exists
+	if (any_active_parameter_distributions(mscg_struct->cg) == true) {
+		printf("Calculating Boltzmann inversion using parameter distributions\n");
+		fflush(stdout);
+		reset_interaction_cutoff_arrays(mscg_struct->cg);
+		read_all_interaction_ranges(mscg_struct->cg);
+
+		screen_interactions_by_distribution(mscg_struct->cg);
+		set_up_force_computers(mscg_struct->cg);
+
+		calculate_BI(mscg_struct->cg, mscg_struct->mat, mscg_struct->frame_source);
+
+		write_fm_interaction_output_files(mscg_struct->cg,mscg_struct->mat);
+	} else {
+		// Clean-up allocated memory
+		free_name(mscg_struct->cg);
+	}
+	
     delete mscg_struct->mat;
     
     // Record the time and print total elapsed time for profiling purposes.

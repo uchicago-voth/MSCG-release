@@ -2891,9 +2891,12 @@ void average_sparse_block_fm_solutions(MATRIX_DATA* const mat)
     // Write a binary output of the coefficient vector if desired
     if (mat->output_style >= 2) {
         FILE* mat_out;
+        double inv_norm = 1.0/mat->normalization;
         mat_out = open_file("result.out", "wb");
         fwrite(&mat->fm_solution[0], sizeof(double), mat->fm_matrix_columns, mat_out);
         fwrite(&mat->fm_solution_normalization_factors[0], sizeof(double), mat->fm_matrix_columns, mat_out);
+        fwrite(&mat->force_sq_total, sizeof(double), 1, mat_out);
+        fwrite(&inv_norm, sizeof(double), 1, mat_out);
         fclose(mat_out);
         // If no other output was desired, terminate the program successfully.
         if (mat->output_style == 3) exit(EXIT_SUCCESS);
@@ -2918,6 +2921,9 @@ void average_sparse_bootstrapping_solutions(MATRIX_DATA* const mat)
 	        fwrite(&mat->bootstrap_solutions[i][0], sizeof(double), mat->fm_matrix_columns, mat_out);
     	    fwrite(&mat->fm_solution_normalization_factors[0], sizeof(double), mat->fm_matrix_columns, mat_out);
         }
+        double inv_norm = 1.0/mat->normalization;
+        fwrite(&mat->force_sq_total, sizeof(double), 1, mat_out);
+        fwrite(&inv_norm, sizeof(double), 1, mat_out);
         fclose(mat_out);
         // If no other output was desired, terminate the program successfully.
         if (mat->output_style == 3) exit(EXIT_SUCCESS);
@@ -3041,7 +3047,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
    }
 
     // Calculate First Bayesian Estimates
-    if (mat->bayesian_flag == 1) {
+    if (mat->bayesian_flag == 1 || mat->bayesian_flag == 2) {
     	int iteration = 0;
 	    int onei = 1;
     	dense_matrix* it_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
@@ -3074,9 +3080,13 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		FILE* res_fp   = fopen("residual.out", "w");
 		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-		FILE* mat_fp   = fopen("matrix.out", "w");
-		FILE* inv_fp   = fopen("inverse.out", "w");
-		
+		FILE* mat_fp;
+		FILE* inv_fp;
+		if (mat->bayesian_flag == 2) {
+			mat_fp   = fopen("matrix.out", "w");
+			inv_fp   = fopen("inverse.out", "w");
+			backup_normal_matrix->print_matrix(mat_fp);
+		}
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
 		   for (int j = backup_normal_matrix->row_sizes[i] - 1; j < backup_normal_matrix->row_sizes[i + 1] - 1; j++) {
 		      backup_dense_matrix->assign_scalar(i, backup_normal_matrix->column_indices[j], backup_normal_matrix->values[j]);
@@ -3157,8 +3167,10 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			dgetri_(&mat->fm_matrix_columns, it_normal_matrix->values, &mat->fm_matrix_columns, ipiv, work, &lwork, &info);
 			delete [] ipiv;
 			delete [] work;
-			it_normal_matrix->print_matrix(inv_fp);
-			
+			if (mat->bayesian_flag == 2) {
+				it_normal_matrix->print_matrix(inv_fp);
+			}
+					
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
@@ -3188,8 +3200,10 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		fclose(sol_fp);
 		fclose(res_fp);
 		fclose(ext_fp);
-		fclose(mat_fp);
-		fclose(inv_fp);
+		if (mat->bayesian_flag == 2) {
+			fclose(mat_fp);
+			fclose(inv_fp);
+		}
 		delete [] solution;
 		delete [] reg_vec;
 		printf("delete alpha_vec\n"); fflush(stdout);
@@ -3396,7 +3410,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     }
     
     // Calculate First Bayesian Estimates
-    if (mat->bayesian_flag == 1) {
+    if (mat->bayesian_flag == 1 || mat->bayesian_flag == 2) {
     	int iteration = 0;
 	    int onei = 1;
     	dense_matrix* it_dense_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
@@ -3427,9 +3441,13 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 		FILE* res_fp   = fopen("residual.out", "w");
 		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-		FILE* mat_fp   = fopen("matrix.out", "w");
-		FILE* inv_fp   = fopen("inverse.out", "w");
-		
+		FILE* mat_fp;
+		FILE* inv_fp;
+		if (mat->bayesian_flag == 2) {
+			mat_fp   = fopen("matrix.out", "w");
+			inv_fp   = fopen("inverse.out", "w");
+		}
+			
 		while (iteration < mat->bayesian_max_iter) {
 		
 			// Initialize RHS vector and normal matrix from backups.
@@ -3498,8 +3516,10 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			dgetri_(&mat->fm_matrix_columns, it_dense_normal_matrix->values, &mat->fm_matrix_columns, ipiv, work, &lwork, &info);
 			delete [] ipiv;
 			delete [] work;
-			it_dense_normal_matrix->print_matrix(inv_fp);
-			
+			if (mat->bayesian_flag == 2) {
+				it_dense_normal_matrix->print_matrix(inv_fp);
+			}
+					
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
@@ -3530,8 +3550,10 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 		fclose(sol_fp);
 		fclose(res_fp);
 		fclose(ext_fp);
-		fclose(mat_fp);
-		fclose(inv_fp);
+		if (mat->bayesian_flag == 2) {
+			fclose(mat_fp);
+			fclose(inv_fp);
+		}
 		delete [] alpha_vec;
 		delete [] solution;
 		delete it_dense_normal_matrix;
@@ -3926,6 +3948,9 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
             fwrite(&mat->dense_fm_matrix->values[i * mat->accumulation_matrix_rows], sizeof(double), i + 1, mat_out);
         }
         fwrite(&mat->dense_fm_normal_rhs_vector[0], sizeof(double), mat->accumulation_matrix_columns, mat_out);
+        double inv_norm = 1.0/mat->normalization;
+        fwrite(&mat->force_sq_total, sizeof(double), 1, mat_out);
+        fwrite(&inv_norm, sizeof(double), 1, mat_out);
         fclose(mat_out);
         
         if (mat->output_style == 3) exit(EXIT_SUCCESS);
@@ -4023,8 +4048,10 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
         	   	fwrite(&mat->bootstrapping_dense_fm_normal_matrices[k]->values[i * mat->accumulation_matrix_rows], sizeof(double), i + 1, mat_out);
        	 	}
         	fwrite(&mat->bootstrapping_dense_fm_normal_rhs_vectors[k][0], sizeof(double), mat->accumulation_matrix_columns, mat_out);        
-    	}
-    
+    	}    
+     	double inv_norm = 1.0/mat->normalization;
+        fwrite(&mat->force_sq_total, sizeof(double), 1, mat_out);
+        fwrite(&inv_norm, sizeof(double), 1, mat_out);
     	fclose(mat_out);
 	    if (mat->output_style == 3) exit(EXIT_SUCCESS);
 	}
