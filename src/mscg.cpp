@@ -141,7 +141,7 @@ void* mscg_startup_part2(void* void_in)
     if (p_frame_source->use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames); 
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "in"); 
     }
     
     // Generate bootstrapping weights if the
@@ -155,7 +155,7 @@ void* mscg_startup_part2(void* void_in)
     // Read the input virials if the correct flag was set in control.in.
     if (p_frame_source->pressure_constraint_flag == 1) {
         printf("Reading virial constraint target.\n");
-        read_virial_constraint_vector(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames);
+        read_frame_values("p_con.in", p_control_input->starting_frame, p_control_input->n_frames, p_frame_source->pressure_constraint_rhs_vector);
     }
     
     // Use the trajectory type inferred from trajectory file 
@@ -253,7 +253,7 @@ void* rangefinder_startup_part2(void* void_in)
     if (mscg_struct->frame_source->use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(mscg_struct->frame_source, mscg_struct->control_input->starting_frame, mscg_struct->control_input->n_frames); 
+        read_frame_weights(mscg_struct->frame_source, mscg_struct->control_input->starting_frame, mscg_struct->control_input->n_frames, "in"); 
     }
     
     // Initialize the force-matching matrix.
@@ -568,6 +568,25 @@ void* rangefinder_solve_and_output(void* void_in)
     write_range_files(mscg_struct->cg, mscg_struct->mat);
   	if (mscg_struct->frame_source->bootstrapping_flag == 1) {
 		free_bootstrapping_weights(mscg_struct->frame_source);
+	}
+	
+	//This is part of the BI routine
+    //Only calculate if at least one parameter distribution exists
+	if (any_active_parameter_distributions(mscg_struct->cg) == true) {
+		printf("Calculating Boltzmann inversion using parameter distributions\n");
+		fflush(stdout);
+		reset_interaction_cutoff_arrays(mscg_struct->cg);
+		read_all_interaction_ranges(mscg_struct->cg);
+
+		screen_interactions_by_distribution(mscg_struct->cg);
+		set_up_force_computers(mscg_struct->cg);
+
+		calculate_BI(mscg_struct->cg, mscg_struct->mat, mscg_struct->frame_source);
+
+		write_fm_interaction_output_files(mscg_struct->cg,mscg_struct->mat);
+	} else {
+		// Clean-up allocated memory
+		free_name(mscg_struct->cg);
 	}
 	
     delete mscg_struct->mat;

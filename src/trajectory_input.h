@@ -130,10 +130,10 @@ void copy_control_inputs_to_frd(struct ControlInputs* const control_input, Frame
 //-------------------------------------------------------------
 
 // Read statistical weights for all needed frames.
-void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames);
+void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames, const std::string &extension);
 
-// Read information relating to the virial constraint for all needed frames.
-void read_virial_constraint_vector(FrameSource* const frame_source, const int start_frame, const int n_frames);
+// Read information relating to the virial constraint or frame-wise observable for all needed frames.
+void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &vals);
 
 //-------------------------------------------------------------
 // Auxiliary-trajectory generating functions.
@@ -147,6 +147,9 @@ void combine_reweighting_and_boostrapping_weights(FrameSource* const frame_sourc
 
 // Clean-up bootstrapping weights at end.
 void free_bootstrapping_weights(FrameSource* const frame_source);
+
+// Calculate volume from simulation_box_half_lengths
+double calculate_volume(const matrix simulation_box_lengths);
 
 //--------------------------------------------------------------------
 // Cell list routines for two- or three-body nonbonded interactions.

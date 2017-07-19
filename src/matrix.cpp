@@ -5,6 +5,7 @@
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
 
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -32,9 +33,11 @@ void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 
 // Helper matrix initialization routines
 
+void matrix_sanity_checks(ControlInputs* const control_input);
 void determine_matrix_columns_and_rows(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg, int const frames_per_traj_block, int const pressure_constraint_flag);
 void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void log_n_basis_functions(InteractionClassSpec &ispec);
+void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp);
 
 // Matrix reset routines
 
@@ -49,12 +52,15 @@ void set_dummy_matrix_to_zero(MATRIX_DATA* const mat);
 
 void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_vector_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 
 // Matrix insertion routines
 
 void insert_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
+void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
 
 void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat);
 void insert_sparse_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat);
@@ -64,6 +70,7 @@ void insert_accumulation_matrix_virial_element(const int m, const int n, const d
 
 void accumulate_force_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
 void accumulate_force_into_accumulation_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
+void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element);
 
 void accumulate_constraint_into_dense_target_vector(MATRIX_DATA *mat, int frame_index, double constraint_element);
 void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA *mat, int frame_index, double constraint_element);
@@ -102,6 +109,7 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* sparse_fm_normal_matrix, double* const dense_fm_rhs_vector, std::vector<double> &fm_solution, double normalization);
 inline void calculate_and_apply_dense_preconditioning(MATRIX_DATA* mat, dense_matrix* dense_fm_normal_matrix, double* h);
 inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values);
+inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_normal_rhs_vector, double* singular_values);
 
 // After-full-trajectory routines
 
@@ -125,10 +133,14 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat);
 // Matrix-implementation-dependent functions for reading 
 // batches of FM matrices.
 
+int read_res_av_file(std::string* &filenames);
 void read_binary_dense_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat);
 void read_regularization_vector(MATRIX_DATA* const mat);
+
+// Output functions.
+
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp);
 
 //--------------------------------------------------------------------
@@ -140,56 +152,20 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg)
 {
     // Perform sanity checks on the new parameters 
-    #if _mkl_flag == 1
-	mkl_set_num_threads(control_input->num_sparse_threads);
-	#else 
-	if (MatrixType(control_input->matrix_type) == kSparse || MatrixType(control_input->matrix_type) == kSparseSparse) {
-        printf("Cannot use sparse solving (matrix_type 1 or 4) unless compiling with MKL (use newfm_mkl.x in makefile).\n");
-		exit(EXIT_FAILURE);
-    }
-	if (MatrixType(control_input->matrix_type) == kSparseNormal) {
-        printf("Cannot use sparse accumulation (matrix_type 3) unless compiling with MKL for the time being (use newfm_mkl.x in makefile).\n");
-		exit(EXIT_FAILURE);
-    }
-	#endif
+	matrix_sanity_checks(control_input);
     
-    // Ignore a user's choice to output certain quantities if they will not be calculated.
-    if ( (MatrixType(control_input->matrix_type) != kDense) && (MatrixType(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
-        printf("Cannot output normal equations if normal equations are not being calculated.\n");
-        printf("Use a different FM matrix format.\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Override a user's choice of block_size if it conflicts with use_statistical_reweighting flag
-    if ( (control_input->use_statistical_reweighting == 1) && (control_input->frames_per_traj_block != 1) ) {
-    	printf("Cannot use statistical reweighting with %d frames per trajectory block.\n", control_input->frames_per_traj_block);
-    	printf("Setting block_size to 1.\n");
-    	control_input->frames_per_traj_block = 1;
-    }
-	
-	if ( (control_input->bootstrapping_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
-		printf("Cannot use bootstrapping with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
-		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if ( (MatrixType(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
-		printf("Cannot use dense matrix_type (0) with %d frames per trajectory block\n", control_input->frames_per_traj_block);
-		printf("Setting block_size to 1.\n");
-		control_input->frames_per_traj_block = 1;
-	}
-	    
     // Copy over basic data members.
     output_style 					= control_input->output_style;
     output_normal_equations_rhs_flag= control_input->output_normal_equations_rhs_flag;
     output_solution_flag 			= control_input->output_solution_flag;
     rcond							= control_input->rcond;
     itnlim 							= control_input->itnlim;
-    num_sparse_threads 				= control_input->num_sparse_threads;
+	num_sparse_threads 				= control_input->num_sparse_threads;
 	
 	// Copy iterative information.
-	iterative_calculation_flag 		= control_input->iterative_calculation_flag;
-	iterative_update_rate_coeff     = control_input->iterative_update_rate_coeff;
+    iterative_calculation_flag 		= control_input->iterative_calculation_flag;
+	iteration_step_size     		= control_input->iteration_step_size;
+
 	// Copy bootstrapping information.
 	bootstrapping_flag 				= control_input->bootstrapping_flag;
 	bootstrapping_full_output_flag 	= control_input->bootstrapping_full_output_flag;
@@ -202,7 +178,7 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	bayesian_max_iter				= control_input->bayesian_max_iter;
     output_residual                 = control_input->output_residual;
     force_sq_total					= 0.0;
-    	
+
     // Set blockwise composition weighting factors
     frames_per_traj_block 			= control_input->frames_per_traj_block;
 	current_frame_weight 			= 1.0;
@@ -218,11 +194,14 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     accumulate_matching_forces 				= accumulate_vector_matching_forces;
 	accumulate_tabulated_forces 			= accumulate_vector_tabulated_forces;
    
+    // Determine the size of the matrix from model specifications (default sizing)
+	if (control_input->matrix_type != kDummy) determine_matrix_columns_and_rows(this, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
+
     // Perform matrix-type-specific initializations.
     switch (control_input->matrix_type) {
     case kDense:
         matrix_type = kDense;
-	    initialize_dense_matrix(this, control_input, cg);
+        initialize_dense_matrix(this, control_input, cg);
         break;
     case kSparse:
         matrix_type = kSparse;
@@ -240,7 +219,7 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     	matrix_type = kSparseSparse;
         initialize_sparse_sparse_normal_matrix(this, control_input, cg);
         break;
-	case kDummy:
+	case kDummy: // Used as a placeholder (e.g., rangefinder)
         matrix_type = kDummy;
         initialize_dummy_matrix(this, control_input, cg);
         break;
@@ -255,6 +234,54 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
 	}
 
     printf("Finished initializing FM matrix.\n");
+}
+
+// Perform sanity checks on the new parameters 
+void matrix_sanity_checks(ControlInputs* const control_input) {
+
+    #if _mkl_flag == 1
+	mkl_set_num_threads(control_input->num_sparse_threads);
+	#else 
+	if (MatrixType(control_input->matrix_type) == kSparse || MatrixType(control_input->matrix_type) == kSparseSparse) {
+        printf("Cannot use sparse solving (matrix_type 1 or 4) unless compiling with MKL (use newfm_mkl.x in makefile).\n");
+		exit(EXIT_FAILURE);
+    }
+	if (MatrixType(control_input->matrix_type) == kSparseNormal) {
+        printf("Cannot use sparse accumulation (matrix_type 3) unless compiling with MKL for the time being (use newfm_mkl.x in makefile).\n");
+		exit(EXIT_FAILURE);
+    }
+	#endif
+    
+    // Ignore a user's choice to output certain quantities if they will not be calculated.
+    if ( ((MatrixType)(control_input->matrix_type) != kDense) && ((MatrixType)(control_input->matrix_type) != kSparseNormal) && (control_input->output_normal_equations_rhs_flag != 0) ) {
+        printf("Cannot output normal equations if normal equations are not being calculated.\n");
+        printf("Use a different FM matrix format.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Override a user's choice of block_size if it conflicts with use_statistical_reweighting flag
+    if ( (control_input->use_statistical_reweighting == 1) && (control_input->frames_per_traj_block != 1) ) {
+    	printf("Cannot use statistical reweighting with %d frames per trajectory block.\n", control_input->frames_per_traj_block);
+    	printf("Setting block_size to 1.\n");
+    	control_input->frames_per_traj_block = 1;
+    }
+	
+	if ( (control_input->bootstrapping_flag == 1) && (control_input->frames_per_traj_block != 1) ) {
+		printf("Cannot use bootstrapping with %d frames per trajectory block.\n", control_input->bootstrapping_flag);
+		printf("Please change the block size to 1 and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if ( ((MatrixType)(control_input->matrix_type) == kDense) && (control_input->frames_per_traj_block != 1) ) {
+		printf("Cannot use dense matrix_type (0) with %d frames per trajectory block\n", control_input->frames_per_traj_block);
+		printf("Setting block_size to 1.\n");
+		control_input->frames_per_traj_block = 1;
+	}
+	
+	if (control_input->frames_per_traj_block < 1) {
+		printf("Please change the block size to a positive number and recheck your inputs before rerunning.\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 // Initialize a dense matrix.
@@ -274,7 +301,7 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 	    else if (control_input->iterative_calculation_flag == 1) mat->do_end_of_frameblock_matrix_manipulations = convert_dense_target_force_vector_to_normal_form_and_accumulate;
 	}
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_dense_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_dense_matrix_virial_element;
 
 	if (control_input->bootstrapping_flag == 1) {
 		mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
@@ -282,9 +309,6 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
 	    mat->finish_fm = solve_dense_fm_normal_equations;
 	}
 	
-    // Determine the size of the matrix from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-
     // Check that the matrix dimensions are reasonable and print diagnostics.    
     if ( (unsigned)(mat->fm_matrix_rows / mat->frames_per_traj_block) * (unsigned)(control_input->n_frames) < (unsigned)(mat->fm_matrix_columns) ) {
         printf("Current number of frames in this trajectory is too low to provide a fully-determined set of FM equations. Provide more frames in the input trajectory.\n");
@@ -320,12 +344,7 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
     
     if (control_input->bootstrapping_flag == 1) {
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
@@ -349,17 +368,14 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
 		mat->do_end_of_frameblock_matrix_manipulations = accumulate_accumulation_matrices;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_accumulation_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_accumulation_matrix_virial_element;
     
     if (control_input->bootstrapping_flag == 1) {
 		mat->finish_fm = solve_accumulation_form_bootstrapping_equations;
 	} else {
 	    mat->finish_fm = solve_accumulation_form_fm_equations;
 	}
-	
-    // Determine the size of the matrix from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-        
+	        
     // Check that the matrix dimensions are reasonable.
     if ( (unsigned)(mat->fm_matrix_rows / mat->frames_per_traj_block) * (unsigned)(control_input->n_frames) < (unsigned)(mat->fm_matrix_columns) ) {
         printf("Current number of frames per frame block is too low to allow use of accumulation matrices. Increase block size.\n");
@@ -377,12 +393,7 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
     if (control_input->bootstrapping_flag == 1) {
 		printf("Bootstrapping is not currently supported for accumulation matrix type.\n");
 		exit(EXIT_FAILURE);
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+ 		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
 	mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_rows, mat->accumulation_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->accumulation_matrix_columns]();
@@ -411,17 +422,14 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 	    mat->do_end_of_frameblock_matrix_manipulations = solve_sparse_matrix;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
    	if (control_input->bootstrapping_flag == 1) {
     	 mat->finish_fm = average_sparse_bootstrapping_solutions;
     } else {
 	    mat->finish_fm = average_sparse_block_fm_solutions;
 	}
-	
-    // Determine the size of the matrix blocks from model specifications
-	determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
-        
+	        
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
 	printf("Maximum number of non-zero entries is %d, Sparsity is at least %.2lf percent\n", mat->max_nonzero_normal_elements, 100.0 * (1.0 -  (double) mat->max_nonzero_normal_elements / (double) (mat->fm_matrix_columns * mat->fm_matrix_columns)) );
@@ -458,8 +466,8 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
@@ -469,16 +477,12 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     // Read "Solving lest square problems" by Lawson CL and Hanson RJ, 
     // Chapt 25 for details.
     mat->h = new double[mat->fm_matrix_columns]();
-  
-	// These matrices would be used for acculation of normal form before solving
-	// Allocate and initialize space for the solution to a block's equations
-	if (control_input->bootstrapping_flag == 1) {
-		mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-		for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-			mat->bootstrap_solutions[i] = std::vector<double>(mat->fm_matrix_columns);
-		}
-	}
 	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
+    // Set up the temps and parameters for solving the sparse normal equations.
+   	if (control_input->bootstrapping_flag == 1) {
+		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);	
+	}
 
     mat->block_fm_solution = new double[mat->fm_matrix_columns]();
     mat->fm_solution_normalization_factors = new double[mat->fm_matrix_columns]();
@@ -502,16 +506,13 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_dense_normal_form_and_accumulate;
     }
     
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
-    	if (control_input->bootstrapping_flag == 1) {
+    if (control_input->bootstrapping_flag == 1) {
     	mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
     } else {
 		mat->finish_fm = solve_dense_fm_normal_equations;
 	}
-	
-    // Determine the size of the matrix blocks from model specifications
-    determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 	
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
@@ -553,8 +554,8 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
@@ -563,12 +564,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
 	
     // These matrices are used for accumulation of normal form before solving
     if (control_input->bootstrapping_flag == 1) {
-    	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
-    	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
-    	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-    		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-			mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
-		}
+		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
@@ -592,7 +588,7 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate;
 	}
 	
-    if (control_input->pressure_constraint_flag == 1) mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
+    mat->accumulate_virial_constraint_matrix_element = insert_sparse_matrix_virial_element;
     
     if (control_input->bootstrapping_flag == 1) {
     	mat->finish_fm = solve_sparse_fm_bootstrapping_equations;
@@ -601,9 +597,6 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 	}
 	
 	mat->sparse_safety_factor = control_input->sparse_safety_factor;
-
-    // Determine the size of the matrix blocks from model specifications
-    determine_matrix_columns_and_rows(mat, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 	
 	// Also, determine maximum and minimium number of entries in normal form matrix
 	estimate_number_of_sparse_elements(mat, cg);
@@ -645,20 +638,13 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     // vector as well as temp space for the solution routines and final 
     // solution averaging operation.
     mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
-    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_virial_constraint_rows];
-	for(int i = 0; i < mat->rows_less_virial_constraint_rows; i++) {
+    mat->ll_sparse_matrix_row_heads = new linked_list_sparse_matrix_row_head[mat->rows_less_constraint_rows];
+	for(int i = 0; i < mat->rows_less_constraint_rows; i++) {
     	mat->ll_sparse_matrix_row_heads[i].n = 0;
     	mat->ll_sparse_matrix_row_heads[i].h = NULL;
     }
     if (control_input->pressure_constraint_flag == 1) mat->dense_fm_matrix = new dense_matrix(control_input->frames_per_traj_block, mat->fm_matrix_columns);
 
-    // Set up the temps and parameters for solving the sparse normal equations.
-   	if (control_input->bootstrapping_flag == 1) {
-		mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-		for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
-			mat->bootstrap_solutions[i] = std::vector<double>(mat->fm_matrix_columns);
-		}
-	}
 	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
     
     // Allocate a preconditioning temp array.
@@ -666,15 +652,9 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     // Chapt 25 for details.
     mat->h = new double[mat->fm_matrix_columns]();
     
-	// These matrices are used for acculation of sparse normal form before solving
+	// These matrices are used for accumulation of sparse normal form before solving
 	if (control_input->bootstrapping_flag == 1) {
-   		mat->bootstrapping_sparse_fm_normal_matrices = new csr_matrix*[mat->bootstrapping_num_estimates];
-   		mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[mat->bootstrapping_num_estimates]();
-   		
-   		for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
-   			mat->bootstrapping_sparse_fm_normal_matrices[i] = new csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, mat->max_nonzero_normal_elements);
-			mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[mat->fm_matrix_columns]();
-   		}
+		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
 	}
 	mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     mat->sparse_matrix = new csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, mat->max_nonzero_normal_elements);
@@ -686,14 +666,61 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
 
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg) 
 {
-    mat->rows_less_virial_constraint_rows = 0;
+    mat->rows_less_constraint_rows = 0;
     mat->virial_constraint_rows = 0;
     mat->dense_fm_rhs_vector = new double[3 * cg->n_cg_sites];
     mat->dense_fm_normal_rhs_vector = new double[1];
     mat->fm_solution = std::vector<double>(1);
     mat->do_end_of_frameblock_matrix_manipulations = do_nothing_to_fm_matrix;
     mat->set_fm_matrix_to_zero = set_dummy_matrix_to_zero;
+    mat->temperature = control_input->temperature;
+    mat->boltzmann = control_input->boltzmann;
 }
+
+void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg)
+{
+  determine_matrix_columns_and_rows(mat, cg, 1, 0);
+  mat->fm_solution.resize(mat->fm_matrix_columns);
+   
+  mat->accumulate_matching_forces = accumulate_BI_elements;
+  mat->accumulate_tabulated_forces = accumulate_tabulated_error; // does nothing
+  mat->accumulate_target_force_element = accumulate_scalar_into_dense_target_vector;
+  
+  // reset output files
+  FILE* BI_matrix = fopen("BI_matrix.dat","w");
+  FILE* BI_vector = fopen("BI_vector.dat","w");
+  fclose(BI_matrix);
+  fclose(BI_vector);
+}
+
+void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer* const icomp)
+{
+  determine_BI_interaction_rows_and_cols(mat, icomp);
+
+  printf("%s matrix rows = %d, cols = %d\n",icomp->ispec->get_full_name().c_str(), mat->fm_matrix_rows, mat->fm_matrix_columns);fflush(stdout);
+  
+  // To store the dense RHS, this array only need to be of size mat->fm_matrix_rows.
+  // However, the svd solver puts the solution vector into this array,
+  // and  the solution vetor is of size mat->fm_matrix_columns.
+  delete [] mat->dense_fm_rhs_vector;
+  delete [] mat->dense_fm_normal_rhs_vector;
+
+  // avoid allocation errors if this interactions is not actually active.
+  if(mat->fm_matrix_columns == 0 || mat->fm_matrix_rows == 0) {
+  	mat->dense_fm_normal_rhs_vector = new double[1]();
+  	mat->dense_fm_rhs_vector = new double[1]();
+  	mat->dense_fm_matrix =  new dense_matrix(1, 1);
+  } else {
+  	if (mat->fm_matrix_rows >= mat->fm_matrix_columns) {
+		mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_rows]();
+  		mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows]();
+	  } else {
+  		mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
+  		mat->dense_fm_rhs_vector = new double[mat->fm_matrix_columns]();
+  	}
+ 	mat->dense_fm_matrix =  new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  }
+}  
 
 //--------------------------------------------------------------------
 // Bootstrapping helper routines
@@ -736,6 +763,7 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 {
 	// Determine total number of columns by adding up all the columns for all classes of interaction.
 	mat->fm_matrix_columns = 0;
+	mat->virial_constraint_rows = 0;
 	printf("Number of basis functions by interaction class:\n");
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
@@ -750,14 +778,47 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 
     // Determine the number of rows by seeing the number of particles and the number of auxiliary scalar restraints,
 	// then multiplying by the block size.
-	mat->rows_less_virial_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
-    if (pressure_constraint_flag == 0) {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * 3;
-        mat->virial_constraint_rows = 0;
-    } else {
-        mat->fm_matrix_rows = mat->rows_less_virial_constraint_rows * 3 + frames_per_traj_block;
+	mat->rows_less_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
+    if (pressure_constraint_flag != 0) {
         mat->virial_constraint_rows = frames_per_traj_block;
+        mat->fm_matrix_rows = mat->rows_less_constraint_rows * 3 + frames_per_traj_block;
     }
+	mat->fm_matrix_rows = mat->rows_less_constraint_rows * 3 + mat->virial_constraint_rows;
+}
+
+void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
+{
+  int num_entries = 0;
+  // Skip if it does not have a parameter distribution to use
+  if (icomp->ispec->output_parameter_distribution !=  0) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < icomp->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      num_entries += (2 * (int)(0.5 + (icomp->ispec->upper_cutoffs[i] - icomp->ispec->lower_cutoffs[i])/ icomp->ispec->get_fm_binwidth()));
+    }
+  }
+  mat->fm_matrix_rows = num_entries;
+  mat->fm_matrix_columns = icomp->ispec->get_num_basis_func();
+}
+
+void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input, const int rows, const int cols)
+{
+	// matrices
+	mat->bootstrapping_dense_fm_normal_matrices = new dense_matrix*[control_input->bootstrapping_num_estimates];
+  	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
+		mat->bootstrapping_dense_fm_normal_matrices[i] = new dense_matrix(rows, cols);
+	}
+	
+	// rhs vectors
+	mat->bootstrapping_dense_fm_normal_rhs_vectors = new double*[control_input->bootstrapping_num_estimates];
+  	for (int i = 0; i < control_input->bootstrapping_num_estimates; i++) {
+		mat->bootstrapping_dense_fm_normal_rhs_vectors[i] = new double[cols]();
+	}
+	
+	// solutions
+	mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
+   	for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
+  		mat->bootstrap_solutions[i] = std::vector<double>(cols);
+	}
 }
     
 // Estimate upper and lower bounds for the number of non-zero elements in normal matrix
@@ -793,7 +854,7 @@ void estimate_number_of_sparse_elements(MATRIX_DATA* const mat, CG_MODEL_DATA* c
 		}
 	}
 }	
-	
+
 //--------------------------------------------------------------------
 // Matrix reset routines
 //--------------------------------------------------------------------
@@ -892,7 +953,10 @@ void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, co
 void accumulate_vector_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // For each basis function,
-    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1] + first_nonzero_basis_index;
+    int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
     std::vector<double> forces(3 * n_body);
     for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
         // Calculate the associated forces.
@@ -905,10 +969,30 @@ void accumulate_vector_matching_forces(InteractionClassComputer* const info, con
             }
         }
         // Load those forces into the target vector.
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
         for (int i = 0; i < n_body; i++) {
-            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, ref_column + k, &forces[3 * i], mat);
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[3 * i], mat);
         }
     }
+}
+
+void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat)
+{
+  int this_column;
+  int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+  int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
+  for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+	this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+	insert_scalar_matrix_element(n_body, this_column, basis_fn_vals[k], mat);
+  }
+}
+
+void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat) 
+{
+  printf("Tabulated interactions cannot be done for relative entropy interactions. Please remove tabulated interactions from rmin files.\n");
+  fflush(stdout);
+  exit(EXIT_FAILURE);
 }
 
 //--------------------------------------------------------------------
@@ -997,19 +1081,10 @@ inline void insert_accumulation_matrix_element(const int i, const int j, double*
     mat->dense_fm_matrix->add_vector(3 * i + mat->accumulation_row_shift, j, x);
 }
 
-// Add a scalar force element to a dense matrix.
-
-inline void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
+inline void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(3 * i, j, x[0]);
-}
-
-// Add a scalar force element to an accumulation matrix.
-
-inline void insert_scalar_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
-{
-    mat->dense_fm_matrix->add_scalar(3 * i + mat->accumulation_row_shift, j, x[0]);
-}
+  mat->dense_fm_matrix->add_scalar(i,j,x);
+}  
 
 // Add a one-component virial contribution element to a dense matrix held 
 // alongside a sparse matrix; The virial rows will be dense, so only the
@@ -1019,7 +1094,7 @@ inline void insert_scalar_accumulation_matrix_element(const int i, const int j, 
 
 inline void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_virial_constraint_rows * 3, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * 3, n, x);
 }
 
 // Add a scalar virial contribution to a sparse matrix.
@@ -1033,7 +1108,7 @@ inline void insert_sparse_matrix_virial_element(const int m, const int n, const 
 
 inline void insert_accumulation_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_virial_constraint_rows * 3 + mat->accumulation_row_shift, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * 3 + mat->accumulation_row_shift, n, x);
 }
 
 //--------------------------------------------------------------------
@@ -1058,7 +1133,7 @@ void calculate_target_virial_in_dense_vector(MATRIX_DATA* const mat, double *pre
 {
 	int frame_sample  =  mat->trajectory_block_index * mat->virial_constraint_rows;
     for (int k = 0; k < mat->virial_constraint_rows; k++) {
-        mat->dense_fm_rhs_vector[mat->rows_less_virial_constraint_rows * 3 + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k)/ mat->dynamic_state_samples_per_frame)];
+        mat->dense_fm_rhs_vector[mat->rows_less_constraint_rows * 3 + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k)/ mat->dynamic_state_samples_per_frame)];
         frame_sample++;
     }
 }
@@ -1070,7 +1145,7 @@ void calculate_target_virial_in_accumulation_vector(MATRIX_DATA* const mat, doub
 {
 	int frame_sample  =  mat->trajectory_block_index * mat->virial_constraint_rows;
     for (int k = 0; k < mat->virial_constraint_rows; k++) {
-        mat->dense_fm_matrix->values[mat->fm_matrix_columns * mat->accumulation_matrix_rows + mat->rows_less_virial_constraint_rows * 3 + mat->accumulation_row_shift + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k) / mat->dynamic_state_samples_per_frame)];
+        mat->dense_fm_matrix->values[mat->fm_matrix_columns * mat->accumulation_matrix_rows + mat->rows_less_constraint_rows * 3 + mat->accumulation_row_shift + k] = pressure_constraint_rhs_vector[(int)((frame_sample + k) / mat->dynamic_state_samples_per_frame)];
     	frame_sample++;
     }
 }
@@ -1088,9 +1163,9 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
 
 void calculate_target_force_dense_vector(int shift_i, int site_i, MATRIX_DATA* const mat, const rvec *f)
 {
-	double force_sq = 0.0;
-	double curr_force;
     int tn = 3 * (site_i + shift_i);
+    double force_sq = 0.0;
+    double curr_force;
     for (int i = 0; i < 3; i++) {
     	curr_force = f[site_i][i];
     	mat->dense_fm_rhs_vector[tn + i] = curr_force;
@@ -1124,12 +1199,17 @@ void accumulate_force_into_accumulation_target_vector(MATRIX_DATA* mat, int part
 
 void accumulate_constraint_into_dense_target_vector(MATRIX_DATA* mat, int frame_index, double constraint_element)
 {
-    mat->dense_fm_rhs_vector[mat->rows_less_virial_constraint_rows * 3 + frame_index] += constraint_element;
+    mat->dense_fm_rhs_vector[mat->rows_less_constraint_rows * 3 + frame_index] += constraint_element;
 }
 
 void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA* mat, int frame_index, double constraint_element)
 {
-	mat->dense_fm_matrix->add_scalar(3 * mat->rows_less_virial_constraint_rows + frame_index, mat->accumulation_matrix_rows, constraint_element); 
+	mat->dense_fm_matrix->add_scalar(3 * mat->rows_less_constraint_rows + frame_index, mat->accumulation_matrix_rows, constraint_element); 
+}
+
+void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_index, double* force_element)
+{
+  mat->dense_fm_rhs_vector[particle_index] = *force_element;
 }
 
 //--------------------------------------------------------------------
@@ -1143,7 +1223,7 @@ void accumulate_constraint_into_accumulation_target_vector(MATRIX_DATA* mat, int
 
 void convert_dense_fm_equation_to_normal_form_and_accumulate(MATRIX_DATA* const mat)
 {
-    double frame_weight = mat->get_frame_weight() * mat->normalization;
+	double frame_weight = mat->get_frame_weight() * mat->normalization;
  	create_dense_normal_form(mat, frame_weight, mat->dense_fm_matrix,mat->dense_fm_normal_matrix, mat->dense_fm_rhs_vector, mat->dense_fm_normal_rhs_vector);
 }
 
@@ -1191,7 +1271,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
     double frame_weight = mat->get_frame_weight() * mat->normalization;
 
     // Take normal form of the current frame's target vector and add to the existing normal form target vector.
-	cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, mat->dense_fm_matrix->values, mat->fm_matrix_rows, mat->dense_fm_rhs_vector, onei, oned, mat->dense_fm_normal_rhs_vector, onei);
+    cblas_dgemv(CblasColMajor, CblasTrans, mat->fm_matrix_rows, mat->fm_matrix_columns, frame_weight, mat->dense_fm_matrix->values, mat->fm_matrix_rows, mat->dense_fm_rhs_vector, onei, oned, mat->dense_fm_normal_rhs_vector, onei);
 }
 
 // Perform the accumulation operation (QR decomposition followed by composition) to combine the
@@ -1200,7 +1280,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
 void accumulate_accumulation_matrices(MATRIX_DATA* const mat)
 {
     int info_in;
-    
+
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
         mat->lapack_temp_workspace = new double[1];
@@ -1222,7 +1302,7 @@ void accumulate_accumulation_matrices_for_bootstrap(MATRIX_DATA* const mat)
 	exit(EXIT_FAILURE);
 	
     int info_in;
-    
+
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
         mat->lapack_temp_workspace = new double[1];
@@ -1311,7 +1391,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -1361,7 +1441,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -1440,7 +1520,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+   
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -1534,7 +1614,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+   
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -1587,7 +1667,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 	  // Accumulate for master.
 	  frame_weight = mat->get_frame_weight() * mat->normalization; 
 	  cblas_daxpy(num_elements, frame_weight, normal_matrix, onei, mat->dense_fm_normal_matrix->values, onei);
-
+	  
 	  // Accumulate normal form matrix with previous/future normal form matrices.
 	  // This operation also applies the frame weight.
 	  for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
@@ -1595,7 +1675,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 		if(frame_weight == 0.0) continue;
 		frame_weight *= mat->bootstrapping_normalization[i];
 
-	  	cblas_daxpy(num_elements, frame_weight,	normal_matrix, onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, onei);
+	  	cblas_daxpy(num_elements, frame_weight, normal_matrix, onei, mat->bootstrapping_dense_fm_normal_matrices[i]->values, onei);
 	  }
 	    
 	  // Free the temp normal matrix
@@ -1656,7 +1736,7 @@ int get_n_nonzero_matrix_elements(MATRIX_DATA* const mat)
 	int n_nonzero_matrix_elements = 0;	
 	
     // Begin by calculating the total number of non-zero elements in this block
-    for (int k = 0; k < mat->rows_less_virial_constraint_rows; k++) {
+    for (int k = 0; k < mat->rows_less_constraint_rows; k++) {
         n_nonzero_matrix_elements += mat->ll_sparse_matrix_row_heads[k].n;
     }
     n_nonzero_matrix_elements *= 3;
@@ -1679,7 +1759,7 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
    struct linked_list_sparse_matrix_element* curr_elem, *prev_elem;
    double value;
    	
-   for (int k = 0; k < mat->rows_less_virial_constraint_rows; k++) {
+   for (int k = 0; k < mat->rows_less_constraint_rows; k++) {
         curr_elem = mat->ll_sparse_matrix_row_heads[k].h;
         row_counter = 0;
         while (curr_elem != NULL) {
@@ -1714,7 +1794,7 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
 	}
 
     if (mat->virial_constraint_rows > 0) {
-        row_counter = csr_fm_matrix.row_sizes[mat->rows_less_virial_constraint_rows * 3] - 1; // remove one-base for processing
+        row_counter = csr_fm_matrix.row_sizes[mat->rows_less_constraint_rows * 3] - 1; // remove one-base for processing
         for (int k = 0; k < mat->virial_constraint_rows; k++) {
             for (int l = 0; l < mat->fm_matrix_columns; l++) {
                 value = mat->dense_fm_matrix->values[l * mat->virial_constraint_rows + k];
@@ -1723,7 +1803,7 @@ void convert_linked_list_to_csr_matrix(MATRIX_DATA* const mat, csr_matrix& csr_f
                     csr_fm_matrix.column_indices[row_counter] = l + 1; // re-apply one-base to columns
                     row_counter++;
                 }
-                csr_fm_matrix.row_sizes[mat->rows_less_virial_constraint_rows * 3 + k + 1] = row_counter + 1; // re-apply one-base to rows
+                csr_fm_matrix.row_sizes[mat->rows_less_constraint_rows * 3 + k + 1] = row_counter + 1; // re-apply one-base to rows
             }
         }
     }
@@ -1798,7 +1878,7 @@ void regularize_vector_sparse_matrix(MATRIX_DATA* const mat, double* regularizat
    sparse_matrix_addition(mat, beta, nnzmax, csr_regularization_matrix, mat->sparse_matrix);
    // temp regularization matrix is automatically deleted at end of function
 }
-
+ 
 void sparse_matrix_addition(MATRIX_DATA* const mat, double frame_weight, int nnzmax, csr_matrix& csr_normal_matrix, csr_matrix* main_normal_matrix)
 {
    double* extra_csr_normal_matrix_values = new double[nnzmax]();
@@ -1825,6 +1905,8 @@ void sparse_matrix_addition(MATRIX_DATA* const mat, double frame_weight, int nnz
 	main_normal_matrix->set_csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, nnzmax, 
 						 extra_csr_normal_matrix_values, extra_csr_normal_matrix_column_indices, extra_csr_normal_matrix_row_sizes);
 }
+
+// Helper function to perform regularization
 
 void regularize_sparse_matrix(MATRIX_DATA* const mat, csr_matrix* csr_normal_matrix)
 {
@@ -1862,7 +1944,7 @@ void regularize_vector_sparse_matrix(MATRIX_DATA* const mat, csr_matrix* csr_nor
    sparse_matrix_addition(mat, beta, nnzmax, csr_regularization_matrix, csr_normal_matrix);
    // temp regularization matrix is automatically deleted at end of function
 }
-
+ 
 // Wrapper function for PARDISO sparse matrix solver
 
 void pardiso_solve(MATRIX_DATA* const mat, csr_matrix* const sparse_matrix, double* const dense_fm_normal_rhs_vector)
@@ -1944,7 +2026,7 @@ void solve_this_sparse_matrix(MATRIX_DATA* const mat)
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
 	csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
-
+	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
    // rows of matrix is mat->fm_matrix_rows
@@ -2045,7 +2127,7 @@ inline void create_dense_normal_form(MATRIX_DATA* const mat, const double frame_
 {	
     double oned = 1.0;    
     // Take normal form of the current frame's matrix and add to the existing normal form matrix.
-	#if _mkl_flag == 1
+    #if _mkl_flag == 1
 	char upper = 'u';
 	char trans = 't';
 	dsyrk(&upper, &trans, &mat->fm_matrix_columns, &mat->fm_matrix_rows, &frame_weight, dense_fm_matrix->values, &mat->fm_matrix_rows, &oned, normal_matrix->values, &mat->fm_matrix_columns);
@@ -2073,15 +2155,16 @@ inline double calculate_dense_residual(MATRIX_DATA* const mat, dense_matrix* con
 	
 	// Calculate solution^T * normal_matrix * solution
 	cblas_dgemv(CblasColMajor, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
-		   dense_fm_normal_matrix->values, mat->fm_matrix_columns, solution, onei,
-		   oned, intermediate, onei);  
-	
+			   dense_fm_normal_matrix->values, mat->fm_matrix_columns, solution, onei,
+			   oned, intermediate, onei);  
+				 	
 	normal_matrix = cblas_ddot(mat->fm_matrix_columns, intermediate, onei, solution, onei);
-	
+		
 	// Calculate solution^T * normal_vector
 	vector_left = cblas_ddot(mat->fm_matrix_columns, solution, onei, dense_fm_normal_rhs_vector, onei);
+	
 	// Calculate normal_vector^T * solution
-	vector_right = cblas_ddot(mat->fm_matrix_columns, dense_fm_normal_rhs_vector, onei, solution, onei);	
+	vector_right = cblas_ddot(mat->fm_matrix_columns, dense_fm_normal_rhs_vector, onei, solution, onei);
 	
 	// Combine all of these terms and scale by normalization (frames)
 	normal_matrix /= normalization;
@@ -2123,10 +2206,10 @@ inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* csr_
    #endif  
 	
 	normal_matrix = cblas_ddot(mat->fm_matrix_columns, intermediate, onei, solution, onei);
-
+	
 	// Calculate solution^T * normal_vector
 	vector_left = cblas_ddot(mat->fm_matrix_columns, solution, onei, dense_fm_normal_rhs_vector, onei);
-
+	
 	// Calculate normal_vector^T * solution
 	vector_right = cblas_ddot(mat->fm_matrix_columns, dense_fm_normal_rhs_vector, onei, solution, onei);
 	
@@ -2134,6 +2217,74 @@ inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* csr_
 	normal_matrix /= normalization;
 	vector_right  /= normalization;
 	vector_left   /= normalization;
+	residual = normal_matrix - vector_right - vector_left;
+	
+	// Add on the force_sq_total and output.
+	residual += mat->force_sq_total;
+	
+	printf("Unnormalized residual: %lf = %lf - %lf - %lf + %lf\n", residual, normal_matrix, vector_left, vector_right, mat->force_sq_total);
+	
+	delete [] intermediate;
+	delete [] solution;
+	
+	return residual;
+}
+
+// Calculate the residual for a sparse matrix.
+inline double calculate_sparse_residual(MATRIX_DATA* const mat, csr_matrix* csr_normal_matrix, double* const dense_fm_normal_rhs_vector, std::vector<double> &fm_solution, double* const h)
+{
+	double residual, normal_matrix, vector_left, vector_right;
+	int i, k, l;
+	// Prepare the solution for linear algebra calls.
+	int onei = 1;
+	double* intermediate = new double[mat->fm_matrix_columns]();
+	double* solution = new double[mat->fm_matrix_columns];
+	for (i = 0; i < mat->fm_matrix_columns; i++) {
+		solution[i] = fm_solution[i];
+		intermediate[i] = 0.0;
+	}
+	
+	// Remove pre-conditioner
+    for (k = 0; k < mat->fm_matrix_columns; k++) {
+      	for (l = csr_normal_matrix->row_sizes[k] - 1; l < csr_normal_matrix->row_sizes[k + 1] - 1; l++) {
+        	csr_normal_matrix->values[l] /= h[csr_normal_matrix->column_indices[l] - 1];
+    	}
+    }
+
+	printf("Solution\n");
+	for (i = 0; i < mat->fm_matrix_columns; i++) {
+		printf("%lf\n", solution[i]);
+	}
+	printf("\n");
+	fflush(stdout);
+	
+	printf("RHS\n");
+	for (i = 0; i < mat->fm_matrix_columns; i++) {
+		printf("%lf\n", dense_fm_normal_rhs_vector[i]);
+	}
+	printf("\n");
+	fflush(stdout);
+	
+   // Calculate solution^T * normal_matrix * solution
+   #if _mkl_flag == 1
+   char none='n';  // not transpose
+   mkl_dcsrgemv(&none, &mat->fm_matrix_columns, csr_normal_matrix->values, 
+		csr_normal_matrix->row_sizes, csr_normal_matrix->column_indices,
+   		solution, intermediate);
+   #endif  
+	
+	normal_matrix = cblas_ddot(mat->fm_matrix_columns, intermediate, onei, solution, onei);
+	
+	// Calculate solution^T * normal_vector
+	vector_left = cblas_ddot(mat->fm_matrix_columns, solution, onei, dense_fm_normal_rhs_vector, onei);
+	
+	// Calculate normal_vector^T * solution
+	vector_right = cblas_ddot(mat->fm_matrix_columns, dense_fm_normal_rhs_vector, onei, solution, onei);
+	
+	// Combine all of these terms and scale by normalization (frames)
+	normal_matrix /= mat->normalization;
+	vector_right  /= mat->normalization;
+	vector_left   /= mat->normalization;
 	residual = normal_matrix - vector_right - vector_left;
 	
 	// Add on the force_sq_total and output.
@@ -2201,6 +2352,36 @@ inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, dense_m
 	delete [] lapack_temp_workspace;
 	delete [] iwork;
 }
+
+inline void calculate_dense_svd(MATRIX_DATA* mat, int fm_matrix_columns, int fm_matrix_rows, dense_matrix* dense_fm_normal_matrix, double* dense_fm_rhs_vector, double* singular_values)
+{
+	int space_factor = 2;
+	int onei = 1;
+	int lapack_setup_flag = -1;
+	int smlsiz = 25;
+	
+	double tx = fm_matrix_columns / (smlsiz + 1.0);
+	int nlvl = (int)(log10(tx) / log10(2)) + 1;
+	int irank_in, info_in;
+	int liwork = 3 * fm_matrix_columns * nlvl + 11 * fm_matrix_columns;
+	liwork *= space_factor;
+	
+	int* iwork = new int[liwork];
+	double* lapack_temp_workspace = new double[1];
+
+	// The SVD routine works in two modes: first, the routine is run with a dummy workspace to
+	// determine the size of the needed workspace, then that workspace is allocated, then the
+	// routine is run again with a sufficient workspace to perform SVD.
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_rows, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+	lapack_setup_flag = lapack_temp_workspace[0];
+	delete [] lapack_temp_workspace;
+	lapack_temp_workspace = new double[lapack_setup_flag];
+	dgelsd_(&fm_matrix_rows, &fm_matrix_columns, &onei, dense_fm_normal_matrix->values, &fm_matrix_rows, dense_fm_rhs_vector, &fm_matrix_rows, singular_values, &mat->rcond, &irank_in, lapack_temp_workspace, &lapack_setup_flag, iwork, &info_in);
+
+	// Clean up the heap-allocated temps.
+	delete [] lapack_temp_workspace;
+	delete [] iwork;
+}  
 
 //--------------------------------------------------------------------
 // End-of-trajectory routines
@@ -2300,8 +2481,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
         fprintf(csr_out, "%lf\n", 1.0/mat->normalization);
 		fclose(csr_out);
 	
-		FILE* mat_out;
-		mat_out = open_file("result.out", "wb");
+		FILE* mat_out = open_file("result.out", "wb");
 		int counter = 0;
 		int low, high;
 		double zero = 0.0;
@@ -2372,7 +2552,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
    }
 
     // Calculate First Bayesian Estimates
-    if (mat->bayesian_flag == 1) {
+    if (mat->bayesian_flag == 1 || mat->bayesian_flag == 2) {
     	int iteration = 0;
 	    int onei = 1;
     	dense_matrix* it_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
@@ -2389,10 +2569,10 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
     	double residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 		printf("iteration %d: residual %lf\n", iteration, residual);
 		
-	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / 3);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / 3);
 		double n_frames = 1.0 / mat->normalization;
 		
-		double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
+	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
 		double beta  = (double)(3) * n_cg_sites * n_frames / residual;
 		
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2407,11 +2587,9 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		FILE* res_fp   = fopen("residual.out", "w");
 		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-
 		if (mat->bayesian_flag == 2) {
 			mat_fp   = fopen("matrix.out", "w");
 			inv_fp   = fopen("inverse.out", "w");
-			//backup_normal_matrix->print_matrix(mat_fp);
 		}
 		
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2457,15 +2635,14 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
    			}
 			
 			residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
-			
 			double* alpha_solution = new double[mat->fm_matrix_columns];
 			for (int k = 0; k < mat->fm_matrix_columns; k++) {
 				alpha_solution[k] = alpha_vec[k] * solution[k];
 			}
 			double alpha_product = cblas_ddot(mat->fm_matrix_columns, solution, onei, alpha_solution, onei);
 			double extended_residual = beta * 0.5 * residual + 0.5 * alpha_product;
-			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
 			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
+			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
 			delete [] alpha_solution;
 		
 			// Calculate the values for the next round.
@@ -2498,12 +2675,13 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			if (mat->bayesian_flag == 2) {
 				it_normal_matrix->print_matrix(inv_fp);
 			}		
+			
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
 			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
-				it_normal_matrix->values, mat->fm_matrix_columns, backup_dense_matrix->values, mat->fm_matrix_columns, oned,
-				product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
+					it_normal_matrix->values, mat->fm_matrix_columns, backup_dense_matrix->values, mat->fm_matrix_columns, oned,
+					product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
 		
 			trace_product = 0.0;
 			for (int i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2518,7 +2696,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			
 			// Beta Scalar
 			beta =  (3.0 * n_cg_sites * n_frames - trace_product) / residual;	
-	   
+
 		   write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		}
 		// Clean-up bayesian allocated memory
@@ -2533,9 +2711,6 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		}
 		delete [] solution;
 		delete [] reg_vec;
-		//delete [] alpha_vec;
-		//delete it_normal_matrix;
-		//delete backup_dense_matrix;
 		delete product_reg_normal_matrix_inv_normal_matrix;
     }
     
@@ -2597,7 +2772,6 @@ void solve_sparse_fm_bootstrapping_equations(MATRIX_DATA* const mat)
       }
    }
    delete [] mat->h;
-   //delete [] mat->dense_fm_normal_rhs_vector;
    delete [] mat->bootstrapping_sparse_fm_normal_matrices;
    delete [] mat->bootstrapping_dense_fm_normal_rhs_vectors;
 }
@@ -2628,8 +2802,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         // Read in a stored normal form matrix and normal form target vector for
         // iterative calculations
 		double ttx;
-        FILE* mat_in;
-        mat_in = open_file("result.in", "rb");
+        FILE* mat_in = open_file("result.in", "rb");
         double* in_rhs = new double[mat->fm_matrix_columns];
         
         for (j = 0; j < mat->fm_matrix_columns; j++) {
@@ -2644,13 +2817,6 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         }
         fclose(mat_in);
         
-        // Write the RHS vector before calculating the difference
-        FILE* rhs_out = open_file("rhs.out", "w");
-        for (i = 0; i < mat->fm_matrix_columns; i++) {
-        	fprintf(rhs_out, "%lf %lf\n", mat->dense_fm_normal_rhs_vector[i], in_rhs[i]);
-        }
-        fclose(rhs_out);
-        
         // The target for an iterative calculation is the difference between the targets
         // for this trajectory and the previous trajectory.
         for (i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2660,8 +2826,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     } else {
         // Save the results in binary form for parallel runs.
         if (mat->output_style >= 2) {
-            FILE* mat_out;
-            mat_out = open_file("result.out", "wb");
+            FILE* mat_out = open_file("result.out", "wb");
             for (i = 0; i < mat->fm_matrix_columns; i++) {
                 fwrite(&mat->dense_fm_normal_matrix->values[i * mat->fm_matrix_columns], sizeof(double), i + 1, mat_out);
             }
@@ -2678,7 +2843,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	// Assign the upper diagonal to the lower lower diagonal (symmetric matrix)
     for (i = 0; i < mat->fm_matrix_columns; i++) {
         for (j = 0; j < i; j++) {
-            mat->dense_fm_normal_matrix->assign_scalar(i, j, mat->dense_fm_normal_matrix->values[i * mat->fm_matrix_columns + j]);
+            mat->dense_fm_normal_matrix->assign_scalar(i, j, mat->dense_fm_normal_matrix->get_scalar(j, i));
         }
     }
 
@@ -2757,31 +2922,30 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	    
     	double residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 	    
-	    double n_cg_sites = (double)( mat->rows_less_virial_constraint_rows/ mat->frames_per_traj_block / 3);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / 3);
 		double n_frames = 1.0 / mat->normalization;
 		
-	   	double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
+	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
 		double beta  = (double)(3) * n_cg_sites * n_frames / residual;
-
+		
 		for (i = 0; i < mat->fm_matrix_columns; i++) {
 			alpha_vec[i] = alpha;
 		}
 				
-		FILE* mat_fp;
-		FILE* inv_fp;
 		FILE* alpha_fp = fopen("alpha.out", "w");
 		FILE* beta_fp  = fopen("beta.out",  "w");
 		FILE* sol_fp   = fopen("solution.out", "w");
 		FILE* res_fp   = fopen("residual.out", "w");
 		FILE* ext_fp   = fopen("ext_residual.out", "w");
 		write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
-		
+		FILE* mat_fp;
+		FILE* inv_fp;
 		if (mat->bayesian_flag == 2) {
 			mat_fp   = fopen("matrix.out", "w");
 			inv_fp   = fopen("inverse.out", "w");
 			backup_normal_matrix->print_matrix(mat_fp);
 		}
-			
+		
 		while (iteration < mat->bayesian_max_iter) {
 		
 			// Initialize RHS vector and normal matrix from backups.
@@ -2822,10 +2986,11 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			fprintf(ext_fp, "Iteration %d: %lf\n", iteration, -extended_residual);
 			printf("negative of extended residual %lf = (%lf / 2) * %lf + 1/2 * %lf\n", extended_residual, beta, residual, alpha_product);
 			delete [] alpha_solution;
-					
+		
 			// Calculate the values for the next round.
 			iteration++;
-
+			residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
+		
 			// Alpha needs matrix inverse and beta needs the product of the inverse with an unregularized normal matrix
 			it_dense_normal_matrix->reset_matrix();
 			product_reg_normal_matrix_inv_normal_matrix->reset_matrix();
@@ -2852,13 +3017,13 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			if (mat->bayesian_flag == 2) {
 				it_dense_normal_matrix->print_matrix(inv_fp);
 			}
-						
+			
 			// Calculate product using inverse of regularized matrix
 			// Note: it_dense_normal_matrix is now actually the inverse of that matrix.
 			double oned = 1.0;
 			cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, mat->fm_matrix_columns, mat->fm_matrix_columns, mat->fm_matrix_columns, oned,
-				it_dense_normal_matrix->values, mat->fm_matrix_columns, backup_normal_matrix->values, mat->fm_matrix_columns, oned,
-				product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
+					it_dense_normal_matrix->values, mat->fm_matrix_columns, backup_normal_matrix->values, mat->fm_matrix_columns, oned,
+					product_reg_normal_matrix_inv_normal_matrix->values, mat->fm_matrix_columns);
 		
 			trace_product = 0.0;
 			for (i = 0; i < mat->fm_matrix_columns; i++) {
@@ -2872,7 +3037,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			}
 			
 			// Beta Scalar
-			beta =  (3.0 * n_cg_sites * n_frames - trace_product) / residual;				
+			beta =  ((double)(3) * n_cg_sites * n_frames - trace_product) / residual;				
 
 			write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		}
@@ -2887,6 +3052,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			fclose(mat_fp);
 			fclose(inv_fp);
 		}
+
 		delete [] alpha_vec;
 		delete [] solution;
 		delete it_dense_normal_matrix;
@@ -2898,18 +3064,12 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     if (mat->iterative_calculation_flag == 1) {
         printf("Adding iterative increment to previous solution.\n");
         fflush(stdout);
-        FILE* x_in;
-        double* x0;
-        double tx;
-        x_in = open_file("x.in", "rb");
-        x0 = new double[mat->fm_matrix_columns];
-        for (i = 0; i < mat->fm_matrix_columns; i++) {
-        	fread(&tx, sizeof(double), 1, x_in);
-        	x0[i] = tx;
-        }
+        FILE* x_in = open_file("x.in", "r");
+        double* x0 = new double[mat->fm_matrix_columns];
+        for (i = 0; i < mat->fm_matrix_columns; i++) fscanf(x_in, "%le", x0 + i);
         fclose(x_in);
-         
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
+        
+        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iteration_step_size + x0[i];
         delete [] x0;
     }
 
@@ -2929,13 +3089,37 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
     delete [] backup_rhs;
  	if(mat->matrix_type == 3) delete [] mat->dense_fm_normal_rhs_vector;
 }
+  
+void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter)
+{
+  // Output BI matrix and vector before solving.
+  FILE* BI_matrix = fopen("BI_matrix.dat","a");
+  FILE* BI_vector = fopen("BI_vector.dat","a");
+  mat->dense_fm_matrix->print_matrix(BI_matrix);
+  for(int i = 0; i < mat->fm_matrix_rows;i++)  {
+      fprintf(BI_vector,"%lf\n",mat->dense_fm_rhs_vector[i]);
+  }
+  fclose(BI_matrix);
+  fclose(BI_vector);
+  
+  // Solve BI matrix
+  if (mat->fm_matrix_columns > 0 && mat->fm_matrix_rows > 0) {
+  	double* singular_values = new double[mat->fm_matrix_columns];
+	calculate_dense_svd(mat, mat->fm_matrix_columns, mat->fm_matrix_rows, mat->dense_fm_matrix, mat->dense_fm_rhs_vector, singular_values);
+  	for (int i = 0; i < mat->fm_matrix_columns; i++) {
+    	mat->fm_solution[solution_counter + i] = mat->dense_fm_rhs_vector[i];
+  	}
+  	delete [] singular_values;
+  	solution_counter += mat->fm_matrix_columns;
+  }
+  delete mat->dense_fm_matrix;
+}
 
 void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 {
     double* dd_bak;
     double ttx;
     double* dd1;
-    int i,j,k;
     
     // Solve for master
     solve_dense_fm_normal_equations(mat);
@@ -2949,7 +3133,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // otherwise.
     if (mat->output_normal_equations_rhs_flag == 1) {
         dd_bak = new double[mat->fm_matrix_columns];
-        for (i = 0; i < mat->fm_matrix_columns; i++) dd_bak[i] = mat->dense_fm_normal_rhs_vector[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) dd_bak[i] = mat->dense_fm_normal_rhs_vector[i];
     }
     
     // At the time of solution, one can be sure that the raw dense matrix
@@ -2963,18 +3147,16 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         // Read in a stored normal form matrix and normal form target vector for
         // iterative calculations
         
-        FILE* mat_in;
-        mat_in = open_file("result.in", "rb");
-
+        FILE* mat_in = open_file("result.in", "rb");
         dd1 = new double[mat->fm_matrix_columns];
         
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
                 fread(&ttx, sizeof(double), 1, mat_in);
                 mat->dense_fm_normal_matrix->assign_scalar(k, j, ttx);
             }
         }
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             fread(&ttx, sizeof(double), 1, mat_in);
             dd1[j] = ttx;
         }
@@ -2982,10 +3164,8 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         
         // The target for an iterative calculation is the difference between the targets
         // for this trajectory and the previous trajectory.
-                
-        for (i = 0; i < mat->fm_matrix_columns; i++) {
+        for (int i = 0; i < mat->fm_matrix_columns; i++)
             mat->dense_fm_normal_rhs_vector[i] = dd1[i] - mat->dense_fm_normal_rhs_vector[i];
-        }
         delete [] dd1;
         
     } else {
@@ -2993,8 +3173,8 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
         // Save the results in binary form for parallel runs.
         if (mat->output_style >= 2) {
             FILE* mat_out = open_file("result.out", "wb");
-            for (j = 0; j < mat->bootstrapping_num_estimates; j++) {
-            	for (i = 0; i < mat->fm_matrix_columns; i++) {
+            for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+            	for (int i = 0; i < mat->fm_matrix_columns; i++) {
                 	fwrite(&mat->bootstrapping_dense_fm_normal_matrices[j]->values[i * mat->fm_matrix_columns], sizeof(double), i + 1, mat_out);
             	}
             	fwrite(&mat->bootstrapping_dense_fm_normal_rhs_vectors[j][0], sizeof(double), mat->fm_matrix_columns, mat_out);
@@ -3007,18 +3187,13 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
             if (mat->output_style == 3) exit(EXIT_SUCCESS);
         }
     }
-
-	mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-   	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
-  		mat->bootstrap_solutions[k] = std::vector<double>(mat->fm_matrix_columns);
-	}
 	
-    for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
+    for (int k = 0; k < mat->bootstrapping_num_estimates; k++) {
     
 		// Copy over symmetric off-diagonal values in normal matrix;
-	    for (i = 0; i < mat->fm_matrix_columns; i++) {
-	        for (j = 0; j < i; j++) {
-    	        mat->bootstrapping_dense_fm_normal_matrices[k]->assign_scalar(i, j, mat->bootstrapping_dense_fm_normal_matrices[k]->values[i * mat->fm_matrix_columns + j]);
+	    for (int i = 0; i < mat->fm_matrix_columns; i++) {
+	        for (int j = 0; j < i; j++) {
+    	        mat->bootstrapping_dense_fm_normal_matrices[k]->assign_scalar(i, j, mat->bootstrapping_dense_fm_normal_matrices[k]->get_scalar(j , i));
         	}
     	}
 
@@ -3026,7 +3201,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     	if (mat->regularization_style == 2) {
 	    	printf("Regularizing FM normal equations (estimate %d).\n", k);
     		fflush(stdout);
-        	for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	       	mat->bootstrapping_dense_fm_normal_matrices[k]->add_scalar(i, i, mat->regularization_vector[i]);
         	}
         }
@@ -3043,7 +3218,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     		fflush(stdout);
         	double squared_regularization_parameter;
         	squared_regularization_parameter = mat->tikhonov_regularization_param * mat->tikhonov_regularization_param;
-        	for (i = 0; i < mat->fm_matrix_columns; i++) {
+        	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	       	mat->bootstrapping_dense_fm_normal_matrices[k]->add_scalar(i, i, squared_regularization_parameter);
         	}
         }
@@ -3059,7 +3234,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     	fflush(stdout);
     	FILE* solution_file = open_file("sol_info.out", "a");
     	fprintf(solution_file, "Singular vector %d:\n", k);
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
+    	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	    fprintf(solution_file, "%le\n", singular_values[i]);
     	}
     	fclose(solution_file);
@@ -3070,7 +3245,7 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 	    // Calculate the final results from the singular values.
 	    printf("Calculating final FM results (estimate %d).\n", k);
     	fflush(stdout);    
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
+    	for (int i = 0; i < mat->fm_matrix_columns; i++) {
     	    mat->bootstrap_solutions[k][i] = mat->bootstrapping_dense_fm_normal_rhs_vectors[k][i] * h[i];
     	}
     	
@@ -3088,29 +3263,27 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // For iterative calculations, the solution is a difference, so the computed quantity
     // should be added on to the previous solution value to obtain the final solution.
     if (mat->iterative_calculation_flag == 1) {
-    
         printf("Adding iterative increment to previous solution.\n");
         fflush(stdout);
-        FILE* x_in;
-        double* x0;
-        x_in = open_file("x.in", "r");
-        x0 = new double[mat->fm_matrix_columns];
-        for (i = 0; i < mat->fm_matrix_columns; i++) fscanf(x_in, "%le", x0 + i);
-        fclose(x_in);
-        //test
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iterative_update_rate_coeff + x0[i];
+        double* x0 = new double[mat->fm_matrix_columns];
+        std::ifstream x_in;
+        check_and_open_in_stream(x_in, "x.in");
+        for (int i = 0; i < mat->fm_matrix_columns; i++) x_in >> x0[i];
+        x_in.close();
+        
+        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iteration_step_size + x0[i];
         delete [] x0;
     }
 
     printf("Completed FM.\n"); fflush(stdout);
 
     if (mat->output_normal_equations_rhs_flag == 1) {
-        for (i = 0; i < mat->fm_matrix_columns; i++) mat->dense_fm_normal_rhs_vector[i] = dd_bak[i];
+        for (int i = 0; i < mat->fm_matrix_columns; i++) mat->dense_fm_normal_rhs_vector[i] = dd_bak[i];
         delete [] dd_bak;
     }
     // Clean up the heap-allocated matrix temps required for 
     // optional more-detailed output.
-    for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
+    for (int k = 0; k < mat->bootstrapping_num_estimates; k++) {
 	    delete mat->bootstrapping_dense_fm_normal_matrices[k];
     	delete [] mat->bootstrapping_dense_fm_normal_rhs_vectors[k];
 	}
@@ -3137,8 +3310,8 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
         for (i = 0; i < mat->fm_matrix_columns; i++) {
             fwrite(&mat->dense_fm_matrix->values[i * mat->accumulation_matrix_rows], sizeof(double), i + 1, mat_out);
         }
-		double inv_norm = 1.0/mat->normalization;
         fwrite(&mat->dense_fm_normal_rhs_vector[0], sizeof(double), mat->accumulation_matrix_columns, mat_out);
+        double inv_norm = 1.0/mat->normalization;
         fwrite(&mat->force_sq_total, sizeof(double), 1, mat_out);
         fwrite(&inv_norm, sizeof(double), 1, mat_out);
         fclose(mat_out);
@@ -3150,15 +3323,13 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
     
     // Precondition the accumulation matrix using the root-of-sum-of-squares of the columns
     // as column scaling factors.
-    double* h = new double[mat->fm_matrix_columns];
     
-    for (i = 0; i < mat->fm_matrix_columns; i++) {
-        h[i] = 0.0;
-    }
+    // Use default constructor to initialize all elements to 0.
+    double* h = new double[mat->fm_matrix_columns]();
     
     for (i = 0; i < mat->fm_matrix_columns; i++) {
         for (j = 0; j < mat->fm_matrix_columns; j++) {
-            h[j] = h[j] + mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i] * mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i];
+            h[j] += mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i] * mat->dense_fm_matrix->values[j * mat->accumulation_matrix_rows + i];
         }
     }
     
@@ -3210,7 +3381,6 @@ void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat)
         xnorm += mat->fm_solution[i] * mat->fm_solution[i];
     }
     fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);
-    
     fprintf(solution_file, "Residual 2-norm:\n%le\n", resid);
     
     // Deallocate the remaining temps.
@@ -3248,27 +3418,18 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
     	fclose(mat_out);
 	    if (mat->output_style == 3) exit(EXIT_SUCCESS);
 	}
-    
-    mat->bootstrap_solutions = new std::vector<double>[mat->bootstrapping_num_estimates];
-   	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
-   		mat->bootstrap_solutions[k] = std::vector<double>(mat->fm_matrix_columns);
-	}
-	
+    	
    	for (k = 0; k < mat->bootstrapping_num_estimates; k++) {
 
     	double resid = mat->bootstrapping_dense_fm_normal_matrices[k]->values[(mat->accumulation_matrix_columns - 1) * mat->accumulation_matrix_rows + mat->accumulation_matrix_columns - 1];
     
     	// Precondition the accumulation matrix using the root-of-sum-of-squares of the columns
     	// as column scaling factors.
-    	double* h = new double[mat->fm_matrix_columns];
-    
-    	for (i = 0; i < mat->fm_matrix_columns; i++) {
-        	h[i] = 0.0;
-    	}
+    	double* h = new double[mat->fm_matrix_columns]();
     
     	for (i = 0; i < mat->fm_matrix_columns; i++) {
         	for (j = 0; j < mat->fm_matrix_columns; j++) {
-            	h[j] = h[j] + mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i] * mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i];
+            	h[j] += mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i] * mat->bootstrapping_dense_fm_normal_matrices[k]->values[j * mat->accumulation_matrix_rows + i];
         	}
     	}
     
@@ -3318,8 +3479,7 @@ void solve_accumulation_form_bootstrapping_equations(MATRIX_DATA* const mat)
     	for (i = 0; i < mat->fm_matrix_columns; i++) {
         	xnorm += mat->fm_solution[i] * mat->fm_solution[i];
     	}
-    	fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);
-    
+    	fprintf(solution_file, "Solution 2-norm:\n%le\n", xnorm);    
     	fprintf(solution_file, "Residual 2-norm:\n%le\n", resid);
     
     	// Deallocate the remaining temps.
@@ -3355,6 +3515,25 @@ void read_binary_matrix(MATRIX_DATA* const mat)
     }
 }
 
+// Read the number of files to combine in this batch
+// and the file names for each from "res_av.in".
+
+int read_res_av_file(std::string* &filenames)
+{
+	int n_batch;
+	std::ifstream file_of_input_filenames;
+    check_and_open_in_stream(file_of_input_filenames, "res_av.in");
+    
+	file_of_input_filenames >> n_batch;
+    
+    filenames = new std::string[n_batch];
+    for (int i = 0; i < n_batch; i++) {
+        file_of_input_filenames >> filenames[i];
+    }
+    file_of_input_filenames.close();
+
+	return n_batch;
+}
 
 // Read the results of a batch of dense-matrix-based FM
 // calculations and add them together as if they were the
@@ -3362,27 +3541,14 @@ void read_binary_matrix(MATRIX_DATA* const mat)
 
 void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
 {
-
-    int i, j, k;
-    double tx;
+    double matrix_element;
     double inv_norm_sum = 0.0;
     double inv_norm;
-    int n_batch;
-    char** file_names; //name of matrix files
-    FILE* file_of_input_file_names; //input file
-    
-    // Read the number of files to combine in this batch
+
+	// Read the number of files to combine in this batch
     // and the file names for each.
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    file_names = new char*[n_batch];
-    for (i = 0; i < n_batch; i++) {
-        file_names[i] = new char[100];
-    }
-    for (i = 0; i < n_batch; i++) {
-        fscanf(file_of_input_file_names, "%s", file_names[i]);
-    }
-    fclose(file_of_input_file_names);
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
 
     // Read each file's dense matrix, adding them together element-by-
     // element to get a final set of normal form equations.
@@ -3390,67 +3556,60 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat)
     FILE* single_binary_matrix_input;
 	dense_matrix* read_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
 	double* read_rhs = new double[mat->fm_matrix_columns];
-    for (i = 0; i < n_batch; i++) {
-        read_matrix->reset_matrix();
+    for (int i = 0; i < n_batch; i++) {
         // Read the new normal form matrix.
         // Stored as an upper traingular matrix because it is symmetric.
-        single_binary_matrix_input = open_file(file_names[i], "rb");
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
-                fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-                read_matrix->add_scalar(k, j, tx);
+        single_binary_matrix_input = open_file(filenames[i].c_str(), "rb");
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
+                fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+                read_matrix->assign_scalar(k, j, matrix_element);
             }
         }
 
         // Read the new normal form vector.
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
-            fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-            read_rhs[j] = tx;
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+            read_rhs[j] = matrix_element;
         }
         
         // Read the force_sq_total value
-        if( fread(&tx, sizeof(double), 1, single_binary_matrix_input) != 1) {
-        	tx = 0.0;
-    	}
-        mat->force_sq_total += tx;
+        fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+        mat->force_sq_total += matrix_element;
         
         // Read the inverse normalization
-        if ( fread(&tx, sizeof(double), 1, single_binary_matrix_input) != 1) {
-        	inv_norm = 1.0;
-        }
-        inv_norm = tx;
-        
+        fread(&matrix_element, sizeof(double), 1, single_binary_matrix_input);
+        inv_norm = matrix_element;
         inv_norm_sum += inv_norm;
         
         // Add the new normal form matrix to the existing one.
         // This process "unnormalizes" each element as it is added.
         // Stored as an upper traingular matrix because it is symmetric.
-         for (j = 0; j < mat->fm_matrix_columns; j++) {
-            for (k = 0; k <= j; k++) {
+         for (int j = 0; j < mat->fm_matrix_columns; j++) {
+            for (int k = 0; k <= j; k++) {
             	mat->dense_fm_normal_matrix->add_scalar(k, j, inv_norm * read_matrix->get_scalar(k, j));
             }
         }
         
         // Add the new normal form vector to the existing one.
         // This process "unnormalizes" each element as it is added.
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             mat->dense_fm_normal_rhs_vector[j] += inv_norm * read_rhs[j];
         }
         fclose(single_binary_matrix_input);
-        delete [] file_names[i];
     }
-    delete [] file_names;
+    delete [] filenames;
     delete [] read_rhs;
     delete read_matrix;
      
     // Normalize the normal matrix and RHS vector by the total number of frames.
  	set_normalization(mat, 1.0/inv_norm_sum);
-	for (j = 0; j < mat->fm_matrix_columns; j++) {
-		for (k = 0; k <= j; k++) {
+	for (int j = 0; j < mat->fm_matrix_columns; j++) {
+		for (int k = 0; k <= j; k++) {
 			mat->dense_fm_normal_matrix->assign_scalar(k, j, mat->normalization * mat->dense_fm_normal_matrix->get_scalar(k, j));
 		}
 	}
-	for (j = 0; j < mat->fm_matrix_columns; j++) {
+	for (int j = 0; j < mat->fm_matrix_columns; j++) {
 		mat->dense_fm_normal_rhs_vector[j] = mat->normalization * mat->dense_fm_normal_rhs_vector[j];
 	}
 	    
@@ -3472,44 +3631,32 @@ void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 	delete mat->dense_fm_matrix;
     mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_columns, mat->accumulation_matrix_columns);
 
-    //read the matrix
-    int j, k;
-    double tx;
-    int n_batch; //number of blocks
-    char** file_names; //name of matrix files
-    FILE* file_of_input_file_names; //input file
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    if (n_batch > 1) {
+  	// Read the number of files to combine in this batch
+    // and the file names for each.
+	double read_value;
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
+  	if (n_batch > 1) {
         printf("Can not read more than one block for the sequential accumulation algorithm!\n");
         exit(EXIT_FAILURE);
     }
-    file_names = new char*[n_batch];
-
-    file_names[0] = new char[100]; // Max matrix file name length is 100.
-
-    fscanf(file_of_input_file_names, "%s", file_names[0]);
-    fclose(file_of_input_file_names);
-
-    FILE* single_binary_matrix_input;
-
-    single_binary_matrix_input = open_file(file_names[0], "rb");
-    for (j = 0; j < mat->fm_matrix_columns; j++) {
-        for (k = 0; k <= j; k++) {
-            fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-            mat->dense_fm_matrix->assign_scalar(k, j, tx);
+    
+    FILE* single_binary_matrix_input = open_file(filenames[0].c_str(), "rb");
+    for (int j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int k = 0; k <= j; k++) {
+            fread(&read_value, sizeof(double), 1, single_binary_matrix_input);
+            mat->dense_fm_matrix->assign_scalar(k, j, read_value);
         }
     }
 
-    for (j = 0; j < mat->fm_matrix_columns; j++) mat->dense_fm_matrix->assign_scalar(mat->fm_matrix_columns, j, 0.0);
+    for (int j = 0; j < mat->fm_matrix_columns; j++) mat->dense_fm_matrix->assign_scalar(mat->fm_matrix_columns, j, 0.0);
 
-    for (j = 0; j < mat->accumulation_matrix_columns; j++) {
-        fread(&tx, sizeof(double), 1, single_binary_matrix_input);
-        mat->dense_fm_normal_rhs_vector[j] = tx;
+    for (int j = 0; j < mat->accumulation_matrix_columns; j++) {
+        fread(&read_value, sizeof(double), 1, single_binary_matrix_input);
+        mat->dense_fm_normal_rhs_vector[j] = read_value;
     }
     fclose(single_binary_matrix_input);
-    delete [] file_names[0];
-    delete [] file_names;
+    delete [] filenames;
 }
 
 // Read the results of a batch of sparse-matrix-based FM
@@ -3519,40 +3666,34 @@ void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat)
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat)
 {
     printf("The use of combinefm with the sparse matrix type is not supported!\n"); 
-	int i, j;
-    int n_batch;
-    FILE* file_of_input_file_names, *single_block_solution_file;
-    char single_block_solution_filename[100];
-    double* single_block_normalization_factors;
+	FILE *single_block_solution_file;
     
     // Allocate memory for a single block's worth of temp data.
-    single_block_normalization_factors = new double[mat->fm_matrix_columns];
+    double* single_block_normalization_factors = new double[mat->fm_matrix_columns];
     
-    // Open the file defining the batch size and batch file names.
-    file_of_input_file_names = open_file("res_av.in", "r");
-    fscanf(file_of_input_file_names, "%d", &n_batch);
-    
+    // Read the number of files to combine in this batch
+    // and the file names for each.
+    std::string* filenames;
+    int n_batch = read_res_av_file(filenames);
+
     // For each file in the batch, read the appropriate file
     // for the solution of that batch (not normalized) and the
     // normalization factors for that solution.
-    for (i = 0; i < n_batch; i++) {
-        
-        // Read the file
-        fscanf(file_of_input_file_names, "%s", single_block_solution_filename);
-        single_block_solution_file = open_file(single_block_solution_filename, "rb");
+    for (int i = 0; i < n_batch; i++) {
+        single_block_solution_file = open_file(filenames[i].c_str(), "rb");
         fread(mat->block_fm_solution, sizeof(double), mat->fm_matrix_columns, single_block_solution_file);
         fread(single_block_normalization_factors, sizeof(double), mat->fm_matrix_columns, single_block_solution_file);
         fclose(single_block_solution_file);
         
         // Add that to the accumulating solution in this program
-        for (j = 0; j < mat->fm_matrix_columns; j++) {
+        for (int j = 0; j < mat->fm_matrix_columns; j++) {
             mat->fm_solution[j] += mat->block_fm_solution[j];
             mat->fm_solution_normalization_factors[j] += single_block_normalization_factors[j];
         }
     }
     
-    fclose(file_of_input_file_names);
     delete [] single_block_normalization_factors;
+    delete [] filenames;
 }
 
 // Read the vector of regularization coefficients.
@@ -3560,11 +3701,10 @@ void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat)
 void read_regularization_vector(MATRIX_DATA* const mat)
 {
     mat->regularization_vector = new double[mat->fm_matrix_columns];
-    FILE* lambda_in = open_file("lambda.in", "r");
-    for (int i = 0; i < mat->fm_matrix_columns; i++) {
-        fscanf(lambda_in, "%lf", mat->regularization_vector + i);
-    }
-    fclose(lambda_in);
+    std::ifstream lambda_in;
+    check_and_open_in_stream(lambda_in, "lambda.in");
+    for (int i = 0; i < mat->fm_matrix_columns; i++) lambda_in >> mat->regularization_vector[i];
+    lambda_in.close();
 }
 
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp)
@@ -3587,4 +3727,3 @@ void write_iteration(const double* alpha_vec, const double beta, std::vector<dou
 
 	fprintf(res_fp, "Iteration %d: %lf\n", iteration, residual);
 }
-

@@ -14,10 +14,17 @@
 //-------------------------------------------------------------
 
 typedef struct ControlInputs {
+	// Data settings
+    int starting_frame;
+    int n_frames;
     int frames_per_traj_block;
+    
+    // Input specifications
     int use_statistical_reweighting;
 	int pressure_constraint_flag;
-    int dynamic_types;
+	
+	// Additional features
+	int dynamic_types;
     int dynamic_state_sampling;
     int dynamic_state_samples_per_frame;
     int bootstrapping_flag;
@@ -25,8 +32,6 @@ typedef struct ControlInputs {
 	int bootstrapping_num_estimates;
 	int bootstrapping_num_subsamples;
     uint_fast32_t random_num_seed;					// Only used when dynamic_state_sampling or bootstrapping_flag is 1
-    int starting_frame;
-    int n_frames;
 
     // Interaction style specifications.
     int angle_interaction_style;                // 1 to use distance-based angular interactions; 0 for angle-based angle interactions.
@@ -53,29 +58,33 @@ typedef struct ControlInputs {
     int three_body_bspline_k;               // B-spline k value for nonbonded three body interactions
     int basis_set_type;
     
-    // Output specifications.    
+    // Output specifications. 
     int output_style;
     int output_solution_flag;    
     int output_residual;
     int output_spline_coeffs_flag;
     int output_normal_equations_rhs_flag;
-    
     double pair_nonbonded_output_binwidth;
     double pair_bond_output_binwidth;
     double angle_output_binwidth;
     double dihedral_output_binwidth;
     double three_body_nonbonded_output_binwidth;
 
-    int output_pair_nonbonded_parameter_distribution;
+	// Rangefinder only output specifications
+	int output_pair_nonbonded_parameter_distribution;
     int output_pair_bond_parameter_distribution;
     int output_angle_parameter_distribution;
     int output_dihedral_parameter_distribution;
     
+    //REM and IBI specification
+  	double iteration_step_size;
+  	double temperature;
+  	double boltzmann;
+
     // Matrix specifications
     int matrix_type;
     int itnlim;
     int iterative_calculation_flag;
-    double iterative_update_rate_coeff;
     double tikhonov_regularization_param;
     int regularization_style;
     int bayesian_flag;

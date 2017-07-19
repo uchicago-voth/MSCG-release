@@ -77,6 +77,9 @@ int read_next_lammps_frame(FrameSource* const frame_source);
 // Read all frames up until a starting frame.
 void default_move_to_starting_frame(FrameSource* const frame_source);
 
+// Read frame-wise entries into an array.
+inline void read_stream_into_array(std::ifstream &in_file, const int start_frame, const int n_frames, double* &values);
+
 // Finish reading a trajectory by closing relevant files and cleaning up temps.
 void finish_trr_reading(FrameSource* const frame_source);
 void finish_xtc_reading(FrameSource* const frame_source);
@@ -119,6 +122,19 @@ void check_file_extension(const char* name, const char* suffix)
     }
     if (pos < 0) report_traj_input_suffix_error(suffix);
     if (strcmp(&name[pos + 1], suffix) != 0) report_traj_input_suffix_error(suffix);
+}
+
+// helper function to calculate volume
+
+double calculate_volume(const matrix simulation_box_lengths)
+{
+  double volume = 1.0;
+  int i;
+  for(i = 0;i < 3; i++)
+    {
+      volume *= simulation_box_lengths[i][i];
+    }
+  return volume;
 }
 
 //-------------------------------------------------------------
@@ -662,44 +678,42 @@ void FrameSource::sampleTypesFromProbs()
 
 // Read information to reweight all frames from an auxiliary file 'frame_weights.in'.
 
-void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames)
+void read_frame_weights(FrameSource* const frame_source, const int start_frame, const int n_frames, const std::string &extension)
 {
-    double junk;
+	std::string filename = "frame_weights." + extension;
+    read_frame_values(filename.c_str(), start_frame, n_frames, frame_source->frame_weights);
+	
     double total = 0.0;
-    int i;
-    
-    frame_source->frame_weights = new double[n_frames];
-    FILE* pp = open_file("frame_weights.in", "r");
-    
-    for (i = 0; i < start_frame - 1; i++) {
-        fscanf(pp, "%lf", &junk);
-    }
-    for (i = 0; i < n_frames; i++) {
-        fscanf(pp, "%lf", frame_source->frame_weights + i);
-        total += frame_source->frame_weights[i];
-    }
-    fclose(pp);
-	frame_source->total_frame_weights = 1.0 / total;
+    for (int i = 0; i < n_frames; i++) {
+ 		total += frame_source->frame_weights[i];
+ 	}
+    frame_source->total_frame_weights = 1.0 / total;
 }
 
-// Read information relating to the virial constraint for all frames from an auxiliary file 'p_con.in'.
-// pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
+// Read framewise information from an auxiliary file.
+// Note: This supports:
+// 1) the virial constraint for all frames in file 'p_con.in'.
+// The pressure_constraint_rhs_vector is the RHS of eq. (12) in JCP,123,134105,2005
+// 2) frame weights for statistical reweighting through 'frame_weights.in', 'frame_weights.ref', and 'frame_weights.cg'
 
-void read_virial_constraint_vector(FrameSource* const frame_source, const int start_frame, const int n_frames)
+void read_frame_values(const char* filename, const int start_frame, const int n_frames, double* &values)
 {
-    double junk;
-    int i;
-    
-    frame_source->pressure_constraint_rhs_vector = new double [n_frames];
-    FILE* pp = open_file("p_con.in", "r");
-    
-    for (i = 0; i < start_frame - 1; i++) {
-        fscanf(pp, "%lf", &junk);
+    std::ifstream vals_in;
+    values = new double[n_frames];
+    check_and_open_in_stream(vals_in, filename);
+    read_stream_into_array(vals_in, start_frame, n_frames, values);
+    vals_in.close();
+}
+
+inline void read_stream_into_array(std::ifstream &in_file, const int start_frame, const int n_frames, double* &values)
+{
+	double junk;
+    for (int i = 0; i < start_frame - 1; i++) {
+        in_file >> junk;
     }
-    for (i = 0; i < n_frames; i++) {
-        fscanf(pp, "%lf", frame_source->pressure_constraint_rhs_vector + i);
+    for (int i = 0; i < n_frames; i++) {
+    	in_file >> values[i];
     }
-    fclose(pp);
 }
 
 //-------------------------------------------------------------

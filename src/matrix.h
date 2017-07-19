@@ -21,6 +21,9 @@ struct ControlInputs;
 
 typedef void (*accumulate_forces)(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
 typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
+void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
+void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer* const icomp);
+void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter);
 
 //-------------------------------------------------------------
 // Matrix-equation-related type definitions
@@ -89,7 +92,7 @@ struct csr_matrix {
     	row_sizes = copy_row_sizes; 
     }
 
-	inline void write_file(FILE* fh) {
+	inline void write_file(FILE* fh) const {
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, max_entries);
 		for (int i = 0; i < row_sizes[n_rows]; i++) {
 			fprintf(fh, "%lf ", values[i]);
@@ -105,17 +108,19 @@ struct csr_matrix {
 		fprintf(fh, "\n");
 	}
 	
-	inline void print_matrix(FILE* fh) {
+	inline void print_matrix(FILE* fh) const {
 /*	
-		fprintf(fh, "Printing Matrix:\n");
 		for (int i = 0; i < n_rows; i++) {
-			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
 				fprintf(fh, "%lf\t", values[j*n_rows + i]);
 			}
 			fprintf(fh, "\n");
 		}
 */
+	}
+	
+	inline void print_matrix_csr(FILE* fh) {
+		write_file(fh);
 	}
 	
     inline ~csr_matrix() {
@@ -145,15 +150,71 @@ struct dense_matrix {
     	n_rows(new_n_rows), n_cols(new_n_cols), values(copy_values) {
     }
 
-	inline void print_matrix(FILE* fh) {
-		fprintf(fh, "Printing Matrix:\n");
+	inline void print_matrix(FILE* fh) const {
 		for (int i = 0; i < n_rows; i++) {
-			fprintf(fh, "Row %d: ", i);
 			for (int j = 0; j < n_cols; j++) {
 				fprintf(fh, "%lf\t", values[j*n_rows + i]);
 			}
 			fprintf(fh, "\n");
 		}
+	}
+	
+	inline void read_dense_matrix(std::string filename) {
+		std::ifstream mat_in;
+		check_and_open_in_stream(mat_in, filename.c_str());
+		for (int i = 0; i < n_rows; i++) {
+			for (int j = 0; j < n_cols; j++) {
+				mat_in >> values[j*n_rows + i];
+			}
+		}
+		mat_in.close();
+	}
+	
+
+	inline void print_matrix_csr(FILE* fh) const {
+		
+		//Allocate this CSR
+		int nnz = get_nnz();
+		int counter = 0;
+		int column_indices[nnz];
+		int row_sizes[n_rows + 1];
+		row_sizes[0] = 0;
+		
+		fprintf(fh, "%d %d %d\n", n_rows, n_cols, nnz);
+		
+		//Populate this CSR and print non-zero values
+		for (int i = 0; i < n_rows; i++) {
+			for(int j = 0; j < n_cols; j++) {
+				if (fabs(values[j*n_rows + i]) > VERYSMALL)  {
+					fprintf(fh,"%lf ",  values[j*n_rows +  i]);
+					column_indices[counter++] = values[j*n_rows + i];
+				}
+			}
+			row_sizes[i+1] = counter;
+		}
+		fprintf(fh,"\n");
+		
+		// print the column indices
+		for (int i = 0; i < nnz; i++) {
+			fprintf(fh,"%d ", column_indices[i]);
+		}
+		fprintf(fh,"\n");
+		
+		// print the row_sizes
+		for (int i = 0; i <= n_rows; i++) {
+			fprintf(fh,"%d ", row_sizes[i]);
+		}
+		fprintf(fh,"\n");
+	}
+	
+	inline int get_nnz() const {
+		int nnz = 0;
+		for (int i = 0; i < n_rows; i++) {
+			for (int j = 0; j < n_cols; j++) {
+				if (fabs(values[j*n_rows + i]) > VERYSMALL) nnz++;
+			}
+		}
+		return nnz;
 	}
 	
     inline void reset_matrix() {
@@ -182,7 +243,7 @@ struct dense_matrix {
 		values[ col * n_rows + row] = x;
 	}
 	
-	inline double get_scalar(const int row, const int col) {
+	inline double get_scalar(const int row, const int col) const {
 		return values[ col * n_rows + row];
 	}
 	
@@ -209,9 +270,9 @@ struct MATRIX_DATA {
     // Basic layout implementation details
     int fm_matrix_rows;                             // Number of rows for FM matrix
     int fm_matrix_columns;                          // Number of columns for FM matrix
-    int rows_less_virial_constraint_rows;           // Rows less the rows reserved for virial constraints
+    int rows_less_constraint_rows;           		// Rows less the rows reserved for virial constraints
     int virial_constraint_rows;                     // Rows specifically for virial constraints
-    int frames_per_traj_block;              // Number of frames to read in a single block of FM matrix construction
+    int frames_per_traj_block;              		// Number of frames to read in a single block of FM matrix construction
 
     // For dense-matrix-based calculations
     dense_matrix* dense_fm_matrix;
@@ -222,15 +283,18 @@ struct MATRIX_DATA {
     double* fm_solution_normalization_factors;      // Weighted number of times each unknown has been found nonzero in the solution vectors of all blocks
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
+	// Iterative and BI variables
+	double temperature;
+    double iteration_step_size;
+    double boltzmann;
+    
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times a frame is resampled. This is 1 unless dynamic_state_sampling is 1.
- 	
+	
     // Optional extras for dense-matrix-based calculations
     double current_frame_weight;
     int iterative_calculation_flag;         // 0 for a non-iterative calculation; 1 to use Lanyuan's iterative force matching method
-    double iterative_update_rate_coeff;                     // The parameter setting the aggressiveness of the fixed-point iteration used in Lanyuan's iterative force matching method
-
 	
 	// Optional extras for bootstrapping (dense and sparse)
 	int bootstrapping_flag;
@@ -281,7 +345,7 @@ struct MATRIX_DATA {
     int output_style;                       // 0 to output only tables; 2 to output tables and binary block equations; 3 to output only binary block equations
     int output_normal_equations_rhs_flag;   // 1 to output the final right hand side vector of the MS-CG normal equations as well as force tables; 0 otherwise
     int output_solution_flag;               // 0 to not output the solution vector; 1 to output the solution vector in x.out
-   
+
 	// Constructors and destructors
 	MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg);
 	
@@ -297,25 +361,23 @@ struct MATRIX_DATA {
    	    // Free FM matrix building temps
 	    printf("Freeing equation building temporaries.\n");
 
-    	if (matrix_type == kDense) {
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+		if (matrix_type == kDense) {
 			delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
 		} else if (matrix_type == kSparse) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] block_fm_solution;
 			delete [] dense_fm_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kAccumulation) {
 			delete [] lapack_temp_workspace;
 			delete [] lapack_tau;
 		} else if (matrix_type == kSparseNormal) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] dense_fm_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
+			delete [] dense_fm_normal_rhs_vector;
 		} else if (matrix_type == kSparseSparse) {
 			delete [] ll_sparse_matrix_row_heads;
 			delete [] dense_fm_rhs_vector;
-			if (virial_constraint_rows > 0) delete dense_fm_matrix;
 		} else if (matrix_type == kDummy) {
 		    delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
@@ -338,7 +400,7 @@ struct MATRIX_DATA {
     		return;
     	}
         // Update mat's copy of row variables.	
-    	rows_less_virial_constraint_rows = new_rows_less_virial;
+    	rows_less_constraint_rows = new_rows_less_virial;
     	fm_matrix_rows = new_rows_less_virial + virial_constraint_rows;
 
 		// Update dense_fm_rhs_vector.
@@ -371,13 +433,14 @@ struct MATRIX_DATA {
 	}
 };
 
-// Set FM normalization constant.
+// Set FM and bootstrapping normalization constants.
 
 inline void set_normalization(MATRIX_DATA* mat, const double new_normalization_constant) {
     mat->normalization = new_normalization_constant;
 }
 
 void set_bootstrapping_normalization(MATRIX_DATA* mat, double** const bootstrapping_weights, int const n_frames);
+void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input, const int rows, const int cols);
 
 // Target (RHS) vector calculation routines
 

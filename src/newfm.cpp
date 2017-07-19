@@ -1,6 +1,8 @@
 //
 //  newfm.cpp
 //  
+//  The driver implements force matching for interaction forces.
+//  It uses least squares fitting.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
@@ -77,7 +79,7 @@ int main(int argc, char* argv[])
     if (frame_source.use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(&frame_source, control_input.starting_frame, control_input.n_frames); 
+        read_frame_weights(&frame_source, control_input.starting_frame, control_input.n_frames, "in"); 
     }
         
     // Generate bootstrapping weights if the
@@ -91,7 +93,7 @@ int main(int argc, char* argv[])
     // Read the input virials if the correct flag was set in control.in.
     if (frame_source.pressure_constraint_flag == 1) {
         printf("Reading virial constraint target.\n");
-        read_virial_constraint_vector(&frame_source, control_input.starting_frame, control_input.n_frames);
+        read_frame_values("p_con.in", control_input.starting_frame, control_input.n_frames, frame_source.pressure_constraint_rhs_vector);
     }
     
     // Use the trajectory type inferred from trajectory file 

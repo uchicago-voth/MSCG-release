@@ -164,8 +164,9 @@ Mt Mn       (* Mt = The molecule type using the ordering of the mol labels above
             (* Mn = The number molecules of this type that continuous in frame ordering) 
 ... ...     (Should have s rows of data)
 
-Note: lines (including comments) longer than 100 characters in top.in may 
-confuse the parser, which can lead to a crash or nonsense output.
+Note: There is no longer a limitation to line length (including comments) in
+control.in, top.in, or the rmin*.in files. However, comments should be on the same line
+as the content. Also, type names longer than 24 characters or spaces are not permitted.
 
 For examples of systems with non-trivial topologies, please examine the "lipid_fm" and
 "table_fm" sub-directories of the examples.
@@ -417,24 +418,28 @@ output_pair_nonbonded_parameter_distribution (0)
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_pair_bond_parameter_distribution (0) 
     Whether or not to output the distribution of pair bonded distances sampled and 
     a histogram using the pair_bond_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_angle_parameter_distribution (0) 
     Whether or not to output the distribution of angles sampled and a histogram using 
     the angle_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 output_dihedral_parameter_distribution (0) 
     Whether or not to output the distribution of dihedrals sampled and a histogram using 
     the dihedral_basis_set_resolution as the binwidth 
     (rangefinder only)
     * 0: no
     * 1: yes
+    * 2: yes and keep individual values in *.dist files
 stillinger_weber_gamma (.12) 
     A fixed parameter for Stillinger-Weber type three body non-bonded interactions
     This determines the radial dependence of the interaction
@@ -498,10 +503,18 @@ lanyuan_iterative_method_flag (0)
     Whether or not to use Lanyuan's iterative FM method instead of the usual FM
     * 0: no 
     * 1: yes
-iterative_update_rate_coeff (1.0) 
+iteration_step_size (1.0) 
     A parameter used to control rate of convergence in iterative force-matching
     Lower values imply a less aggressive fixed-point iteration
     Only used when lanyuan_iterative_method_flag = 1
+temperature (300)
+    This is used in determining values in Boltzmann inversion.
+    Only used in newrem. It is in units of Kelvin.
+boltzmann (0.0019872041)
+    Used along with temperature for determining values in Boltzmann inversion.
+    The default value assumes energy units of kcal/mol.
+    The value needs to be adjusted so that the units match those of the interaction energy.
+    Only used in newrem.
 primary_output_style (0) 
     Used to specify how this force-matching run's results should be used
 	The binary matrix output is written to "result.out"
@@ -535,6 +548,27 @@ output_normal_equations_rhs_flag (0)
 
 III.C) Force-matching
 ~~~~~~~~~~~~~~~~~~~~~
+*Boltzmann inversion
+*Force-Matching
+
+III.C.1) Boltzmann inversion
+============================
+
+Using the executable "rangefinder.x", a Boltzmann inversion interaction can be determined.
+This only requires the files necessary to run rangefinder.x.
+
+To calculate a potential via Boltzmann inversion, set "primary_output_style" in "control.in"
+to either 0 or 2. Also, for each interaction type that you desire, set the corresponding
+output parameter distribution in "control.in" to 1 or 2 (e.g. output_pair_nonbonded_parameter_distribution).
+For each interaction class that is turned on, the code will output tabulated force files
+and basis set coefficients for each of the interactions. This can be very useful for 
+zeroth iteration of relative entorpy minimization. For an example of how to use rangefinder.x 
+for Boltzmann inversion, please see the "lammps_bi" sub-directory of the examples.
+
+Note: The *.dat files here will contain potentials instead of forces.
+
+III.C.2) Force-matching
+=======================
 
 After all of those files have been prepared, use newfm.x or a combination of newfm.x and 
 combinefm.x to finish the force matching.
@@ -642,7 +676,7 @@ papers were listed at the beginning of this manual.
 4. To use iterative force matching, one must first run the code using 
    "primary_output_style 2" and "output_solution_flag 1". Then,rename result.out to 
    result.in and x.out to x.in.  Finally, use the "lanyuan_iterative_method_flag" and 
-   "iterative_update_rate_coeff" options in control.in when running the code again with
+   "iteration_step_size" options in control.in when running the code again with
    the CG simulation as described in the reference. For additional iterations, copy the 
    new "result.out" to "result.in" and the new "x.out" to "x.in" before running the
    force matching code again with additional data.

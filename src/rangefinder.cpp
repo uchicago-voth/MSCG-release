@@ -1,6 +1,9 @@
 //
 //  rangefinder.cpp
 //  
+//  This driver is used for determining interaction ranges.
+//  It is used as a first step to prepare for running one of the other drivers.
+//  It also determines interaction potentials using direct Boltzmann inversion.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
 //
@@ -16,6 +19,7 @@
 #include "range_finding.h"
 #include "misc.h"
 #include "trajectory_input.h"
+#include "fm_output.h"
 
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const frame_source);
 
@@ -24,7 +28,7 @@ int main(int argc, char* argv[])
     double start_cputime = clock();
 
     FrameSource fs;
-    
+
     printf("Parsing command line arguments.\n");
     parse_command_line_arguments(argc, argv, &fs);
     printf("Reading high level control parameters.\n");
@@ -44,10 +48,11 @@ int main(int argc, char* argv[])
     if (fs.use_statistical_reweighting == 1) {
         printf("Reading per-frame statistical reweighting factors.\n");
         fflush(stdout);
-        read_frame_weights(&fs, control_input.starting_frame, control_input.n_frames); 
+        read_frame_weights(&fs, control_input.starting_frame, control_input.n_frames, "in"); 
     }
 
     printf("Reading first frame.\n");
+    printf("Finding first frame ...\n");
     fs.get_first_frame(&fs, cg.n_cg_sites, cg.topo_data.cg_site_types);
 
     printf("Reading interaction ranges.\n");
@@ -61,13 +66,34 @@ int main(int argc, char* argv[])
     construct_full_fm_matrix(&cg, &mat, &fs);
     printf("Ending range finding.\n");
     
-    printf("Writing final output.\n");
+    printf("Writing final output.\n"); fflush(stdout);
     write_range_files(&cg, &mat);
+	printf("After rangefinder final output.\n"); fflush(stdout);
 
+    //This is part of the BI routine
+    //Only calculate if at least one parameter distribution exists
+	if (any_active_parameter_distributions(&cg) == true) {
+		printf("Calculating Boltzmann inversion using parameter distributions\n");
+		fflush(stdout);
+		
+		reset_interaction_cutoff_arrays(&cg);
+		read_all_interaction_ranges(&cg);
+
+		screen_interactions_by_distribution(&cg);
+		set_up_force_computers(&cg);
+
+		calculate_BI(&cg,&mat,&fs);
+
+		write_fm_interaction_output_files(&cg,&mat);
+	} else {
+		// Clean-up allocated memory
+		free_name(&cg);
+	}
+	
     //print cpu time used
     double end_cputime = clock();
     double elapsed_cputime = ((double)(end_cputime - start_cputime)) / CLOCKS_PER_SEC;
-    printf("%f seconds used.\n", elapsed_cputime);
+    printf("%f seconds used.\n", elapsed_cputime); fflush(stdout);
 
     return 0;
 }
@@ -79,9 +105,30 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	int traj_frame_num = 0;
 	int times_sampled = 1;
     int read_stat = 1;
-    
+	double* ref_box_half_lengths = new double[3];
+	    
     // Skip the desired number of frames before starting the matrix building loops.
     frame_source->move_to_start_frame(frame_source);
+    
+    // Perform initial generation of cell lists user for generating neighbor lists.
+    // This list will only be rebuilt if the box dimensions change.
+    
+    // Initialize the cell linked lists for finding neighbors in the provided frames;
+  	PairCellList pair_cell_list = PairCellList();
+    ThreeBCellList three_body_cell_list = ThreeBCellList();
+    pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
+    if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
+    	double max_cutoff = 0.0;
+        for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+        	max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        }
+    three_body_cell_list.init(max_cutoff, frame_source);
+    }
+	
+	// Record this box's dimensions.
+	for (int i = 0; i < 3; i++) {
+		ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
+	}
 
     // Begin the main building loops. This routine operates as a for loop
     // over frame blocks wrapped around a loop over frames within each block.
@@ -107,19 +154,6 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	}
 
     mat->accumulation_row_shift = 0;
-
-    // Initialize the cell linked lists for finding neighbors in the provided frames;
-    // NVT trajectories are assumed, so this only needs to be done once.
-    PairCellList pair_cell_list = PairCellList();
-    ThreeBCellList three_body_cell_list = ThreeBCellList();
-    pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
-    if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
-        double max_cutoff = 0.0;
-        for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
-            max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
-        }
-        three_body_cell_list.init(max_cutoff, frame_source);
-    }
 
     // For each block of frame samples.
     printf("Entering primary matrix-building loop.\n"); fflush(stdout);
@@ -147,7 +181,36 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             
             //Skip processing frame if frame weight is 0.
             if (frame_source->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
-            } else {   
+            } else {
+            
+            	// Check if the simulation box has changed.
+            	int box_change = 0;
+            	for (int i = 0; i < 3; i++) {
+					if ( fabs(ref_box_half_lengths[i] - frame_source->frame_config->simulation_box_half_lengths[i]) > VERYSMALL_F ) {
+						box_change = 1;
+						break;
+					}
+				}
+				
+				// Redo cell list set-up and update reference box size if box has changed.
+				if (box_change == 1) {
+	            	// Re-initialize the cell linked lists for finding neighbors in the provided frames;
+  					pair_cell_list = PairCellList();
+    				three_body_cell_list = ThreeBCellList();
+    				pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
+    				if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
+        				double max_cutoff = 0.0;
+        				for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+            				max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        				}
+        				three_body_cell_list.init(max_cutoff, frame_source);
+    				}
+    				
+    				// Update the reference_box_half_lengths for this new box size.
+    				for (int i = 0; i < 3; i++) {
+    					ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
+    				}
+    			}
                 FrameConfig* frame_config = frame_source->getFrameConfig();
     			calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
             }
@@ -162,7 +225,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 					read_stat = (*frame_source->get_next_frame)(frame_source);  
 				}
 				traj_frame_num++;
-				
+			
 			} else if (times_sampled < frame_source->dynamic_state_samples_per_frame) {
 				// Resample this frame.
 				frame_source->sampleTypesFromProbs();
@@ -178,6 +241,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 				frame_source->sampleTypesFromProbs();
 				times_sampled = 1;
 				traj_frame_num++;
+			
 			}
 		}
 
@@ -187,8 +251,9 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
         (*mat->do_end_of_frameblock_matrix_manipulations)(mat);
 	}
 
-    printf("Finishing frame parsing.\n");
+    printf("\nFinishing frame parsing.\n");
     
     // Close the trajectory and free the relevant temp variables.
     frame_source->cleanup(frame_source);
+    delete [] ref_box_half_lengths;
 }

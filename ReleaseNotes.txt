@@ -1,6 +1,20 @@
 Release Notes
 =============
 
+Version 1.6.11 (July 19, 2017)
+	* Added Boltzmann inversion via rangefinder.x and libmscg.a 
+		(through output_*_parameter_distribution)
+		** Added lammps-bi example
+		** Updated manual
+		** Added temperature and boltzmann control.in options
+	* Renamed iterative_update_rate_coeff to iteration_step_size
+	* Changed default binwdith value
+	* Histograms are now generated with half the fm_binwidth
+	* Concise (1) and verbose (2) options for output_*_parameter_distribution
+	* Increased usage of select_name helper function
+	* Update more of I/O to use C++ streams
+	* Refactor bootstrapping memory allocation
+	
 Version 1.6.10 (July 12, 2017)
 	* Added (and updated) fix mscg text for LAMMPS Manual
 	
