@@ -506,7 +506,6 @@ void read_one_param_dist_file_other(InteractionClassComputer* const icomp, char*
       if (counts > 0) {
 	      normalized_counts = (double)(counts) * 2.0 * mat->normalization / num_of_pairs;
     	  potential = -mat->temperature*mat->boltzmann*log(normalized_counts);
-    	  printf("%lf: %d counts, potential = %lf\n", r, counts, potential);
       } else {
       	normalized_counts = 0.0;
       	potential = 100.0;
