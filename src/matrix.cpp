@@ -3206,16 +3206,8 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		}
 		delete [] solution;
 		delete [] reg_vec;
-		printf("delete alpha_vec\n"); fflush(stdout);
-		//delete [] alpha_vec;
-		printf("delete it_normal_matrix\n"); fflush(stdout);
-		//delete it_normal_matrix;
-		printf("delete backup_dense_matrix\n"); fflush(stdout);
-		//delete backup_dense_matrix;
 		delete product_reg_normal_matrix_inv_normal_matrix;
-		printf("exit bayesian\n"); fflush(stdout);
-    }
-    printf("after exit bayesian\n"); fflush(stdout);
+	}
     
    // Free the CSR formatted normal matrix
    delete [] backup_rhs;
@@ -3569,7 +3561,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
         double* x0 = new double[mat->fm_matrix_columns];
         for (i = 0; i < mat->fm_matrix_columns; i++) fscanf(x_in, "%le", x0 + i);
         fclose(x_in);
-        //test
+        
         for (i = 0; i < mat->fm_matrix_columns; i++) mat->fm_solution[i] = mat->fm_solution[i] * mat->iteration_step_size + x0[i];
         delete [] x0;
     }
@@ -3641,7 +3633,6 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // is no longer needed.
     printf("Freeing raw FM equations.\n");
     fflush(stdout);
-    //delete mat->dense_fm_matrix;
     
     if (mat->iterative_calculation_flag == 1) {
         
