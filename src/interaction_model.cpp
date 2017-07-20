@@ -235,7 +235,7 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
 
         // If the mode is none, the interaction is not actually in the model.
         // If the mode is fm or fm+tab/tab+fm or fm+tabsym/tabsym+fm, the interaction should be force matched.
-        // If the mode is tab or fm+tab or sym+tab, the interaction should be tabulated.
+        // If the mode is tab or fm+tab/tab+fm or sym+tab, the interaction should be tabulated.
         // If the mode is sym or sym+tab or sym+tabsym/symtab+sym, the interaction should be determined using symmetric (i.e. MS-CODE) interactions.
         // If the mode is tabsym or fm+tabsym/tabsym+fm or sym+tabsym/tabsym+sym, the interaction should be tabulated using symmetric interactions.
         // Note: For one body interactions, all fitting settings (fm and sym) do the same thing -- as do all table settings (tab and tabsym).
