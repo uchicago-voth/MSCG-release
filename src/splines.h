@@ -11,7 +11,7 @@
 #include <vector>
 #include "gsl/gsl_bspline.h"
 
-enum BasisType {kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2};
+enum BasisType {kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2, kNone = 3};
 
 struct InteractionClassSpec;
 
@@ -79,6 +79,16 @@ public:
 
     virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+};
+
+class NoneSplineComputer : public SplineComputer {
+
+public:
+	NoneSplineComputer(InteractionClassSpec* ispec);
+	virtual ~NoneSplineComputer() {}
+	
+    virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals) {};
+    virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) { return 0.0; };
 };
 
 class TableSplineComputer : public SplineComputer {

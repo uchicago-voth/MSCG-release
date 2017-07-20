@@ -1,6 +1,6 @@
 //
 //  newfm.cpp
-//  
+//
 //  The driver implements force matching for interaction forces.
 //  It uses least squares fitting.
 //
@@ -69,7 +69,8 @@ int main(int argc, char* argv[])
     if (cg.pair_nonbonded_interactions.n_tabulated > 0 ||
         cg.pair_bonded_interactions.n_tabulated > 0 ||
         cg.angular_interactions.n_tabulated > 0 ||
-        cg.dihedral_interactions.n_tabulated > 0) {
+        cg.dihedral_interactions.n_tabulated > 0 ||
+		cg.density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(&cg, cg.topo_data.n_cg_types);
     } 
@@ -100,6 +101,7 @@ int main(int argc, char* argv[])
     // extensions to specify how the trajectory files should be 
     // read.
     printf("Beginning to read frames.\n");
+    printf("Finding first frame...\n");
     frame_source.get_first_frame(&frame_source, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types);
 	if (frame_source.dynamic_state_sampling == 1) frame_source.sampleTypesFromProbs();
 	
@@ -172,11 +174,34 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     int total_frame_samples = frame_source->n_frames;
 	int traj_frame_num = 0;
 	int times_sampled = 1;
-
+	double* ref_box_half_lengths = new double[frame_source->position_dimension];
+    
     // Skip the desired number of frames before starting the matrix building loops.
     frame_source->move_to_start_frame(frame_source);
-      
-    // Begin the main building loops. This routine operates as a for loop
+    
+    // Perform initial generation of cell lists user for generating neighbor lists.
+    // This list will only be rebuilt if the box dimensions change.
+    
+    // Initialize the cell linked lists for finding neighbors in the provided frames;
+    PairCellList pair_cell_list = PairCellList();
+    ThreeBCellList three_body_cell_list = ThreeBCellList();
+    
+    // Populate the cell linked lists.
+    pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
+    if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
+    	double max_cutoff = 0.0;
+        for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+        	max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        }
+    three_body_cell_list.init(max_cutoff, frame_source);
+    }
+    
+	// Record this box's dimensions.
+	for (int i = 0; i < frame_source->position_dimension; i++) {
+		ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
+	}
+	
+	// Begin the main building loops. This routine operates as a for loop
     // over frame blocks wrapped around a loop over frames within each block.
     // In the inner loop, frames are read every iteration and new matrix elements are computed.
     // In the outer loop, the blockwise matrix is incorporated into the total equations, 
@@ -197,19 +222,6 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 		}
 		n_blocks = total_frame_samples / mat->frames_per_traj_block;
 	}
-
-    // Initialize the cell linked lists for finding neighbors in the provided frames;
-    // NVT trajectories are assumed, so this only needs to be done once.
-    PairCellList pair_cell_list = PairCellList();
-    ThreeBCellList three_body_cell_list = ThreeBCellList();
-    pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
-    if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
-        double max_cutoff = 0.0;
-        for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
-            max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
-        }
-        three_body_cell_list.init(max_cutoff, frame_source);
-    }
 
     mat->accumulation_row_shift = 0;
 
@@ -240,7 +252,45 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             
             //Skip processing frame if frame weight is 0.
             if (frame_source->use_statistical_reweighting && mat->current_frame_weight == 0.0) {
-            } else {				
+            } else {
+            
+            	// Check if the simulation box has changed.
+            	int box_change = 0;
+            	for (int i = 0; i < frame_source->position_dimension; i++) {
+					if ( fabs(ref_box_half_lengths[i] - frame_source->frame_config->simulation_box_half_lengths[i]) > VERYSMALL_F ) {
+						box_change = 1;
+						break;
+					}
+				}
+				
+				// Redo cell list set-up and update reference box size if box has changed.
+				if (box_change == 1) {
+	            	// Re-initialize the cell linked lists for finding neighbors in the provided frames;
+  					pair_cell_list = PairCellList();
+    				three_body_cell_list = ThreeBCellList();
+    				pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, frame_source);
+    				if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
+        				double max_cutoff = 0.0;
+        				for (int i = 0; i < cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+            				max_cutoff = fmax(max_cutoff, cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        				}
+        				three_body_cell_list.init(max_cutoff, frame_source);
+    				}
+    			
+    				// Update the reference_box_half_lengths for this new box size.
+    				for (int i = 0; i < frame_source->position_dimension; i++) {
+    					ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
+    				}
+    			}
+    			
+    			// Modify frame weight if using volume weighting.
+    			if (mat->volume_weighting_flag == 1) {
+    				real* half_lengths = frame_source->frame_config->simulation_box_half_lengths;
+    				double volume = 1.0;
+    				for (int i = 0; i < mat->position_dimension; i++) volume *= 2.0 * half_lengths[i];
+    				mat->current_frame_weight *= volume * volume;
+    			}
+				
 				// Process frame information.
                 FrameConfig* frame_config = frame_source->getFrameConfig();
     			calculate_frame_fm_matrix(cg, mat, frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
@@ -281,8 +331,9 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
         (*mat->do_end_of_frameblock_matrix_manipulations)(mat);
 	}
 
-    printf("Finishing frame parsing.\n");
+    printf("\nFinishing frame parsing.\n");
     
     // Close the trajectory and free the relevant temp variables.
     frame_source->cleanup(frame_source);
+    delete [] ref_box_half_lengths;
 }

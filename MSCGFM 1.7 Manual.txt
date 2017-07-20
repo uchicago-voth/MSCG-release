@@ -1,8 +1,8 @@
 Multi-scale coarse-graining force-matching (MSCGFM)
-MSCGFM version 1.6
+MSCGFM version 1.7
 Manual author: Jacob Wagner
 Prior versions by James Dama, Lanyuan Lu, and Ron Hills
-Last updated 04/10/17 by Jacob Wagner
+Last updated 07/20/17 by Jacob Wagner
 
 
 I) Introduction
@@ -44,10 +44,16 @@ This package also provides support for the methods described in these references
 9. J. F. Dama, J. Jin, and G. A. Voth, "The Theory of Ultra-Coarse-Graining. 3. 
 	Coarse-Grained Sites with Rapid Local Equilibrium of Internal States", Journal of 
 	Chemical Theory and Computation, 2017 ASAP Article. doi: 10.1021/acs.jctc.6b01081
-
+10. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Extending the Range and 
+	Physical Accuracy of Coarse-grained Models: Order Parameter Dependent Interactions", 
+	Journal of Chemical Physics, 2017 in press.
+	
 Note: This code uses C++11, which may not be supported by older compilers.
 
 For information about compilation of the static MSCG library please see the README file.
+
+For information about the use of density dependent basis sets, please see the
+"Density Dependent Force Matching Supplement".
 
 II) Preparation
 ---------------
@@ -119,6 +125,8 @@ cgsites Ncg (* Ncg =Total number of coarse-grained sites)
 cgtypes Nt  (* Nt = Total number of coarse-grained site types)
 ( Site type names, row number corresponding to type number)
 ...
+...
+(Additional add-ons go here for density interactions)
 moltypes Nm (* Nm = Total number of molecule types)
 mol Ns b    (Header for the block defining the first molecule type)
             (* Ns = number of coarse-grained sites in this molecule)
@@ -333,6 +341,10 @@ bootstrapping_full_output_flag (0)
     * 1: Output the interactions from the full trajectory and the standard error of 
          the estimates (including the full trajectory)
     This is only used if bootstrapping_flag = 1
+position_dimension(3)
+    The number of dimensions used to specify the position (only LAMMPS trajectories).
+    The position_dimension value must match the DIMENSION variable setting in 
+    the Makefile that was used to compile the code.
 random_num_seed(1) 
     Random number seed for Mersenne Twister. 
     This is a positive integer (max 32 bits)
@@ -725,4 +737,13 @@ papers were listed at the beginning of this manual.
    This frame is resampled with different state assignments
    (dynamic_state_samples_per_frame).
 
-   
+10. The "local" density interactions in "Extending the Range and Physical Accuracy of
+	Coarse-grained Models: Order Parameter Dependent Interactions " are described in 
+	the "density supplement". This paper used the Lucy weight function 
+	(density_interactions_flag 3) with a density_cutoff_distance of 10 A. Additionally, 
+	this paper used a "global" wall interaction. This was parameterized by projecting the 
+	system down to one dimension (x and fx only). Then, a one-dimensional version of the 
+	code was complied (set the DIMENSION variable in the Makefile to 1) and run (with 
+	position_dimension 1 in control.in).
+	The LAMMPS pair_styles and fixes used to run with these interactions are in the
+	LAMMPS-ADD-ON repository.

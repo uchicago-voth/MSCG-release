@@ -17,14 +17,21 @@ inline unsigned calc_n_distinct_pairs(const int n) {return (n * (n + 1) / 2);}
 inline unsigned calc_n_distinct_triples(const int n) {return (n * n * (n + 1) / 2);} 
 
 // Return total possible four body interaction types given a number of CG types
-inline unsigned calc_n_distinct_quadruples(const int n) {return (n * n * (n * n + 1)/2);}
+inline unsigned calc_n_distinct_quadruples(const int n) {return (n * n * n * (n + 1)/2);}
 
 // Calculate a hash number from a vector of types involved.
 int calc_interaction_hash(const std::vector<int> &types, const int n_cg_types);
 
+// Calculate a hash number from a vector of types involved.
+int calc_asymmetric_interaction_hash(const std::vector<int> &types, const int n_cg_types);
+
 // Invert a hash number into a vector of types involved.
 // Infers the number of types from the size of 'types'.
 void invert_interaction_hash(const int m, const int n_cg_types, std::vector<int> &types);
+
+// Invert a hash number into a vector of types involved.
+// Infers the number of types from the size of 'types'.
+void invert_asymmetric_interaction_hash(const int m, const int n_cg_types, std::vector<int> &types);
 
 // Calculate a two-body interaction hash number from the two types of site involved.
 int calc_two_body_interaction_hash(int i, int j, const int n_cg_types);

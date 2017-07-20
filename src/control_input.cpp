@@ -31,6 +31,8 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("bootstrapping_num_subsamples", parameter_name) == 0) sscanf(val, "%d", &control_input->bootstrapping_num_subsamples);
     else if (strcmp("random_num_seed", parameter_name) == 0) sscanf(val, "%lu", &control_input->random_num_seed);
     else if (strcmp("constrain_pressure_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->pressure_constraint_flag);
+    else if (strcmp("volume_weighting_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->volume_weighting_flag);
+    else if (strcmp("position_dimension", parameter_name) == 0) sscanf(val, "%d", &control_input->position_dimension);
     else if (strcmp("start_frame", parameter_name) == 0) sscanf(val, "%d", &control_input->starting_frame);
     else if (strcmp("n_frames", parameter_name) == 0) sscanf(val, "%d", &control_input->n_frames);
     else if (strcmp("nonbonded_cutoff", parameter_name) == 0) sscanf(val, "%lf", &control_input->pair_nonbonded_cutoff);
@@ -66,26 +68,30 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("three_body_nonbonded_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->three_body_fm_binwidth);
     else if (strcmp("three_body_nonbonded_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->three_body_nonbonded_output_binwidth);
     else if (strcmp("three_body_nonbonded_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->three_body_bspline_k);
+	else if (strcmp("density_cutoff_distance", parameter_name) == 0) sscanf(val, "%lf", &control_input->density_cutoff_distance);
+	else if (strcmp("density_basis_set_resolution", parameter_name) == 0) sscanf(val, "%lf", &control_input->density_fm_binwidth);
+	else if (strcmp("density_output_binwidth", parameter_name) == 0) sscanf(val, "%lf", &control_input->density_output_binwidth);
+	else if (strcmp("density_bspline_basis_order", parameter_name) == 0) sscanf(val, "%d", &control_input->density_bspline_k);
+	else if (strcmp("density_interactions_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->density_flag);
+	else if (strcmp("density_weights_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->density_weights_flag);
     else if (strcmp("output_residual_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_residual);
     else if (strcmp("bayesian_mscg_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->bayesian_flag);
     else if (strcmp("bayesian_max_iterations", parameter_name) == 0) sscanf(val, "%d", &control_input->bayesian_max_iter);
     else if (strcmp("stillinger_weber_gamma", parameter_name) == 0) sscanf(val, "%lf", &control_input->gamma);
     else if (strcmp("three_body_nonbonded_exclusion_type", parameter_name) == 0) sscanf(val, "%d", &control_input->three_body_nonbonded_exclusion_flag);
 	else if (strcmp("excluded_style", parameter_name) == 0) sscanf(val, "%d", &control_input->excluded_style);
+	else if (strcmp("density_excluded_style", parameter_name) == 0) sscanf(val, "%d", &control_input->density_excluded_style);
     else if (strcmp("output_spline_coeffs_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_spline_coeffs_flag);
     else if (strcmp("output_normal_equations_rhs_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_normal_equations_rhs_flag);
     else if (strcmp("output_pair_nonbonded_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_nonbonded_parameter_distribution);
     else if (strcmp("output_pair_bond_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_bond_parameter_distribution);
     else if (strcmp("output_angle_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_angle_parameter_distribution);
     else if (strcmp("output_dihedral_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_dihedral_parameter_distribution);
-    else if (strcmp("output_pair_nonbonded_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_nonbonded_parameter_distribution);
-	else if (strcmp("output_pair_bond_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_bond_parameter_distribution);
-	else if (strcmp("output_angle_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_angle_parameter_distribution);
-	else if (strcmp("output_dihedral_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_dihedral_parameter_distribution);
-    else if (strcmp("temperature", parameter_name) == 0) return; //sscanf(val, "%lf", &control_input->temperature);
+	else if (strcmp("output_density_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_density_parameter_distribution);
+    else if ((strcmp("temperature", parameter_name) == 0) || (strcmp("Temperature", parameter_name) == 0)) sscanf(val, "%lf", &control_input->temperature);
     else if (strcmp("boltzmann", parameter_name) == 0) sscanf(val, "%lf", &control_input->boltzmann);
     else if (strcmp("iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->iteration_step_size);
-   else check_depricated_options(parameter_name, line);
+    else check_depricated_options(parameter_name, line);
 }
 
 void check_depricated_options(const char* parameter_name, const int line)
@@ -111,7 +117,10 @@ ControlInputs::ControlInputs(void)
     frames_per_traj_block = 10;
     use_statistical_reweighting = 0;
     pressure_constraint_flag = 0;
+    volume_weighting_flag = 0;
+    position_dimension = 3;
     dynamic_types = 0;
+    molecule_flag = 0;
     dynamic_state_sampling = 0;
     dynamic_state_samples_per_frame = 1;
     bootstrapping_flag = 0;
@@ -154,22 +163,30 @@ ControlInputs::ControlInputs(void)
     three_body_fm_binwidth = 1.0;
     three_body_nonbonded_output_binwidth = 0.2;
     three_body_bspline_k = 4;
-	output_residual = 0;
+	density_cutoff_distance = 10.0;
+	density_fm_binwidth = 0.5;
+	density_output_binwidth = 0.1;
+	density_bspline_k = 4;
+	density_flag = 0;
+	density_weights_flag = 0;
+    output_residual = 0;
     bayesian_flag = 0;
     bayesian_max_iter = 1;
     gamma = 0.12;
     three_body_nonbonded_exclusion_flag = 0;
     excluded_style = 2;
-	output_spline_coeffs_flag = 0;
+	density_excluded_style = 0;
+    output_spline_coeffs_flag = 0;
     output_normal_equations_rhs_flag = 0;
     output_pair_nonbonded_parameter_distribution = 0;
     output_pair_bond_parameter_distribution = 0;
     output_angle_parameter_distribution = 0;
     output_dihedral_parameter_distribution = 0;
+	output_density_parameter_distribution = 0;
     iteration_step_size = 1.0;
     temperature = 300;
     boltzmann = 0.0019872041;
-    
+
     // Read control.in to set all specified parameters to new values.
     
     std::string line;
@@ -177,7 +194,7 @@ ControlInputs::ControlInputs(void)
     check_and_open_in_stream(control_in, "control.in");
     char left[50];
     char right[50];
-
+    
     int line_num = 1;
     std::getline(control_in, line);
     while (control_in.good() == 1) {

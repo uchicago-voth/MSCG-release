@@ -22,6 +22,9 @@
 inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const int excluded_style);
 // Read the specification for three-body interactions.
 int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line);
+// Read the density groups defined in the topology file.
+int read_density_groups(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num);
+int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num);
 // Read a single molecule's topology specification.
 void read_molecule_definition(TopologyData* const mol, TopologyData* const cg, std::ifstream &top_in, int &line);
 // Determine appropriate non-bonded exclusions based on bonded topology and excluded_style setting
@@ -90,11 +93,11 @@ inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const in
 void initialize_topology_data(TopologyData* const topo_data)
 {
 	unsigned nsites = topo_data->n_cg_sites;
-    topo_data->cg_site_types = new int[nsites];
+    topo_data->cg_site_types = new int[nsites]();
     
-    topo_data->name = new char*[topo_data->n_cg_types];
+    topo_data->name = new char*[topo_data->n_cg_types]();
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
-        topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
+        topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1]();
     }
     // Ready pair bond data structures.
     topo_data->bond_type_activation_flags = new int[calc_n_distinct_pairs(topo_data->n_cg_types)]();
@@ -107,6 +110,8 @@ void initialize_topology_data(TopologyData* const topo_data)
     topo_data->dihedral_list = new TopoList(nsites, 3, topo_data->max_dihedrals_per_site);
     // Ready exclusion list data structures.
 	topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->excluded_style));
+	// Read density exclusion list data structures.
+	topo_data->density_exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->density_excluded_style));
 }
 
 // Free an initialized TopologyData struct.
@@ -127,6 +132,7 @@ void TopologyData::free_topology_data(void) {
     if (angle_list != NULL) delete angle_list;
     if (dihedral_list != NULL) delete dihedral_list;
     delete exclusion_list;
+	delete density_exclusion_list;
 	
     // Delete the topology interaction type activation flags.
     if (bond_type_activation_flags != NULL) delete [] bond_type_activation_flags;
@@ -162,7 +168,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     // class arrays indexed by all possible such interactions
     // using that information.
     initialize_topology_data(topo_data);
-    cg->name = new char*[cg->n_cg_types];
+    cg->name = new char*[cg->n_cg_types]();
     for (i = 0; i < unsigned(cg->n_cg_types); i++) {
         cg->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
     }
@@ -178,6 +184,14 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
 		line = read_three_body_topology(topo_data, cg, top_in, line);
 	}
     
+	// Read the section of top.in defining density dependent nonbonded interactions, if present.
+	topo_data->n_density_groups = 0;
+	if(cg->density_interactions.class_subtype > 0) {
+		printf("Reading density groups.\n");
+		line = read_density_groups(topo_data, cg, top_in, line);
+		line = read_density_weights(topo_data, cg, top_in, line);
+	}
+	
     // Read the molecules section of top.in to define all topology lists.
     
     // Read the number of distinct types of molecule
@@ -284,8 +298,9 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     
 	// Set-up appropriate bonded exclusions list from non-bonded interactions based on excluded_style
 	setup_excluded_list(topo_data, topo_data->exclusion_list, topo_data->excluded_style);
+	setup_excluded_list(topo_data, topo_data->density_exclusion_list, topo_data->density_excluded_style);
 	
-	// Close the file and free the memory used to store the temporary
+    // Close the file and free the memory used to store the temporary
     // single-molecule topologies.
     top_in.close();
 	for (i = 0; i < n_molecule_types; i++) {
@@ -348,9 +363,134 @@ int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, s
 	return line;
 }
 
+int read_density_groups(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num)
+{
+	// Allocate data.
+	std::string buff;
+	char parameter_name[50] = "";
+	int cg_type, num_entries;
+	std::string* type_list = new std::string[cg->n_cg_types + 1];
+    
+	// Check label.
+	check_and_read_next_line(top_in, buff);
+	line_num++;	
+	sscanf(buff.c_str(), "%s%d", parameter_name, &(topo_data->n_density_groups));
+  	if (strcmp(parameter_name, "density_nonbonded") != 0) report_topology_input_format_error(line_num, parameter_name);
+	if (topo_data->n_density_groups > 5) {
+		printf("Cannot define more than 5 density groups!\n");
+		delete [] type_list;
+		exit(EXIT_FAILURE);
+	}
+	
+	// Allocate data requiring n_density_groups
+	topo_data->density_groups = new bool[topo_data->n_density_groups * cg->n_cg_types]();
+	topo_data->density_group_names = new char*[topo_data->n_density_groups];
+    for (int i = 0; i < topo_data->n_density_groups; i++) {
+        topo_data->density_group_names[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
+    }
+	  
+	printf("Read definitions for %d density groups.\n", topo_data->n_density_groups);
+	for(int i=0; i < topo_data->n_density_groups; i++) {
+		check_and_read_next_line(top_in, buff);
+    	line_num++;
+      	
+		// Split line using string tools. 
+		num_entries = StringSplit(buff, " \t", type_list);
+		// First entry is the name of the CG group.
+		sprintf(topo_data->density_group_names[i], "%s", type_list[0].c_str());
+		// Add cg_type to density_group definition.
+		for (int j=1; j < num_entries; j++) {
+			cg_type = match_type(type_list[j], topo_data->name, cg->n_cg_types);
+	        if( cg_type == -1) {
+    	    	printf("Unrecognized type %s!\n", type_list[j].c_str());
+    		} else {
+    			// Convert this number for 1-based to 0-based.
+    			cg_type--;
+    		}
+			
+			// Check that read was successful for cg_type.
+			// This assumes that cg_type is 1-based (not 0-based).
+			if ( (cg_type >= 0) && (cg_type < cg->n_cg_types) ) {
+				topo_data->density_groups[i*(cg->n_cg_types) + cg_type] = true;
+			} else {
+				printf("Out-of-range type number in density group definition: %s\n", type_list[j].c_str()); fflush(stdout);
+			}
+		}
+	}
+	delete [] type_list;
+	return line_num;
+}
+
+int read_density_weights(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num)
+{
+	// Need to rewrite this so that it does not use iclass
+	// Then need to pass information from topology into density
+	// Allocate density_weights to match density_groups
+	if(topo_data->n_density_groups <= 0) return line_num;
+	
+	topo_data->density_weights = new double[topo_data->n_density_groups * cg->n_cg_types];
+	
+	// Default initialization is for number density (all weights are 1.0)
+	for (int i = 0; i < topo_data->n_density_groups * cg->n_cg_types; i++) {
+		topo_data->density_weights[i] = 1.0;
+	}
+	
+	// Check if that is all that needs to be done.
+	if (cg->density_interactions.density_weights_flag == 0) return line_num;
+	printf("Reading density weights.\n");
+	
+	// Otherwise read speicific weights
+	std::string buff;
+	std::string* elements = new std::string[4];
+	char parameter_name[50] = "";
+	int num_elements, num_entries;
+	double weight;
+	
+	// Check label
+	check_and_read_next_line(top_in, buff);
+    line_num++;	
+	sscanf(buff.c_str(), "%s%d", parameter_name, &num_entries);
+  	if (strcmp(parameter_name, "density_weights") != 0) report_topology_input_format_error(line_num, parameter_name);
+	
+	// There should be an entry for each type listed in each density group.
+	// So, go through density_group array to find specified elements.
+	printf("Read density weights.\n");
+	for (int i = 0; i < topo_data->n_density_groups; i++) {
+		for(int j = 0; j < cg->n_cg_types; j++) {
+	
+			// Read in value if this type (j) is part of density_group (i).
+			// The first element in the line should be the density group.
+			// The second element in the line should be the CG type.
+			// The third element of the line should be the weight.
+			if (topo_data->density_groups[i * cg->n_cg_types + j] == true) {
+				check_and_read_next_line(top_in, buff);
+    			line_num++;
+      	
+				// Split line using string tools. 
+				if( (num_elements = StringSplit(buff, " \t\n", elements)) < 3 ) {
+					printf("Not enough elements (%d) in lines of den_weights.in. Expected at least 3 elements.\n", num_elements);
+					exit(EXIT_FAILURE);
+				}
+				
+				// Only use weight if it is non-zero.
+				// Weight could also be 0 if this element is non-numeric
+				if ( (weight = atof(elements[2].c_str())) != 0.0) {
+					printf("weight of %lf for type %d (%s) in density_group %d (%s)\n", weight, j + 1, elements[1].c_str(), i + 1, elements[0].c_str()); 
+					topo_data->density_weights[i * cg->n_cg_types + j] = weight;
+				} else {
+					printf("Warning: Detected a density weight of 0 for type %d in density_group %s!\n", j, topo_data->density_group_names[i]);
+					printf("Ignoring this weight and setting weight for this type to 1.0!\n");
+				}
+			}
+		}
+	}
+	delete [] elements;
+	return line_num;
+}
+
 void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, std::ifstream &top_in, int &line)
 {
-    unsigned i, j;
+    unsigned i, j, hash_val;
     int automatic_topology_style = -5;
     std::string buff;
     char parameter_name[50];
@@ -372,7 +512,8 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     
     mol->n_cg_types = 0;
     mol->excluded_style = 0;
-	// Allocate space for bond, angle, and dihedral lists.
+	mol->density_excluded_style = 0;
+    // Allocate space for bond, angle, and dihedral lists.
     initialize_topology_data(mol);
     
     // Read the the CG site type of each site in the CG molecule
@@ -389,7 +530,6 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
     unsigned n_pair_bonded_interactions;
     int cg_site1, cg_site2, cg_site3, cg_site4;
     int cg_type1, cg_type2, cg_type3, cg_type4;
-    int hash_val;
     check_and_read_next_line(top_in, buff, line);
     sscanf(buff.c_str(), "%s%d", parameter_name, &n_pair_bonded_interactions);
     if (strcmp(parameter_name, "bonds") != 0) report_topology_input_format_error(line,  parameter_name);
@@ -545,15 +685,17 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
         unsigned l, n_angles;
         
         // Loop over CG sites in the molecule
-        for (i = 0; i < mol->n_cg_sites; i++) {
-            n_angles = 0;
+        for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+        	cg_type1 = mol->cg_site_types[cg_site1];
+        	n_angles = 0;
             // Loop over sites bonded to that molecule.
-            for (j = 0; j < mol->bond_list->partner_numbers_[i]; j++) {
+            for (j = 0; j < mol->bond_list->partner_numbers_[cg_site1]; j++) {
                 
                 // Overdetermine this bond style's activation flag.
-                cg_site1 = mol->bond_list->partners_[i][j];
-                if (mol->cg_site_types[i] <= mol->cg_site_types[cg_site1]) {
-                    hash_val = calc_two_body_interaction_hash(mol->cg_site_types[i], mol->cg_site_types[cg_site1], topo_data->n_cg_types);
+                cg_site2 = mol->bond_list->partners_[cg_site1][j];
+                cg_type2 = mol->cg_site_types[cg_site2];
+                if (cg_type1 <= cg_type2) {
+                    hash_val = calc_two_body_interaction_hash(cg_type1, cg_type2, topo_data->n_cg_types);
                     topo_data->bond_type_activation_flags[hash_val] = 1;
                 }
                 
@@ -562,23 +704,21 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
                 
                 // Otherwise, check the sites bonded to that one
                 // and add consider adding the angle to the angle table.
-                for (l = 0; l < mol->bond_list->partner_numbers_[cg_site1]; l++) {
+                for (l = 0; l < mol->bond_list->partner_numbers_[cg_site2]; l++) {
                     
-                    cg_site2 = mol->bond_list->partners_[cg_site1][l];
-                    if (unsigned(cg_site2) == i) continue;
+                    cg_site3 = mol->bond_list->partners_[cg_site2][l];
+                    cg_type3 = mol->cg_site_types[cg_site3];
+                    if (unsigned(cg_site3) == cg_site1) continue;
                     
-                    mol->angle_list->partners_[i][2 * n_angles] = cg_site1;
-                    mol->angle_list->partners_[i][2 * n_angles + 1] = cg_site2;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles]     = cg_site2;
+                    mol->angle_list->partners_[cg_site1][2 * n_angles + 1] = cg_site3;
                     n_angles++;
                     
-                    cg_type1 = mol->cg_site_types[cg_site1];
-                    cg_type2 = mol->cg_site_types[i];
-                    cg_type3 = mol->cg_site_types[cg_site2];
-                    hash_val = calc_three_body_interaction_hash(cg_type1, cg_type2, cg_type3, topo_data->n_cg_types);
+                    hash_val = calc_three_body_interaction_hash(cg_type2, cg_type1, cg_type3, topo_data->n_cg_types);
                     topo_data->angle_type_activation_flags[hash_val] = 1;
                 }
             }
-            mol->angle_list->partner_numbers_[i] = n_angles;
+            mol->angle_list->partner_numbers_[cg_site1] = n_angles;
         }
         if (automatic_topology_style != 1) {
 	        int total_angles=0;
@@ -591,7 +731,8 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
         unsigned k, n_dihedrals;
         
         // Loop over CG sites in the molecule 
-        for (i = 0; i < mol->n_cg_sites; i++) {
+        for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+            cg_type1 = mol->cg_site_types[cg_site1];
             
             // For some styles of automatic topology generation, every
             // iteration of this loop should be skipped.
@@ -600,19 +741,25 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
             // Infer dihedrals for this site using a combination of the 
             // angle topology and the pair bond topology.
             n_dihedrals = 0;
-            for (j = 0; j < mol->angle_list->partner_numbers_[i]; j++) {
-                for (k = 0; k < mol->bond_list->partner_numbers_[mol->angle_list->partners_[i][2 * j + 1]]; k++) {
-                    if (mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k] == mol->angle_list->partners_[i][2 * j]) continue;
-                    if (mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k] == i) continue;
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals] = mol->angle_list->partners_[i][2 * j];
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals + 1] = mol->angle_list->partners_[i][2 * j + 1];
-                    mol->dihedral_list->partners_[i][3 * n_dihedrals + 2] = mol->bond_list->partners_[mol->angle_list->partners_[i][2 * j + 1]][k];
-                    cg_site2 = calc_four_body_interaction_hash(mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals]], mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals + 1]], mol->cg_site_types[i], mol->cg_site_types[mol->dihedral_list->partners_[i][3 * n_dihedrals + 2]], topo_data->n_cg_types);
-                    topo_data->dihedral_type_activation_flags[cg_site2] = 1;
+            for (j = 0; j < mol->angle_list->partner_numbers_[cg_site1]; j++) {
+            	cg_site2 = mol->angle_list->partners_[cg_site1][2 * j];
+                cg_site3 = mol->angle_list->partners_[cg_site1][2 * j + 1];  
+                cg_type2 = mol->cg_site_types[cg_site2];
+                cg_type3 = mol->cg_site_types[cg_site3];
+                for (k = 0; k < mol->bond_list->partner_numbers_[cg_site3]; k++) {
+                    cg_site4 = mol->bond_list->partners_[cg_site3][k];
+                    cg_type4 = mol->cg_site_types[cg_site4];
+                    if (cg_site4 == cg_site2) continue;
+                    if (cg_site4 == cg_site1) continue;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals] = cg_site2;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals + 1] = cg_site3;
+                    mol->dihedral_list->partners_[cg_site1][3 * n_dihedrals + 2] = cg_site4;
+                    hash_val = calc_four_body_interaction_hash(cg_type2, cg_type3, cg_type1, cg_type4, topo_data->n_cg_types);
+                    topo_data->dihedral_type_activation_flags[hash_val] = 1;
                     n_dihedrals++;
                 }
             }
-            mol->dihedral_list->partner_numbers_[i] = n_dihedrals;
+            mol->dihedral_list->partner_numbers_[cg_site1] = n_dihedrals;
         }
         if (automatic_topology_style > 2) {
             int total_dihedrals=0;

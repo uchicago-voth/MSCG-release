@@ -33,6 +33,7 @@
 
 // Prototype function definition for functions called internal to this file
 void finish_fix_reading(FrameSource *const frame_source);
+inline void dynamic_state_sampling_error(void);
 
 // Data structure holding all MSCG information.
 // It is passed to the driver function (LAMMPS fix) as an opaque pointer.
@@ -77,6 +78,8 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	    
+	if (mscg_struct->control_input->dynamic_state_sampling != 0) dynamic_state_sampling_error();
+
 	return (void*)(mscg_struct);
 }
     
@@ -131,7 +134,8 @@ void* mscg_startup_part2(void* void_in)
     if (p_cg->pair_nonbonded_interactions.n_tabulated > 0 ||
         p_cg->pair_bonded_interactions.n_tabulated > 0 ||
         p_cg->angular_interactions.n_tabulated > 0 ||
-        p_cg->dihedral_interactions.n_tabulated > 0) {
+        p_cg->dihedral_interactions.n_tabulated > 0 ||
+		p_cg->density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(p_cg, p_cg->topo_data.n_cg_types);
     } 
@@ -334,7 +338,7 @@ void* mscg_process_frame(void* void_in, double* const x, double* const f)
     
     // If reweighting is being used, scale the block of the FM matrix for this frame
     // by the appropriate weighting factor
-    if (p_frame_source->use_statistical_reweighting) {
+    if (p_frame_source->use_statistical_reweighting == 1) {
        printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
        mscg_struct->mat->current_frame_weight = p_frame_source->frame_weights[traj_frame_num];
 	}
@@ -451,10 +455,10 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 
     } else {
     
-    	// Apply virial constraint, if appropriate.
+     	// Apply virial constraint, if appropriate.
         add_target_virials_from_trajectory(mscg_struct->mat, mscg_struct->frame_source->pressure_constraint_rhs_vector);
 
-    	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
+	   	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
     	do {    
 			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
 	    	calculate_frame_fm_matrix(p_cg, mscg_struct->mat, p_frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
@@ -602,6 +606,7 @@ void* rangefinder_solve_and_output(void* void_in)
 // Supporting functions for FrameConfig and FrameSource structs 
 // (adapted from trajectory_input.cpp).
 //-------------------------------------------------------------
+
 // Initializes the FrameSource struct.
 // This function is not intended to be called externally.
 // It should only be called by setup_topology_and_frame.
@@ -1082,4 +1087,10 @@ int get_block_size(void* void_in)
 {
   MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
   return mscg_struct->control_input->frames_per_traj_block;
+}
+
+inline void dynamic_state_sampling_error(void)
+{
+	printf("Dynamic state sampling is not currently supported via fix_mscg!\n");
+	exit(EXIT_FAILURE);
 }

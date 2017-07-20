@@ -13,53 +13,63 @@
 #endif
 
 // Function prototypes for internal functions.
-void subtract_min_image_vectors(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, std::array<double, 3> &displacement);
-void cross_product(const std::array<double, 3> &a, const std::array<double, 3> &b, std::array<double, 3> &c);
-double dot_product(const std::array<double, 3> &a, const std::array<double, 3> &b);
+void subtract_min_image_vectors(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement);
+void subtract_min_image_particles(const std::array<double, DIMENSION> &particle_position1, const std::array<double, DIMENSION> &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement);
+void cross_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b, std::array<double, DIMENSION> &c);
+double dot_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b);
 double dot_product(const double* a, const double* b);
-
 inline void check_sine(double &s);
 inline void check_cos(double &cos_theta);
-
-void get_minimum_image(const int l, rvec* frx, const real *simulation_box_half_lengths)
-{
-    for (int i = 0; i < 3; i++) {
-        if (frx[l][i] < 0) frx[l][i] += 2.0 * simulation_box_half_lengths[i];
-        else if (frx[l][i] >= 2.0 * simulation_box_half_lengths[i]) frx[l][i] -= 2.0 * simulation_box_half_lengths[i];
-    }
-}
 
 //------------------------------------------------------------
 // Small helper functions used internally.
 //------------------------------------------------------------
 
-void subtract_min_image_vectors(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, std::array<double, 3> &displacement)
+void subtract_min_image_vectors(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement)
 {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < DIMENSION; i++) {
         displacement[i] = particle_positions[particle_ids[1]][i] - particle_positions[particle_ids[0]][i];
         if (displacement[i] > simulation_box_half_lengths[i]) displacement[i] -= 2.0 * simulation_box_half_lengths[i];
         else if (displacement[i] < -simulation_box_half_lengths[i]) displacement[i] += 2.0 * simulation_box_half_lengths[i];
     }
 }
 
-void cross_product(const std::array<double, 3> &a, const std::array<double, 3> &b, std::array<double, 3> &c)
+void subtract_min_image_particles(const std::array<double, DIMENSION> &particle_position1, const std::array<double, DIMENSION> &particle_position2, const real *simulation_box_half_lengths, std::array<double, DIMENSION> &displacement)
+{
+    for (int i = 0; i < DIMENSION; i++) {
+        displacement[i] = particle_position2[i] - particle_position1[i];
+        if (displacement[i] > simulation_box_half_lengths[i]) displacement[i] -= 2.0 * simulation_box_half_lengths[i];
+        else if (displacement[i] < -simulation_box_half_lengths[i]) displacement[i] += 2.0 * simulation_box_half_lengths[i];
+    }
+}
+
+void get_minimum_image(const int l, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
+{
+    for (int i = 0; i < DIMENSION; i++) {
+        if (x[l][i] < 0) x[l][i] += 2.0 * simulation_box_half_lengths[i];
+        else if (x[l][i] >= 2.0 * simulation_box_half_lengths[i]) x[l][i] -= 2.0 * simulation_box_half_lengths[i];
+    }
+}
+
+// NOTE: Cross product is only defined for 2^n - 1 dimensions (and only 3 dimensions in the code at the moment).
+void cross_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b, std::array<double, DIMENSION> &c)
 {
     c[0] = a[1] * b[2] - a[2] * b[1];
     c[1] = a[2] * b[0] - a[0] * b[2];
     c[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-double dot_product(const std::array<double, 3> &a, const std::array<double, 3> &b)
+double dot_product(const std::array<double, DIMENSION> &a, const std::array<double, DIMENSION> &b)
 {
     double t = 0.0;
-    for (int i = 0; i < 3; i++) t += a[i] * b[i];
+    for (int i = 0; i < DIMENSION; i++) t += a[i] * b[i];
     return t;
 }
 
 double dot_product(const double* a, const double* b)
 {
     double t = 0.0;
-    for (int i = 0; i < 3; i++) t += a[i] * b[i];
+    for (int i = 0; i < DIMENSION; i++) t += a[i] * b[i];
     return t;
 }
 
@@ -70,34 +80,34 @@ double dot_product(const double* a, const double* b)
 
 // Calculate a squared distance and one derivative.
 
-bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, 3>* &derivatives)
+bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     double rr2 = 0.0;
-    std::array<double, 3> displacement;
+    std::array<double, DIMENSION> displacement;
     subtract_min_image_vectors(particle_ids, particle_positions, simulation_box_half_lengths, displacement);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < DIMENSION; i++) {
         rr2 += displacement[i] * displacement[i];
     }
-    param_val = rr2;
     if (rr2 > cutoff2) {
         return false;
     } else {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < DIMENSION; i++) {
             derivatives[0][i] = 2.0 * displacement[i];
         }
+        param_val = rr2;
         return true;
     }
 }
 
 // Calculate a distance and one derivative.
 
-bool conditionally_calc_distance_and_derivatives(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, 3>* &derivatives)
+bool conditionally_calc_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     bool within_cutoff = conditionally_calc_squared_distance_and_derivatives(particle_ids, particle_positions, simulation_box_half_lengths, cutoff2, param_val, derivatives);
 
     if (within_cutoff) {
         param_val = sqrt(param_val);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < DIMENSION; i++) {
             derivatives[0][i] = 0.5 * derivatives[0][i] / param_val;
         }
         return true;
@@ -108,10 +118,10 @@ bool conditionally_calc_distance_and_derivatives(const int* particle_ids, const 
 
 // Calculate the angle between three particles and its derivatives.
 
-bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, 3>* &derivatives)
+bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {   
-    std::array<double, 3>* dist_derivs_20 = new std::array<double, 3>[1];
-    std::array<double, 3>* dist_derivs_21 = new std::array<double, 3>[1];
+    std::array<double, DIMENSION>* dist_derivs_20 = new std::array<double, DIMENSION>[1];
+    std::array<double, DIMENSION>* dist_derivs_21 = new std::array<double, DIMENSION>[1];
     int particle_ids_20[2] = {particle_ids[2], particle_ids[0]};
     int particle_ids_21[2] = {particle_ids[2], particle_ids[1]};
     double rr2_20, rr2_21;
@@ -128,7 +138,7 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const rve
         double rr_21 = sqrt(rr2_21);
 		double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
 		check_cos(cos_theta);
-		        
+        
         // Calculate the angle.
         double theta = acos(cos_theta);
         param_val = theta * DEGREES_PER_RADIAN;
@@ -139,7 +149,7 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const rve
         double rr_00c = cos_theta / (rr_20 * rr_20 * sin_theta);
         double rr_11c = cos_theta / (rr_21 * rr_21 * sin_theta);
 
-        for (unsigned i = 0; i < 3; i++) {
+        for (unsigned i = 0; i < DIMENSION; i++) {
         	// derivatives for the end particles
         	derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
             derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
@@ -152,9 +162,7 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const rve
 
 // Calculate a the cosine of an angle along with its derivatives.
 
-// Calculate a the cosine of an angle along with its derivatives.
-
-bool conditionally_calc_angle_and_intermediates(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, std::array<double, 3>* &dist_derivs_20, std::array<double, 3>* &dist_derivs_21, std::array<double, 3>* &derivatives, double &param_val, double &rr_20, double &rr_21)
+bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, std::array<double, DIMENSION>* &dist_derivs_20, std::array<double, DIMENSION>* &dist_derivs_21, std::array<double, DIMENSION>* &derivatives, double &param_val, double &rr_20, double &rr_21)
 {
     int particle_ids_20[2] = {particle_ids[2], particle_ids[0]};
     int particle_ids_21[2] = {particle_ids[2], particle_ids[1]};
@@ -191,7 +199,7 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, const r
 
 // Calculate a terms for Stillinger-Weber interactions.
 
-bool conditionally_calc_sw_angle_and_intermediates(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff, const double gamma, std::array<double, 3>* &dist_derivs_01, std::array<double, 3>* &dist_derivs_02, std::array<double, 3>* &derivatives, double &param_val, double &rr1, double &rr2, double &angle_prefactor, double &dr1_prefactor, double &dr2_prefactor)
+bool conditionally_calc_sw_angle_and_intermediates(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff, const double gamma, std::array<double, DIMENSION>* &dist_derivs_01, std::array<double, DIMENSION>* &dist_derivs_02, std::array<double, DIMENSION>* &derivatives, double &param_val, double &rr1, double &rr2, double &angle_prefactor, double &dr1_prefactor, double &dr2_prefactor)
 {	
 	bool within_cutoff = conditionally_calc_angle_and_intermediates(particle_ids, particle_positions, simulation_box_half_lengths, cutoff*cutoff, dist_derivs_01, dist_derivs_02, derivatives, param_val, rr1, rr2);
 	if(within_cutoff == false) {
@@ -216,7 +224,7 @@ bool conditionally_calc_sw_angle_and_intermediates(const int* particle_ids, cons
 // Calculate a dihedral angle and its derivatives.
 // Thanks to Andrew Jewett (jewett.aij  g m ail) for inspiration from LAMMPS dihedral_table.cpp
 
-bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, 3>* &derivatives)
+bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     // Find the relevant displacements for defining the angle.
     std::array<double, DIMENSION> disp03, disp23, disp12;
@@ -267,7 +275,7 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		
 		derivatives[0][i] = -dtf; // first normal times projection of bond onto it
 		derivatives[1][i] = -dth; //second normal times projection of bond onto it
-		derivatives[2][i] = dtf * fcoef - dth * hcoef;
+		derivatives[2][i] = dtf * fcoef + dth * hcoef;
 	}
     return true;
 }
@@ -278,11 +286,11 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 
 // Calculate a squared distance.
 
-void calc_squared_distance(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val)
+void calc_squared_distance(const int* particle_ids, const std::array<double, DIMENSION>*const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
-	std::array<double, 3> displacement;
+	std::array<double, DIMENSION> displacement;
 	double rr2 = 0.0;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < DIMENSION; i++) {
         subtract_min_image_vectors(particle_ids, particle_positions, simulation_box_half_lengths, displacement);  
         rr2 += displacement[i] * displacement[i];
     }
@@ -291,7 +299,7 @@ void calc_squared_distance(const int* particle_ids, const rvec* &particle_positi
 
 // Calculate a distance.
 
-void calc_distance(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val)
+void calc_distance(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
     calc_squared_distance(particle_ids, particle_positions, simulation_box_half_lengths, param_val);
     param_val = sqrt(param_val);
@@ -299,10 +307,10 @@ void calc_distance(const int* particle_ids, const rvec* &particle_positions, con
 
 // Calculate the angle between three particles.
 
-void calc_angle(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val)
+void calc_angle(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {   
-    std::array<double, 3>* dist_derivs_20 = new std::array<double, 3>[1];
-    std::array<double, 3>* dist_derivs_21 = new std::array<double, 3>[1];
+    std::array<double, DIMENSION>* dist_derivs_20 = new std::array<double, DIMENSION>[1];
+    std::array<double, DIMENSION>* dist_derivs_21 = new std::array<double, DIMENSION>[1];
     int particle_ids_20[2] = {particle_ids[2], particle_ids[0]};
     int particle_ids_21[2] = {particle_ids[2], particle_ids[1]};
     double rr2_20, rr2_21;
@@ -313,8 +321,8 @@ void calc_angle(const int* particle_ids, const rvec* &particle_positions, const 
     double rr_20 = sqrt(rr2_20);
     double rr_21 = sqrt(rr2_21);
     double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
-	check_cos(cos_theta);
-	    
+    check_cos(cos_theta);
+    
     // Calculate the angle.
     double theta = acos(cos_theta);
     param_val = theta * DEGREES_PER_RADIAN;
@@ -324,8 +332,9 @@ void calc_angle(const int* particle_ids, const rvec* &particle_positions, const 
 }
 
 // Calculate a dihedral angle.
+// Thanks to Andrew Jewett (jewett.aij  g m ail) for inspiration from LAMMPS dihedral_table.cpp
 
-void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, const real *simulation_box_half_lengths, double &param_val)
+void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, double &param_val)
 {
     // Find the relevant displacements for defining the angle.
     std::array<double, DIMENSION> disp03, disp23, disp12;
@@ -351,9 +360,9 @@ void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, con
     double rpc1 = 1.0 / sqrt(pc2);
     
     double pbpc = dot_product(pb, pc);
-    double c = pbpc * rpb1 * rpc1;
-    check_cos(c);
-	double theta = acos(c) * DEGREES_PER_RADIAN;
+    double cos_theta = pbpc * rpb1 * rpc1;
+    check_cos(cos_theta);
+    double theta = acos(cos_theta) * DEGREES_PER_RADIAN;
     
 	// This variable is only used to determine the sign of the angle
 	double sign = - dot_product( pb, disp12) * rpb1 * rrbc; // This is the s calculation that LAMMPS used.
@@ -361,7 +370,7 @@ void calc_dihedral(const int* particle_ids, const rvec* &particle_positions, con
 		param_val = - theta;
 	} else {
 		param_val = theta;
-	}
+	}    	
 }
 
 inline void check_sine(double &s)

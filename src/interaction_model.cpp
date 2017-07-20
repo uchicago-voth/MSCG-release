@@ -21,10 +21,11 @@
 
 // Input extraction functions.
 int extract_index_among_defined_from_line(InteractionClassSpec* ispec, std::string &buff, const int num_cg_types);
-inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, int &index_among_defined);
+inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, int &index_among_defined);
 inline void read_types(const int n_body, std::vector<int> &types, std::string* elements, const int n_types, char** name);
 
 // Non-standard setup functions.
+void setup_site_to_density_group_index(DensityClassSpec* iclass);
 void setup_periodic_index(InteractionClassSpec* iclass);
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data);
 void three_body_setup_indices_in_fm_matrix(InteractionClassSpec* ispec);
@@ -80,14 +81,42 @@ std::string InteractionClassSpec::get_interaction_name(char **type_names, const 
 std::vector<int> InteractionClassSpec::get_interaction_types(const int index_among_defined_intrxns) const 
 {
     std::vector<int> types(get_n_body(), 0);
-	invert_interaction_hash(get_hash_from_index(index_among_defined_intrxns), n_cg_types, types);
+	if (class_type == kDensity) {
+		const DensityClassSpec* dspec = static_cast<const DensityClassSpec*>(this);
+		invert_asymmetric_interaction_hash(get_hash_from_index(index_among_defined_intrxns), dspec->n_density_groups, types);
+	} else {
+		invert_interaction_hash(get_hash_from_index(index_among_defined_intrxns), n_cg_types, types);
+	}
+    return types;
+}
+
+std::string DensityClassSpec::get_interaction_name(char **type_names, const int intrxn_index_among_defined, const std::string &delimiter) const
+{
+	std::vector<int> types = get_interaction_types(intrxn_index_among_defined);
+	std::string namestring = std::string(type_names[types[0] - 1]);
+	for(unsigned i = 1; i < types.size(); i++) {
+        namestring += delimiter + type_names[types[i] - 1];
+    }
+	return namestring;
+}
+
+std::vector<int> DensityClassSpec::get_interaction_types(const int index_among_defined_intrxns) const
+{
+    std::vector<int> types(get_n_body(), 0);
+	types[1] = index_among_defined_intrxns % n_density_groups + 1;
+	types[0] = (index_among_defined_intrxns - (types[1] - 1))/ n_density_groups + 1;
 	return types;
 }
 
 // Select the correct type name array for the interaction.
 char** select_name(InteractionClassSpec* const ispec, char ** const cg_name)
 {
-	return cg_name;
+	if(ispec->class_type == kDensity) {
+		DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>( ispec );
+		return dspec->density_group_names;
+	} else {
+		return cg_name;
+	}
 }
 
 void check_input_values(CG_MODEL_DATA* cg)
@@ -192,7 +221,7 @@ void InteractionClassSpec::read_interaction_class_ranges(std::ifstream &range_in
         // If the mode is none, the interaction is not actually in the model.
         // If the mode is fm or fm+tab/tab+fm, the interaction should be force matched.
         // If the mode is tab or fm+tab/tab+fm, the interaction should be tabulated.
-        
+         
         check_mode(mode);
 
         if (strcmp(mode,"fm") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"tab+fm") == 0) {
@@ -227,8 +256,19 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
     int total_to_fm = 0;
     int total_intrxns = 0;
     int n_fields;
+    
+    DensityClassSpec* dspec;
+	if (class_type == kDensity) {
+		dspec = static_cast<DensityClassSpec*>(this);
+	} 		
+    
     int n_expected = 3 + get_n_body();
-        
+    
+    if (class_type == kDensity) {
+    	if (class_subtype == 2 || class_subtype == 4) n_expected += 2;
+		if (class_subtype == 1) n_expected += 1;
+    }
+    
     std::vector<int> types(get_n_body());
 	std::string* elements = new std::string[n_expected + 1];
     std::string line;
@@ -247,9 +287,14 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 		
 		// Extract the useful information.
 		int index_among_defined;
-		read_types(get_n_body(), types, &elements[0], n_cg_types, name);
-		index_among_defined = calc_interaction_hash(types, n_cg_types);
-		
+		if (class_type == kDensity) {
+			read_types(get_n_body(), types, &elements[0], dspec->n_density_groups, name);
+			index_among_defined = calc_asymmetric_interaction_hash(types, dspec->n_density_groups);
+		} else {
+			read_types(get_n_body(), types, &elements[0], n_cg_types, name);
+			index_among_defined = calc_interaction_hash(types, n_cg_types);
+		}	
+	
 		// Read the low and high parameter values;
 		read_rmin_class(elements, get_n_body(), index_among_defined, mode);
 		check_mode(mode);
@@ -265,13 +310,12 @@ void InteractionClassSpec::smart_read_interaction_class_ranges(std::ifstream &ra
 			adjust_cutoffs_for_basis(index_among_defined);
             // Adjust nonbonded interactions to match the global cutoff.
         }
-        if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"sym+tab") == 0
-         || strcmp(mode,"tab+fm") == 0 || strcmp(mode,"tab+sym") == 0) {
+        if (strcmp(mode,"tab") == 0 || strcmp(mode,"fm+tab") == 0 || strcmp(mode,"tab+fm") == 0) {
 			// This interaction is tabulated.
 			// Increment the running total of the tabulated interactions.
 			total_tabulated++;
 			defined_to_tabulated_intrxn_index_map[index_among_defined] = total_tabulated;
-		}		
+		}	
     	std::getline(range_in, line);
     }
     n_to_force_match = total_to_fm;
@@ -291,24 +335,49 @@ void InteractionClassSpec::read_rmin_class(std::string* &elements, const int pos
 	sprintf(mode, "%s", elements[position + 2].c_str());	
 }
 
+void DensityClassSpec::read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode) 
+{
+	lower_cutoffs[index_among_defined] = atof(elements[position].c_str());
+	upper_cutoffs[index_among_defined] = atof(elements[position + 1].c_str());
+	sprintf(mode, "%s", elements[position + 2].c_str());	
+	density_sigma[index_among_defined] = atof(elements[position + 3].c_str());
+	if (class_subtype == 2 || class_subtype == 4) {
+		density_switch[index_among_defined] = atof(elements[position + 4].c_str());
+	}
+}
+
 int extract_index_among_defined_from_line(InteractionClassSpec* ispec, std::string &buff, const int num_cg_types)
 {
 	int hash_val;
 	std::vector<int> types(ispec->get_n_body());
 	// Find it in the defined interactions.
-	std::istringstream buffss(buff);
-	for (unsigned j = 0; j < types.size(); j++) buffss >> types[j];
-	hash_val = calc_interaction_hash(types, num_cg_types);
-
+	if (ispec->class_type == kDensity) {
+		DensityClassSpec* dspec = dynamic_cast<DensityClassSpec*>(ispec);
+		std::string* elements = new std::string[dspec->get_n_body()];
+		hash_val = StringSplit(buff, " \t\n", elements); // this return value is ignored
+		read_types(dspec->get_n_body(), types, &elements[0], dspec->n_density_groups, dspec->density_group_names);
+		hash_val = calc_asymmetric_interaction_hash(types, num_cg_types);
+		delete [] elements;
+	} else {
+		std::istringstream buffss(buff);
+		for (unsigned j = 0; j < types.size(); j++) buffss >> types[j];
+		hash_val = calc_interaction_hash(types, num_cg_types);
+	}
 	return ispec->get_index_from_hash(hash_val);
 }
 
-inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, int &index_among_defined)
+inline void extract_types_and_range(std::string* elements, const InteractionClassType type, const int n_body, std::vector<int> &types, double &low, double &high, char** name, const int n_cg_types, char** density_group_names, const int n_density_groups, int &index_among_defined)
 {
 	// Read the base types and 
 	// look-up the index for this sub-interaction
-	read_types(n_body, types, &elements[0], n_cg_types, name);
-	index_among_defined = calc_interaction_hash(types, n_cg_types);
+	
+	if (type == kDensity) {
+		read_types(n_body, types, &elements[0], n_density_groups, density_group_names);
+		index_among_defined = calc_asymmetric_interaction_hash(types, n_density_groups);
+	} else {
+		read_types(n_body, types, &elements[0], n_cg_types, name);
+		index_among_defined = calc_interaction_hash(types, n_cg_types);
+	}	
 	
 	// Read the low and high parameter values;
 	low  = atof(elements[n_body].c_str());
@@ -328,11 +397,56 @@ inline void read_types(const int n_body, std::vector<int> &types, std::string* e
 
 inline void check_mode(char* mode)
 {
-    if (strcmp(mode,"none") != 0 && strcmp(mode,"fm") != 0 && strcmp(mode,"tab") != 0 && strcmp(mode,"fm+tab") != 0 &&
-        strcmp(mode,"tab+fm") != 0){
+    if (strcmp(mode,"none") != 0 && strcmp(mode,"fm") != 0 && strcmp(mode,"tab") != 0 && strcmp(mode,"fm+tab") != 0 && strcmp(mode,"tab+fm") != 0) {
         fprintf(stderr, "Interaction mode %s is not recognized\n", mode);
         fflush(stderr);
     	exit(EXIT_FAILURE);
+	}
+}
+
+void setup_site_to_density_group_index(DensityClassSpec* iclass) 
+{
+	// The site_to_density_group_intrxn_index_map array indicates which pairs of sites interact for quick screening during the calculation of density.
+	// The first density_group specifies where the density is calculated (at which CG sites), 
+	// while the second density_group specifies which what the density is calculated of.
+	// So, the density of sites belonging to the second density_group are calculated at every site belonging to the first density_group.
+	
+	// The value stored in site_to_density_intrxn_index_map is the sum of all "bits" (specified by the density_groups interacting) that exist between these two types.
+	// Each "bit" is calculated by left-shifting the corresponding number of bits and then adding to the total.
+
+	if(iclass->get_n_defined() <= 0) return;
+	
+	// Allocate the array.
+	iclass->site_to_density_group_intrxn_index_map = new unsigned long[iclass->n_cg_types * iclass->n_cg_types]();
+	
+	// Look through types to determine which types belong to a given group.	
+	// First determine which density groups each type is part of.
+	
+	for(int type1 = 0; type1 < iclass->n_cg_types; type1++) {
+		for(int dg1 = 0; dg1 < iclass->n_density_groups; dg1++) {
+			if(iclass->density_groups[dg1 * iclass->n_cg_types + type1] == false) continue;
+			// This CG site type (type1) belongs to this density_group (dg1)
+			// Now, look through types again to determine if the corresponding density group has an interaction with this density group.
+			for(int type2 = 0; type2 < iclass->n_cg_types; type2++) {
+				// Only need to look through half of the type1/type2 combinations since we can check both 1/2 and 2/1 at the same time.
+				// Determine which density groups type2 belongs to.
+				for(int dg2 = 0; dg2 < iclass->n_density_groups; dg2++) {
+					if(iclass->density_groups[dg2 * iclass->n_cg_types + type2] == false) continue;
+					// This CG site type (type2) belongs to this density_group (dg2).
+
+					// Now, determine if these density groups interact with ordering type1/type2.
+					if(iclass->defined_to_matched_intrxn_index_map[dg1 * iclass->n_density_groups + dg2] > 0 ||
+						iclass->defined_to_tabulated_intrxn_index_map[dg1 * iclass->n_density_groups + dg2] > 0) {
+						iclass->site_to_density_group_intrxn_index_map[type1 * iclass->n_cg_types + type2] |= 1 << (dg1 * iclass->n_density_groups + dg2);
+					}
+					// Also, try with ordering type2/type1.
+					if(iclass->defined_to_matched_intrxn_index_map[dg2 * iclass->n_density_groups + dg1] > 0 ||
+						iclass->defined_to_tabulated_intrxn_index_map[dg2 * iclass->n_density_groups + dg1] > 0) {
+						iclass->site_to_density_group_intrxn_index_map[type2 * iclass->n_cg_types + type1] |= 1 << (dg1 * iclass->n_density_groups + dg2);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -389,7 +503,7 @@ void setup_periodic_index(InteractionClassSpec* iclass)
 		}
 	}
 }
-
+	
 void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
 {
    if ((basis_type == kLinearSpline) || (basis_type == kBSpline) ||  (basis_type == kBSplineAndDeriv)) {
@@ -401,8 +515,6 @@ void InteractionClassSpec::adjust_cutoffs_for_basis(int i)
         // Now, round down the lower cutoff so that there is an integer number of a bin.
         lower_cutoffs[i] = upper_cutoffs[i] - floor( ((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth) + 0.5 ) * fm_binwidth;
         if ((class_type != kDihedralBonded) && (lower_cutoffs[i] < 0.0)) lower_cutoffs[i] = 0.0;
-    } else {
-    	// Nothing to be done here.
     }
 }
 
@@ -482,12 +594,26 @@ void InteractionClassSpec::setup_for_defined_interactions(TopologyData* topo_dat
 
 void InteractionClassSpec::dummy_setup_for_defined_interactions(TopologyData* topo_data)
 {
+	DensityClassSpec* dspec;
+	if( (dspec = dynamic_cast<DensityClassSpec*>(this)) != NULL) dspec->n_density_groups = 0;
 	n_defined = 0;
 	n_to_force_match = 0;
 	n_force = 0;
 	n_tabulated = 0;
 	lower_cutoffs = new double[1]();
 	upper_cutoffs = new double[1]();
+}
+
+void density_additional_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data)
+{
+	DensityClassSpec* d_spec = static_cast<DensityClassSpec*>(ispec);
+	d_spec->determine_defined_intrxns(topo_data);
+	if(d_spec->n_defined > 0) {
+		d_spec->density_sigma = new double[d_spec->n_defined];
+		for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_sigma[i] = 1.0;}
+		d_spec->density_switch = new double[d_spec->n_defined];
+		for(int i=0; i < d_spec->n_defined; i++) { d_spec->density_switch[i] = 1.0;}
+	}	
 }
 
 void three_body_setup_for_defined_interactions(InteractionClassSpec* ispec, TopologyData* topo_data)
@@ -577,19 +703,26 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
     // The index array must be filled in from the range specifications in rmin.in and rmin_b.in.
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		(*iclass_iterator)->setup_for_defined_interactions(&cg->topo_data);
+		if( (*iclass_iterator)->class_type == kDensity  && (*iclass_iterator)->class_subtype == 0 ) {
+			(*iclass_iterator)->dummy_setup_for_defined_interactions(&cg->topo_data);
+		} else {
+			(*iclass_iterator)->setup_for_defined_interactions(&cg->topo_data);
+		}
 	}
 
     // Now deal with interactions that do not fit the normal scheme.	
+	density_additional_setup_for_defined_interactions(&cg->density_interactions, &cg->topo_data);
 	three_body_setup_for_defined_interactions(&cg->three_body_nonbonded_interactions, &cg->topo_data);
 
     // Read normal range specifications.
     // Open the range files.
     std::ifstream nonbonded_range_in, bonded_range_in;
+    std::ifstream density_range_in;
     
    	check_and_open_in_stream(nonbonded_range_in, "rmin.in"); 
 	check_and_open_in_stream(bonded_range_in, "rmin_b.in"); 
-
+    if (cg->density_interactions.class_subtype != 0) check_and_open_in_stream(density_range_in, "rmin_den.in"); 
+    
 	// Read the ranges.
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
         if ((*iclass_iterator)->n_defined == 0) continue;
@@ -597,18 +730,23 @@ void read_all_interaction_ranges(CG_MODEL_DATA* const cg)
 	
         if ((*iclass_iterator)->class_type == kPairNonbonded) {
             (*iclass_iterator)->smart_read_interaction_class_ranges(nonbonded_range_in, name);
-		} else {
+        } else if((*iclass_iterator)->class_type == kDensity) {
+			(*iclass_iterator)->smart_read_interaction_class_ranges(density_range_in, name);
+        } else {
             (*iclass_iterator)->read_interaction_class_ranges(bonded_range_in);
         }
     }	
 	// Close the range files.
 	nonbonded_range_in.close();
     bonded_range_in.close();
+	if (cg->density_interactions.class_subtype != 0) density_range_in.close();
 		
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_nonbonded_interaction_range_cutoffs(&cg->pair_nonbonded_interactions, cg->pair_nonbonded_cutoff);
 	// Check that specified nonbonded interactions do not extend past the nonbonded cutoff
 	check_angular_interaction_range_cutoffs(&cg->angular_interactions);
+	// Also, setup density computer variables that depended on rmin_den.in values.
+	setup_site_to_density_group_index(&cg->density_interactions);
 	// Also, setup periodic flags for dihedral interactions based on upper and lower cutoff values.
 	setup_periodic_index(&cg->dihedral_interactions);
 	
@@ -627,10 +765,17 @@ void read_tabulated_interaction_file(CG_MODEL_DATA* const cg, int n_cg_types)
     int line = 0;
     std::ifstream external_spline_table;
     check_and_open_in_stream(external_spline_table, "table.in");
+	DensityClassSpec* dspec;
 	
 	std::list<InteractionClassSpec*>::iterator iclass_iterator;
 	for(iclass_iterator=cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
-		line = (*iclass_iterator)->read_table(external_spline_table, line, cg->n_cg_types);
+		if( (dspec = dynamic_cast<DensityClassSpec*>(*iclass_iterator)) != NULL){
+			if (cg->density_interactions.class_subtype != 0) {
+				line = dspec->read_table(external_spline_table, line, dspec->n_density_groups);
+			}
+		} else {
+			line = (*iclass_iterator)->read_table(external_spline_table, line, cg->n_cg_types);
+		}
 	}
 	
 	external_spline_table.close();

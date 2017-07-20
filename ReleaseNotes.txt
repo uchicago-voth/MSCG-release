@@ -1,6 +1,17 @@
 Release Notes
 =============
 
+Version 1.7.0 (July 20, 2017)
+	* Added density interactions
+		** Updated manual
+		** Added density supplement to manual
+		** Added density_fm example
+		** Separate exclusion list for density
+	* Added arbitrary dimension interactions
+		** Rewrite neighbor cell/list code
+		** Change internal position and force data structure
+	* Speed-up finding of first frame
+	
 Version 1.6.11 (July 19, 2017)
 	* Added Boltzmann inversion via rangefinder.x and libmscg.a 
 		(through output_*_parameter_distribution)

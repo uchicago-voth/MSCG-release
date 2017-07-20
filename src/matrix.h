@@ -12,15 +12,15 @@
 
 #include "external_matrix_routines.h"
 
-#if _mkl_flag == 1
-#include "mkl.h"
+#ifndef DIMENSION
+#define DIMENSION 3
 #endif
 
 struct CG_MODEL_DATA;
 struct ControlInputs;
 
-typedef void (*accumulate_forces)(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
-typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, 3>* const &derivatives, MATRIX_DATA * const mat);
+typedef void (*accumulate_forces)(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+typedef void (*accumulate_table_forces)(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void initialize_first_BI_matrix(MATRIX_DATA* const mat, CG_MODEL_DATA* const cg);
 void initialize_next_BI_matrix(MATRIX_DATA* const mat, InteractionClassComputer* const icomp);
 void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter);
@@ -35,7 +35,7 @@ enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, 
 
 struct linked_list_sparse_matrix_element { 
     int col;                                        // Column number
-    double valx[3];                                 // x,y,z components
+    double valx[DIMENSION];                                 // x,y,z components
     struct linked_list_sparse_matrix_element* next; // Pointer to the next element in the linked list
 };
 
@@ -224,13 +224,13 @@ struct dense_matrix {
     }
     
     void add_vector(const int row, const int col, const double* const x) {
-    	for(int i = 0; i < 3; i++) {
+    	for(int i = 0; i < DIMENSION; i++) {
     		values[ col * n_rows + row + i] += x[i];
     	}
     }
 
-    void assign_vector(const int row, const int col, const rvec &x) {
-    	for(int i = 0; i < 3; i++) {
+    void assign_vector(const int row, const int col, const std::array<double, DIMENSION> &x) {
+    	for(int i = 0; i < DIMENSION; i++) {
     		values[ col * n_rows + row + i] = x[i];
     	}
     }
@@ -266,31 +266,33 @@ struct MATRIX_DATA {
 	// Poor-man's polymorphism for vector matrix operations.
 	accumulate_forces accumulate_matching_forces;
 	accumulate_table_forces accumulate_tabulated_forces;
-
+	
     // Basic layout implementation details
     int fm_matrix_rows;                             // Number of rows for FM matrix
     int fm_matrix_columns;                          // Number of columns for FM matrix
     int rows_less_constraint_rows;           		// Rows less the rows reserved for virial constraints
     int virial_constraint_rows;                     // Rows specifically for virial constraints
     int frames_per_traj_block;              		// Number of frames to read in a single block of FM matrix construction
+    int position_dimension;							// The number of elements needed to specify each particle's position.
 
     // For dense-matrix-based calculations
     dense_matrix* dense_fm_matrix;
-    dense_matrix* dense_fm_normal_matrix;                 // Normal form of the force-matching matrix. Constructed one frame at a time.
+    dense_matrix* dense_fm_normal_matrix;           // Normal form of the force-matching matrix. Constructed one frame at a time.
     double* dense_fm_rhs_vector;
     double* dense_fm_normal_rhs_vector;             // Normal form of the target force vector. Constructed one frame at a time.
     double normalization;
     double* fm_solution_normalization_factors;      // Weighted number of times each unknown has been found nonzero in the solution vectors of all blocks
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
-	// Iterative and BI variables
-	double temperature;
+	// BI variables
+    double temperature;
     double iteration_step_size;
     double boltzmann;
     
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
     int dynamic_state_samples_per_frame;	// Number of times a frame is resampled. This is 1 unless dynamic_state_sampling is 1.
+    int volume_weighting_flag;				// 1 to use volume weighting following the approach in MS-CG V; 0 otherwise
 	
     // Optional extras for dense-matrix-based calculations
     double current_frame_weight;
@@ -394,7 +396,7 @@ struct MATRIX_DATA {
     		fm_matrix_columns = new_cols;
     	}
     	
-    	int new_rows_less_virial = new_cg_sites * 3 * frames_per_traj_block;
+    	int new_rows_less_virial = new_cg_sites * DIMENSION * frames_per_traj_block;
     	if (new_rows_less_virial + virial_constraint_rows == fm_matrix_rows) {
     		printf("Resize_matrix is not doing anything since matrix is the same size as before.\n");
     		return;
@@ -445,7 +447,7 @@ void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input
 // Target (RHS) vector calculation routines
 
 void add_target_virials_from_trajectory(MATRIX_DATA* const mat, double *pressure_constraint_rhs_vector);
-void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, const rvec *f);
+void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &f);
 
 // Read serialized, partially-completed post-frameblock matrix calculation intermediates
 

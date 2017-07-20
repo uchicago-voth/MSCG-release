@@ -1,0 +1,161 @@
+Density Dependent Force Matching Supplement to MSCG FM Manual
+-------------------------------------------------------------
+Author: Jacob Wagner
+Created: August 28, 2012
+Updated: August 30, 2016
+Edited:  June   14, 2017
+
+Purpose: This describes the extension to the Multi-scale Coarse-graining (MS-CG)
+force-matching (FM) software to include density dependent potentials/forces.
+Please read the MSCGFM manual before using the code to understand how the rest of 
+the code works.
+
+A) Methodology
+--------------
+A function of density is added to the potential, which creates a density dependent force 
+that can be force matched using this code similar to pair nonbonded or three-body forces 
+the code.
+
+The density is calculated as a sum of pair interaction distances using a weight function. 
+Thus, the local density at a ("home") particle is the sum of these weighted interactions 
+with all other ("other") included particles. Unlike other interactions, the distinction 
+between be the "home" particle and "others" means that the first and second labels for an 
+interaction are not interchangable. So, all combinations of "home" and "other" need to be 
+specified. The fitting functions are linear splines or b-splines of the density.
+
+The forces reported are force as a function of density. The forces in a simultion should 
+be calculated as a function of the individual particles, which is the product of the 
+derivative calculated by the spline multiplied by the derivative of density with respect 
+to distance. 
+
+There are three different weight functions implemented in the code. 
+All weight functions are shifted-force versions. 
+   1) Gaussian weight functions have one free parameter (sigma or width of the 
+      distribution).
+   2) Swithcing functions are of the form tanh( (r - a)/b ) with two free parameters: 
+      a is switching distance and b is the steepnees of the switching function 
+      (similar to the width of the Gaussian). 
+   3) Lucy-style weight function is a fourth order polynomial whose value and derivative 
+      automatically goes to 0 at the cutoff smoothly with no free parameters. 
+   4) Relative-entropy style weight function is a sixth-order polynomial whose value
+      and derivative goes to 0 at the cutoff. This function approximates a switching
+      function and has a parameter that controls where this switching starts.
+
+All of these weight functions additionally depend on the cut-off for density 
+interactions.
+
+B) Input Parameters
+-------------------
+A number of options and inputs are changed to accomodate this change in three of the input 
+files: 
+	* control.in
+	* top.in
+	* den.prm
+	* rmin_den.in
+
+B.1) control.in (needed for all programs)
+   The added flags/parameters can be placed anywhere in the file, but it is suggested to 
+   put them at the end. These parameters are listed with their default values in 
+   parenthesis. If the default value is acceptable, the value does not need to be 
+   included in this file.
+ 
+   density_interactions_flag (0)
+      * 0: no density_nonbonded interactions
+      * 1: Gaussian weight function
+      * 2: Switching (tanh) weight function
+      * 3: Lucy-style weight function
+      * 4: Relative-entropy style weight function
+   density_basis_set_resolution (0.05) 
+      The spacing between spline control points for density interaction basis sets 
+   density_nonbonded_output_binwidth (0.05) 
+      The spacing between tabulated force output for density interactions 
+   density_bspline_basis_order (4)
+      B-spline order used in density interaction basis sets 
+   density_cutoff_distance (10.0)
+      Typically this is the same distance as the cutoff for pair nonbonded interactions
+   density_weights_flag (0)
+   	  Whether or not to use custom weights for each element of a density group (by type)
+   	  * 0: no (all contributions are weighted equally with 1.0)
+   	  * 1: yes (extra values specified by additional information in top.in)
+   output_density_parameter_distribution (0)
+      Whether or not to output the distribution of densities sampled and 
+      a histogram using the pair_bond_basis_set_resolution as the binwidth 
+      (rangefinder only)
+      * 0: no
+      * 1: yes
+   
+B.2) top.in (needed for all programs)
+   The added flags/values should be placed right before the "moltypes" parameter 
+   (which is after the "cgtypes" and any "three_body" terms).
+   The section begins with the parameter "density_nonbonded" and the nubmer of different 
+   "density groups" defined for the system.
+   The subsequent lines list the name of the "density group" followed by the type numbers 
+   for all sites that belong to the density groups
+ 
+   The format of entries for this additional section in top.in is the following:
+   density_nonbonded ND (* ND = Total number of density groups)
+   n1 t1-1 ... t1-n1    (Each line should list the name of the density group n1)
+                        ( as well as each of the n1 types in this density group)
+                        ( going from t1-1 to t1-n1 on the same line) 
+   . . ... .            (There should be ND total lines in this section defining all
+                        ( ND density groups)
+  If density_weights_flag is 1, then this section should be included:
+  density_weights NE (* NE = number of entries below. Generally, this should be all pairs).
+  dg1 t1-1	w1			(Each line should list a density group dg1, a type in this group t1-1,
+  						( and a weight value w1)
+  " " ...   ...			(Continue for the first density group before moving on).
+  dg2 t2-1  w1		    (Repeat for all density_groups) 
+  ... ...   ... 
+ 
+B.3) den.prm (needed for rangefinder.x)
+   The calculation of density depends on the value of the free parameters for each 
+   "density group"-"density group" interaction. 
+   Since rmin* files are not read by rangefinder, they need to be specified in a separate 
+   file called "den.prm". In this file, All ordered pairs of density groups need to be 
+   listed along with their free parameters.
+   Note: The number of free parameters needed after the density group pairing depends on
+   the type of density interaction:
+   * 1 parameter for Gaussian weight functions (sigma or steepness)
+   * 2 parameters for switching weight functions (steepness, switching distance)
+   * 0 parameters for Lucy weight functions
+
+   The format of entries in den.prm for interactions is the following:
+   DG1-1 DG1-2 P1-1 ... P1-n (* DG1-1, DG1-2 = first pairing of density groups, where)
+                             (  DG1-1 is the "home" and DG1-2 is the "other" group)
+                             (* P1-1 ... P1-n are the required parameters based on the)
+                             (  type of density interaction)
+   . . . ... .               (The total number of lines should be the square of the 
+   							 ( number of density groups defined in top.in)
+ 
+B.4) rmin_den.in (needed for newfm.x)
+   The range of densities, the action to be performed (tabulated, force match, none), 
+   and the free parameters should be given next to the order pairs of density groups.
+ 
+   The format of entries in rmin_den.in for interactions is the following:
+   DG1-1 DG1-2 Dl Dh mode P1-1 ... P1-n (* DG1-1, DG1-2 = first pairing of density groups,
+                             ( where  DG1-1 is the "home" and DG1-2 is the "other" group)
+                             (The lower Dl and upper Dh values for this interaction)
+                             (* P1-1 ... P1-n are the required parameters based on the)
+                             (  type of density interaction)
+   . . . ... .               (The total number of lines should be the square of the 
+   							 ( number of density groups defined in top.in)
+   
+C) Output Files
+   1) rmin_den.in
+   In addition to the normal outputs, rangefinder will generate rmin_den.in, which will 
+   include the minimum and maximum densities observed in the format described above.
+ 
+   Also, rangefinder can output the distribution of densities observed and generate a 
+   histogram for each ordered pair of density groups using the 
+   "output_density_parameter_distribution" flag in control.in.
+ 
+   2) Force Matched Interactions (dg1_dg2_den.dat and the corresponding *.table)
+   These files contain the tabulated force as a function of density for the range and 
+   spacing specified. This is the spline contribution to the force. In order to get the 
+   actual force, this value needs to be multiplied by the density derviative with 
+   respect to position.
+ 
+D) Other Comments
+   Trying to fit both pair non-bonded and density interactions is unlikely to be 
+   successful because of the strong possibility that  the fitting may interact between
+   the two to give unexpected pair forces.

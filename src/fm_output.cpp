@@ -82,7 +82,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 	for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
         // For every defined interaction,
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-            // If that interaction is being matched,
+            // If that interaction is being matched
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
             	    
             	// Select the correct type name array for the interaction.
@@ -121,7 +121,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 						}
 					}
 	      		} else {	
-	      			// This is for force matching, MS-CODE (sym), and relative entropy of framewise observables (kObs)
+	      			// This is for force matching
 	      			// Write output based on force splines		
    					if (mat->bootstrapping_flag == 1) {
 	                	// Write tabular output, regardless of spline type.
@@ -228,7 +228,7 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 		fprintf(curr_table_output_file, "N %lu FP 0.0 0.0 EQ %lf\n", axis_vals.size(), axis_vals[min_index]);
 	} else if (i_type == 'd') { // dihedral
 		fprintf(curr_table_output_file, "N %lu DEGREES\n", axis_vals.size());
-	} else { // pair non-bonded
+	} else { // pair non-bonded, density
 		fprintf(curr_table_output_file, "N %lu R %lf %lf\n", axis_vals.size(), axis_vals[0], axis_vals[axis_vals.size() - 1]);
 	}
 
@@ -251,12 +251,12 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
   icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
   make_negative(force_vals);
   
-    // Determine base for output filenames.
-    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-	
-	// Print out tabulated output files in MSCGFM style and LAMMPS style.
-    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
-	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+  // Determine base for output filenames.
+  std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+
+  // Print out tabulated output files in MSCGFM style and LAMMPS style.
+  write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
+  pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
 }
 				 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double cutoff) 
@@ -265,20 +265,20 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	// Correct name is selected in calling function write_interaction_data_to_file
     std::vector<double> axis_vals, force_vals, potential_vals;
     int index_among_tabulated = icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
-
 	icomp->calc_grid_of_force_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals);
 	// Integrate force starting from cutoff = 0.0 potential.
 	integrate_force(axis_vals, force_vals, potential_vals);
-	    
+    
     // Determine base for output filenames.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
-
+	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
     if( index_among_tabulated == 0) {
     	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
     } else {
     	print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals);
+	
 		std::vector<double> tab_axis_vals, tab_force_vals;
 		icomp->calc_grid_of_table_force_vals(index_among_defined_intrxns, icomp->ispec->output_binwidth, tab_axis_vals, tab_force_vals);
 		// sum the forces between the fm and tab.
@@ -287,7 +287,7 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 		integrate_force(axis_vals, force_vals, potential_vals);
 		
 		write_MSCGFM_table_output_file(basename + "_sum", axis_vals, force_vals);
-		pad_and_print_table_files(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, force_vals, potential_vals, cutoff);	
+		pad_and_print_table_files(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, force_vals, potential_vals, cutoff);
     }
 }
 
@@ -299,16 +299,7 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 		pad_and_print_single_table(char_id, basename, axis_vals, force_vals, cutoff);
 	} else if (char_id == 'a') {
     	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 180.0);
-    } else if (char_id == 'g') {
-    	int size = axis_vals.size();
-    	std::vector<double> rg_potential_vals;
-    	std::vector<double> sqrt_axis_vals(size);
-    	for (int i = 0; i < size; i++) {
-    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
-	    }
-    	integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
-	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
-    } else if (char_id == 'd') {
+	} else if (char_id == 'd') {
    	 	double first_axis_wrapped = wrap_periodic_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	std::vector<double> corrected_potential_vals;
@@ -327,19 +318,8 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 }
 
 void print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals)
-{	
-	if (char_id == 'g') {
-    	int size = axis_vals.size();
-    	std::vector<double> rg_potential_vals;
-    	std::vector<double> sqrt_axis_vals(size);
-    	for (int i = 0; i < size; i++) {
-    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
-	    }
-	    integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
-	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
-    } else {		
-    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
-    }
+{		
+	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);
 }
 
 void pad_and_print_single_table(const char char_id, const std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff)
@@ -392,7 +372,14 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
     if (icomp->ispec->output_spline_coeffs_flag == 1) {
         char name_tmp1[100], name_tmp2[100];
         FILE *raw_rhs_output_file, *normal_form_rhs_output_file;
-        std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+        std::string basename;
+		
+		if (icomp->ispec->class_type == kDensity) {
+			DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
+			basename = ispec->get_basename(name, index_among_defined_intrxns, "_");
+		} else {
+			basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+		}
 
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
 
@@ -420,7 +407,13 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
 
 void write_one_param_bspline_file(InteractionClassComputer* const icomp, char ** const name, MATRIX_DATA* const mat, const int index_among_defined)
 {
-    std::string type_names = icomp->ispec->get_interaction_name(name, index_among_defined, " ");
+    std::string type_names;
+    if (icomp->ispec->class_type == kDensity) {
+   		DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
+   	    type_names = dspec->get_interaction_name(name, index_among_defined, " ");
+	} else {
+   	    type_names = icomp->ispec->get_interaction_name(name, index_among_defined, " ");
+	}
 
 	FILE* spline_output_filep = open_file("b-spline.out", "a");
 	
@@ -516,13 +509,13 @@ void write_bootstrapping_one_param_table_files(InteractionClassComputer* const i
     
     // Master
 	icomp->calc_grid_of_force_vals(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_force_vals);
-	integrate_force(axis_vals, master_force_vals, master_potential_vals);
+    integrate_force(axis_vals, master_force_vals, master_potential_vals);
     
     // Bootstrap estimates
     for (i = 0; i < bootstrapping_num_estimates; i++) {
-		icomp->calc_grid_of_force_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i]);
+	    icomp->calc_grid_of_force_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i]);
 		// Integrate force starting from cutoff = 0.0 potential.
-		integrate_force(axis_vals, force_vals[i], potential_vals[i]);
+    	integrate_force(axis_vals, force_vals[i], potential_vals[i]);		
 	}
     
     // Print out tabulated output files in MSCGFM style and LAMMPS style.
@@ -557,12 +550,21 @@ void write_bootstrapping_one_param_table_files_energy(InteractionClassComputer* 
     
     // Bootstrap estimates
     for (i = 0; i < bootstrapping_num_estimates; i++) {
-		icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals[i], force_vals[i]);
+	    icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals[i], force_vals[i]);
 		make_negative(force_vals[i]);
 	}
 
     // Determine base for output filenames.
-    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+    std::string basename;
+    if(icomp->ispec->class_type == kDensity)
+      {
+        DensityClassSpec* ispec = static_cast<DensityClassSpec*>(icomp->ispec);
+        basename = ispec->get_basename(ispec->density_group_names, index_among_defined_intrxns, "_");
+      }
+    else
+      {
+        basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+      }
 
   	if (bootstrapping_full_output_flag == 1) {
   		// Write master followed by all estimates.
@@ -614,7 +616,7 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
         std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
         
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
-    	
+
         // Output the linear spline bin points and coefficients.
         sprintf(name_tmp1, "%s.b", basename.c_str());
         raw_rhs_output_file = open_file(name_tmp1, "w");

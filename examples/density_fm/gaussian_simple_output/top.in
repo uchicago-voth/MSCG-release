@@ -1,0 +1,15 @@
+cgsites 500
+cgtypes 2
+1
+2
+density_nonbonded 1
+ALL 1 2
+moltypes 1 
+mol 2 3
+sitetypes
+1
+2
+bonds 1
+1 2
+system 1
+1 250

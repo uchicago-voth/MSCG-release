@@ -27,6 +27,8 @@ SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
             return new LinearSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kBSplineAndDeriv) {
         	return new BSplineAndDerivComputer(ispec);
+        } else if (ispec->get_basis_type() == kNone) {
+        	return NULL;
         } else {
             fprintf(stderr, "Unrecognized spline class.\n");
             exit(EXIT_FAILURE);

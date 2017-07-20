@@ -105,7 +105,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
 	int traj_frame_num = 0;
 	int times_sampled = 1;
     int read_stat = 1;
-	double* ref_box_half_lengths = new double[3];
+	double* ref_box_half_lengths = new double[frame_source->position_dimension];
 	    
     // Skip the desired number of frames before starting the matrix building loops.
     frame_source->move_to_start_frame(frame_source);
@@ -126,7 +126,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     }
 	
 	// Record this box's dimensions.
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < frame_source->position_dimension; i++) {
 		ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
 	}
 
@@ -185,7 +185,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
             
             	// Check if the simulation box has changed.
             	int box_change = 0;
-            	for (int i = 0; i < 3; i++) {
+            	for (int i = 0; i < frame_source->position_dimension; i++) {
 					if ( fabs(ref_box_half_lengths[i] - frame_source->frame_config->simulation_box_half_lengths[i]) > VERYSMALL_F ) {
 						box_change = 1;
 						break;
@@ -207,7 +207,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     				}
     				
     				// Update the reference_box_half_lengths for this new box size.
-    				for (int i = 0; i < 3; i++) {
+    				for (int i = 0; i < frame_source->position_dimension; i++) {
     					ref_box_half_lengths[i] = frame_source->frame_config->simulation_box_half_lengths[i];
     				}
     			}
@@ -256,4 +256,5 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
     // Close the trajectory and free the relevant temp variables.
     frame_source->cleanup(frame_source);
     delete [] ref_box_half_lengths;
+    
 }
