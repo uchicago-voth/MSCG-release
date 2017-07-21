@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
     	if (control_input.reference_input_style == 2) {
     		printf("Cannot use RDF input for both reference and CG information!\n");
     		exit(EXIT_FAILURE);
-    	else if (control_input.reference_input_style == 1) {
+    	} else if (control_input.reference_input_style == 1) {
     		printf("The use of CG RDF input requires a reference trajectory for input!\n");
     		exit(EXIT_FAILURE);
     	}
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
     	if (control_input.cg_input_style == 2) {
     		printf("Cannot use RDF input for both reference and CG information!\n");
     		exit(EXIT_FAILURE);
-    	else if (control_input.cg_input_style == 1) {
+    	} else if (control_input.cg_input_style == 1) {
     		printf("The use of reference RDF input requires a CG trajectory for input!\n");
     		exit(EXIT_FAILURE);
     	}

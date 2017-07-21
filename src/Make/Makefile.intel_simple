@@ -65,13 +65,25 @@ newrem_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS)
 newrem_mkl_no_gro: newrem.o $(MKL_NO_GRO_COMMON_OBJECTS)
 	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
 
+newibi: newibi.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(COMMON_OBJECTS) $(LIBS)
+
+newibi_mkl: newibi_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi_mkl.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
+
+newibi_no_gro: newibi.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	
+newibi_mkl_no_gro: newibi.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
 recode: recode.o  $(COMMON_OBJECTS) 
 	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
 
 recode_mkl: recode_mkl.o  $(MKL_COMMON_OBJECTS) 
 	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode_mkl.o $(MKL_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
 
-recode_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS) 
+recode_no_gro: recode.o  $(NO_GRO_COMMON_OBJECTS) 
 	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 
 recode_mkl_no_gro: recode_mkl.o  $(MKL_NO_GROCOMMON_OBJECTS) 
@@ -99,6 +111,12 @@ newfm.o: newfm.cpp $(COMMON_SOURCE)
 	
 newfm_mkl.o: newfm.cpp $(COMMON_SOURCE) 
 	$(CC) $(MKL_CFLAGS) -c newfm.cpp -D"_mkl_flag=1" -o newfm_mkl.o
+
+newibi.o: newibi.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newibi.cpp
+
+newibi_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newibi.cpp -D"_mkl_flag=1" -o newibi_mkl.o
 
 newrem.o: newrem.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newrem.cpp
@@ -170,4 +188,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm rangefinder combinefm newrem recode
+all: libmscg.a newfm rangefinder combinefm newrem recode newibi
