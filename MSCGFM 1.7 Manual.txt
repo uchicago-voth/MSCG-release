@@ -47,9 +47,10 @@ This package also provides support for the methods described in these references
 10. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Extending the Range and 
 	Physical Accuracy of Coarse-grained Models: Order Parameter Dependent Interactions", 
 	Journal of Chemical Physics, 2017 in press.
-11. J. W. Wagner, T. Dannenhoffer-Lafage, and G. A. Voth, "Multiscale Compatible 
-	Observable Decomposition (MS-CODE) for Coarse-grained Observable Representation",
-	Journal of Chemical Physics, 2017 in preparation. 
+11. J. W. Wagner, T. Dannenhoffer-Lafage, A. E. P. Durumeric, and G. A. Voth, 
+	"Representability and Compatible Observable Decompositions for Coarse-grained 
+	Representations of Real Molecular Systems", Journal of Chemical Physics, 2017
+	in preparation. 
 
 Note: This code uses C++11, which may not be supported by older compilers.
 
