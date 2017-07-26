@@ -88,6 +88,14 @@ FixMSCG::FixMSCG(LAMMPS *lmp, int narg, char **arg) :
         rem_flag = 0;
       else error->all(FLERR,"Illegal fix mscg command");
       iarg += 2;
+    } if (strcmp(arg[iarg],"recode") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix mscg command");
+      if (strcmp(arg[iarg+1],"on") == 0)
+        recode_flag = 1;
+      else if (strcmp(arg[iarg+1],"off") == 0)
+        recode_flag = 0;
+      else error->all(FLERR,"Illegal fix mscg command");
+      iarg += 2;
     } else if (strcmp(arg[iarg],"name") == 0) {
       if (iarg+ntypes+1 > narg)
         error->all(FLERR,"Illegal fix mscg command");
@@ -115,6 +123,9 @@ FixMSCG::FixMSCG(LAMMPS *lmp, int narg, char **arg) :
   }
   
   if (range_flag == 1 && rem_flag == 1) error->all(FLERR, "Cannot set range and rem on at the same time");
+  if (range_flag == 1 && recode_flag == 1) error->all(FLERR, "Cannot set range and recode on at the same time");
+  if (recode_flag == 1 && rem_flag == 1) error->all(FLERR, "Cannot set recode and rem on at the same time");
+  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -246,6 +257,8 @@ void FixMSCG::post_constructor()
     mscg_struct = rangefinder_startup_part1(mscg_struct);
   else if (rem_flag)
   	mscg_struct = rem_startup_part1(mscg_struct);
+  else if (recode_flag)
+  	mscg_struct = recode_startup_part1(mscg_struct);
   else 
     mscg_struct = mscg_startup_part1(mscg_struct);
 
@@ -268,6 +281,8 @@ void FixMSCG::post_constructor()
     mscg_struct = rangefinder_startup_part2(mscg_struct);
   else if (rem_flag)
   	mscg_struct = rem_startup_part2(mscg_struct);
+  else if (recode_flag)
+  	mscg_struct = recode_startup_part2(mscg_struct);
   else
     mscg_struct = mscg_startup_part2(mscg_struct);
 }
@@ -321,6 +336,8 @@ void FixMSCG::end_of_step()
     mscg_struct = rangefinder_process_frame(mscg_struct,x1d,f1d);
   else if (rem_flag)
   	mscg_struct = rem_process_frame(mscg_struct,x1d,f1d);
+  else if (recode_flag)
+  	mscg_struct = recode_process_frame(mscg_struct);
   else
     mscg_struct = mscg_process_frame(mscg_struct,x1d,f1d);
 }
@@ -343,6 +360,8 @@ void FixMSCG::post_run()
     rangefinder_solve_and_output(mscg_struct);
   else if (rem_flag)
   	mscg_struct = rem_solve_and_output(mscg_struct);
+  else if (recode_flag)
+  	mscg_struct = recode_solve_and_output(mscg_struct);
   else
     mscg_solve_and_output(mscg_struct);
 }

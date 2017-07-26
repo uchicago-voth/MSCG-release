@@ -1595,7 +1595,7 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kREM || mat->matrix_type == kRecode) {
-    // Do not accumulate per-particle values for kREM or kRecode.
+    	// Do not accumulate per-particle values for kREM or kRecode.
 	}
 }
 

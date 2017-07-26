@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 
     // Generate bootstrapping weights if the
     // 'bootstrapping_flag' is set in control.in.
-	if (fs_cg.bootstrapping_flag == 1) { // REM bootstrapping currently is only implemented to act on CG NOT REF.
+	if (fs_cg.bootstrapping_flag == 1) { 
     	printf("Generating bootstrapping frame weights.\n");
     	fflush(stdout);
     	generate_bootstrapping_weights(&fs_cg, control_input.n_frames);
@@ -89,9 +89,6 @@ int main(int argc, char* argv[])
     // read.
     printf("Beginning to read frames.\n");
     fs_cg.get_first_frame(&fs_cg, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
-    
-	// Perhaps we should have a control.in option that enables reading/use of the
-	// observables.cg file (where only observables.ref would be read by default).
 
     // Read in reference and CG observable values (1 value per frame).
     read_frame_values("observables.ref", control_input.starting_frame, control_input.n_frames, fs_cg.ref_observables);
@@ -101,7 +98,7 @@ int main(int argc, char* argv[])
     	fs_cg.cg_observables = new double[control_input.n_frames]();
     }
 
-    //  dynamic state sampling for REM systems
+    //  dynamic state sampling for RE-CODE systems
 	if (fs_cg.dynamic_state_sampling == 1) {
 		fs_cg.sampleTypesFromProbs();
 	}
@@ -113,7 +110,7 @@ int main(int argc, char* argv[])
     // Initialize the entropy minimizing matrix.
     printf("setting up RE observable matrix\n");
     control_input.matrix_type = kRecode;  
-    MATRIX_DATA mat_cg(&control_input, &cg); /*CHECK*/
+    MATRIX_DATA mat_cg(&control_input, &cg);
     
     if (fs_cg.use_statistical_reweighting == 1) {
         set_normalization(&mat_cg, 1.0 / fs_cg.total_frame_weights);
@@ -136,7 +133,7 @@ int main(int argc, char* argv[])
         
     // Find the solution to the entropy observable equations set up in the previous steps. 
     // This uses the usual dense FM normal matrix solving since it is actually least squares.
-    printf("Finishing RE Observable matching.\n");
+    printf("Finishing RE observable matching.\n");
     mat_cg.finish_fm(&mat_cg);
     if (fs_cg.bootstrapping_flag == 1) {
 		free_bootstrapping_weights(&fs_cg);
@@ -190,7 +187,7 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   pair_cell_list.init(cg->pair_nonbonded_interactions.cutoff, fs);
   
   if( cg->three_body_nonbonded_interactions.class_subtype > 0){
-    printf("Three body non-bonded interactions are not yet supported by newrem\n");
+    printf("Three body non-bonded interactions are not yet supported by recode\n");
     exit(EXIT_FAILURE);
   }
   
