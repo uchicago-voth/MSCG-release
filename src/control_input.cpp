@@ -108,6 +108,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
 	else if (strcmp("density_excluded_style", parameter_name) == 0) sscanf(val, "%d", &control_input->density_excluded_style);
     else if (strcmp("output_spline_coeffs_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_spline_coeffs_flag);
     else if (strcmp("output_normal_equations_rhs_flag", parameter_name) == 0) sscanf(val, "%d", &control_input->output_normal_equations_rhs_flag);
+    else if (strcmp("rangefinder_thresholding_style", parameter_name) == 0) sscanf(val, "%d", &control_input->rangefinder_thresholding_style);
     else if (strcmp("output_pair_nonbonded_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_nonbonded_parameter_distribution);
     else if (strcmp("output_pair_bond_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_pair_bond_parameter_distribution);
     else if (strcmp("output_angle_parameter_distribution", parameter_name) == 0) sscanf(val, "%d", &control_input->output_angle_parameter_distribution);
@@ -236,6 +237,7 @@ ControlInputs::ControlInputs(void)
 	density_excluded_style = 0;
     output_spline_coeffs_flag = 0;
     output_normal_equations_rhs_flag = 0;
+    rangefinder_thresholding_style = 0;
     output_pair_nonbonded_parameter_distribution = 0;
     output_pair_bond_parameter_distribution = 0;
     output_angle_parameter_distribution = 0;

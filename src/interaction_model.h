@@ -66,6 +66,7 @@ struct InteractionClassSpec {
     int output_spline_coeffs_flag;
     double output_binwidth;
 	int output_parameter_distribution;
+	int rangefinder_thresholding_style;
 	FILE** output_range_file_handles;
 
 	// n_defined is the number of unique type combinations for n_cg_sites and the interaction type.
@@ -177,6 +178,7 @@ struct InteractionClassSpec {
 		n_tabulated = n_to_force_match = n_symmetric = n_from_table = n_tabsym = 0;
 		n_defined = 0;
 		class_subtype = 0;
+		rangefinder_thresholding_style = 0;
 	};
 	
 	~InteractionClassSpec() {
@@ -318,6 +320,7 @@ struct PairNonbondedClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->pair_nonbonded_fm_binwidth;
 		bspline_k = control_input->nonbonded_bspline_k;
 		output_binwidth = control_input->pair_nonbonded_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_pair_nonbonded_parameter_distribution;
 	}
 		
@@ -343,6 +346,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->pair_bond_fm_binwidth;
 		bspline_k = control_input->pair_bond_bspline_k;
 		output_binwidth = control_input->pair_bond_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_pair_bond_parameter_distribution;
 	}
 	
@@ -372,6 +376,7 @@ struct AngularClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->angle_fm_binwidth;
     	bspline_k = control_input->angle_bspline_k;
     	output_binwidth = control_input->angle_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_angle_parameter_distribution;
 		cutoff = VERYLARGE;
 		
@@ -408,6 +413,7 @@ struct DihedralClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->dihedral_fm_binwidth;
 		bspline_k = control_input->dihedral_bspline_k;
 		output_binwidth = control_input->dihedral_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_dihedral_parameter_distribution;
 		cutoff = VERYLARGE;
 		
@@ -445,6 +451,7 @@ struct R13ClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->r13_fm_binwidth;
     	bspline_k = control_input->r13_bspline_k;
     	output_binwidth = control_input->r13_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_r13_parameter_distribution;
     }
 	
@@ -475,6 +482,7 @@ struct R14ClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->r14_fm_binwidth;
     	bspline_k = control_input->r14_bspline_k;
     	output_binwidth = control_input->r14_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_r14_parameter_distribution;
     }
 	
@@ -505,6 +513,7 @@ struct R15ClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->r15_fm_binwidth;
     	bspline_k = control_input->r15_bspline_k;
     	output_binwidth = control_input->r15_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_r15_parameter_distribution;
     }
 	
@@ -547,6 +556,7 @@ struct HelicalClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->helical_fm_binwidth;
 		bspline_k = control_input->helical_bspline_k;
 		output_binwidth = control_input->helical_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_helical_parameter_distribution;
 		rg_state = control_input->radius_of_gyration_flag;
 		allocated = 0;
@@ -614,6 +624,7 @@ struct RadiusofGyrationClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->radius_of_gyration_fm_binwidth;
 		bspline_k = control_input->radius_of_gyration_bspline_k;
 		output_binwidth = control_input->radius_of_gyration_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_radius_of_gyration_parameter_distribution;
 	}
 	
@@ -760,6 +771,7 @@ struct DensityClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->density_fm_binwidth;
 		bspline_k = control_input->density_bspline_k;
 		output_binwidth = control_input->density_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_density_parameter_distribution;
 		
 		// Initialize some pointers to NULL and numbers to 0.

@@ -106,6 +106,7 @@ typedef struct ControlInputs {
 	int density_weights_flag;
 
 	// Rangefinder only output specifications
+	int rangefinder_thresholding_style;
 	int output_pair_nonbonded_parameter_distribution;
     int output_pair_bond_parameter_distribution;
     int output_angle_parameter_distribution;

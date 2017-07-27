@@ -483,6 +483,15 @@ three_body_nonbonded_output_binwidth (.2)
     The spacing between tabulated force output for three body non-bonded interactions
     This is either in distance units or degrees based on angle_type
     Only used when three_body_nonbonded_style is positive
+rangefinder_thresholding_style (0)
+	How to handle the sampling ranges reported by rangefinder
+	* 0: report raw low/high values
+	* -1: round range (to larger range) to integer multiple of fm_binwidth
+	* -2: round range (to larger range) to integer multiple of output_binwidth 
+	* 1: shrink range to first/last value that has 0.005% of total sampling.
+	* 2: shrink range to first/last value that has 0.005% of the sampling for the most sampled bin.
+	Note: For options 1 or 2 to work as intended, the appropriate output_*_parameter_distribution
+	options must be enabled.
 output_pair_nonbonded_parameter_distribution (0) 
     Whether or not to output the distribution of pair non-bonded distances sampled and 
     a histogram using the pair_nonbonded_basis_set_resolution as the binwidth 
