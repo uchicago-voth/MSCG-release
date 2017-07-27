@@ -46,6 +46,7 @@ void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file);
 void write_single_range_specification(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file, const int index_among_defined);
+void apply_thresholding_to_cutoffs(InteractionClassSpec* const ispec, const int i, unsigned long* const bin_counts, const int num_bins, const int threshold_counts);
 
 void read_helical_parameter_file(InteractionClassSpec* const ispec);
 void read_density_parameter_file(DensityClassSpec* const ispec);
@@ -507,15 +508,10 @@ void write_interaction_range_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* 
 
 void write_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file) 
 {
-	// Name is selected in calling function write_interaction_range_data_to_file.
-    InteractionClassSpec *iclass = icomp->ispec;
-    for (int i = 0; i < iclass->get_n_defined(); i++) {
-        int index_among_matched_interactions = iclass->defined_to_matched_intrxn_index_map[i];
-        if (index_among_matched_interactions > 0) {
-            write_single_range_specification(icomp, name, mat, solution_spline_output_file, i);
-        }
-    }
-	
+	InteractionClassSpec *iclass = icomp->ispec;
+    
+	// Write distribution files (if appropriate) first in order to permit
+	// rangefinder_thresholding_style to be applied to cutoffs before writing range files
 	if (iclass->output_parameter_distribution == 1 || iclass->output_parameter_distribution == 2) {
 		if(iclass->class_type == kDensity && iclass->class_subtype > 0) {
 			close_parameter_distribution_files_for_class(icomp);
@@ -539,7 +535,18 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 		} else {
 			// do nothing for these
 		}
+	} else if (iclass->rangefinder_thresholding_style == 1 || iclass->rangefinder_thresholding_style == 2) {
+		printf("Cannot apply desired rangefinder_thresholding style (%d) for %s when the corresponding output_*_parameter_distribution option is set to %d.\n", iclass->rangefinder_thresholding_style, iclass->get_full_name().c_str() , iclass->output_parameter_distribution);
+		fflush(stdout);
 	}
+	
+	// Name is selected in calling function write_interaction_range_data_to_file.
+    for (int i = 0; i < iclass->get_n_defined(); i++) {
+        int index_among_matched_interactions = iclass->defined_to_matched_intrxn_index_map[i];
+        if (index_among_matched_interactions > 0) {
+            write_single_range_specification(icomp, name, mat, solution_spline_output_file, i);
+        }
+    }
 }
 
 void write_one_body_iclass_range_specifications(InteractionClassComputer* const icomp, char **name, MATRIX_DATA* const mat, FILE* const solution_spline_output_file) 
@@ -570,6 +577,29 @@ void write_single_range_specification(InteractionClassComputer* const icomp, cha
             ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
         }
     }
+    // apply rounding for (negative) rangefinder_thresholding_style options
+    if (ispec->rangefinder_thresholding_style == -1) {
+    	ispec->upper_cutoffs[index_among_defined] = floor( (ispec->upper_cutoffs[index_among_defined] / ispec->get_fm_binwidth()) + 0.5) * ispec->get_fm_binwidth();
+        if ((ispec->class_type == kPairNonbonded) && (ispec->upper_cutoffs[index_among_defined] + VERYSMALL_F > ispec->cutoff)) {
+            ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
+        }
+        
+        // Now, round down the lower cutoff so that there is an integer number of a bin.
+        ispec->lower_cutoffs[index_among_defined] = ispec->upper_cutoffs[index_among_defined] - floor( ((ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / ispec->get_fm_binwidth()) + 0.5) * ispec->get_fm_binwidth();
+        if ((ispec->class_type != kDihedralBonded) && (ispec->lower_cutoffs[index_among_defined] < VERYSMALL_F)) ispec->lower_cutoffs[index_among_defined] = 0.0;
+
+    } else if (ispec->rangefinder_thresholding_style == -2) {
+    	ispec->upper_cutoffs[index_among_defined] = floor( (ispec->upper_cutoffs[index_among_defined] / ispec->output_binwidth) + 0.5) * ispec->output_binwidth;
+        if ((ispec->class_type == kPairNonbonded) && (ispec->upper_cutoffs[index_among_defined] + VERYSMALL_F > ispec->cutoff)) {
+            ispec->upper_cutoffs[index_among_defined] = ispec->cutoff;
+        }
+        
+        // Now, round down the lower cutoff so that there is an integer number of a bin.
+        ispec->lower_cutoffs[index_among_defined] = ispec->upper_cutoffs[index_among_defined] - floor( ((ispec->upper_cutoffs[index_among_defined] - ispec->lower_cutoffs[index_among_defined]) / ispec->output_binwidth) + 0.5) * ispec->output_binwidth;
+        if ((ispec->class_type != kDihedralBonded) && (ispec->lower_cutoffs[index_among_defined] < VERYSMALL_F)) ispec->lower_cutoffs[index_among_defined] = 0.0;
+
+    
+    }  
     
     fprintf(solution_spline_output_file, "%lf %lf", ispec->lower_cutoffs[index_among_defined], ispec->upper_cutoffs[index_among_defined]);
     if (ispec->upper_cutoffs[index_among_defined] == -1.0) { // there is no sampling here.
@@ -699,9 +729,14 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 	int num_bins = 0;
 	int	curr_bin;
 	double value; 
+	double old_lower_cutoff, old_upper_cutoff;
 	double* bin_centers;
 	unsigned long* bin_counts;
 	for (int i = 0; i < ispec->get_n_defined(); i++) {
+		
+		// Store raw cutoff values
+		old_lower_cutoff = ispec->lower_cutoffs[i];
+		old_upper_cutoff = ispec->upper_cutoffs[i];
 		
 		// Set-up histogram based on interaction binwidth
 		if (ispec->upper_cutoffs[i] == -1.0) { // there is no sampling here. default allocate
@@ -743,12 +778,79 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 			hist_stream << bin_centers[j] << "\t" << bin_counts[j] << "\n";
 		}
 		
+		// Determine what lower and upper cutoff values should be passed back for 
+		// the writing of range files
+		// Only do this here for options 1 and 2. Otherwise, this is done when the
+		// range files are written
+		if (ispec->rangefinder_thresholding_style == 1) {
+			// calculate the total counts
+			int total_counts = 0;			
+			for (int j = 0; j < num_bins; j++) {
+				total_counts += bin_counts[j];
+			}
+			
+			// determine the threshold value (rounding up to the greatest integer)
+			// Threshold is 0.005% of total counts(fraction is 5E-5).
+			int threshold_counts = floor( (double)(total_counts) * 0.00005 + 1.0);
+			
+			// apply range thresholding
+			apply_thresholding_to_cutoffs(ispec, i, bin_counts, num_bins, threshold_counts);			
+						
+		} else if (ispec->rangefinder_thresholding_style == 2) {
+			int max_counts = 0;
+		
+			// determine which bin has the max counts using a high water mark algorithm
+			for (int j = 0; j < num_bins; j++) {
+				if (bin_counts[j] > (unsigned int)(max_counts)) {
+					max_counts = bin_counts[j];
+				}
+			}
+			
+			// determine the threshold value (rounding up to the greatest integer)
+			// Threshold is 0.005% of max bin counts (fraction is 5E-5).
+			int threshold_counts = floor( (double)(max_counts) * 0.00005 + 1.0);
+			
+			// apply range thresholding
+			apply_thresholding_to_cutoffs(ispec, i, bin_counts, num_bins, threshold_counts);			
+			
+		} else {
+			// restore the raw values for later processing
+			ispec->lower_cutoffs[i] = old_lower_cutoff;
+			ispec->upper_cutoffs[i] = old_upper_cutoff;
+		}
+		
 		// Close files
 		hist_stream.close();
 		dist_stream.close();
 		delete [] bin_centers;
 		delete [] bin_counts;
 	}
+}
+
+void apply_thresholding_to_cutoffs(InteractionClassSpec* const ispec, const int i, unsigned long* const bin_counts, const int num_bins, const int threshold_counts)
+{
+	// search for upper cutoff value satisfying threshold
+	int index = num_bins - 1;
+	while ((bin_counts[index] < (unsigned int)(threshold_counts)) && (index > 0)) {
+		index--;
+	}
+	if (index <= 1) { 
+		printf("Insufficient sampling encountered for interaction to properly apply range thresholding.\n"); 
+		fflush(stdout); 
+	}
+	ispec->upper_cutoffs[i] = ispec->lower_cutoffs[i] + (double)(index + 1) * 0.5 * ispec->get_fm_binwidth();
+	
+
+	// search for lower cutoff value satisfying threshold
+	index = 0;
+	while ((bin_counts[index] < (unsigned int)(threshold_counts)) && (index < num_bins - 1)) {
+		index++;
+	}
+	if (index >= num_bins - 2) { 
+		printf("Insufficient sampling encountered for interaction to properly apply range thresholding.\n"); 
+		fflush(stdout); 
+	}
+	ispec->lower_cutoffs[i] += (double)(index) * 0.5 * ispec->get_fm_binwidth();
 }
 
 void calculate_BI(CG_MODEL_DATA* const cg, MATRIX_DATA* mat, FrameSource* const fs)
