@@ -537,8 +537,17 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 		}
 	} else if (iclass->rangefinder_thresholding_style == 1 || iclass->rangefinder_thresholding_style == 2 ||
 			   iclass->rangefinder_thresholding_style == 3 || iclass->rangefinder_thresholding_style == 4) {
-		printf("Cannot apply desired rangefinder_thresholding style (%d) for %s when the corresponding output_*_parameter_distribution option is set to %d.\n", iclass->rangefinder_thresholding_style, iclass->get_full_name().c_str() , iclass->output_parameter_distribution);
-		fflush(stdout);
+		if (iclass->class_type == kR13Bonded || iclass->class_type == kR14Bonded || iclass->class_type == kR15Bonded ||
+			iclass->class_type == kHelical   || iclass->class_type == kRadiusofGyration || iclass->class_type == kDensity ||
+			iclass->class_type == kThreeBodyNonbonded) {
+			if (iclass->class_subtype > 0) {
+				printf("Cannot apply desired rangefinder_thresholding style (%d) for %s when the corresponding output_*_parameter_distribution option is set to %d.\n", iclass->rangefinder_thresholding_style, iclass->get_full_name().c_str() , iclass->output_parameter_distribution);
+				fflush(stdout);
+			}
+		} else {
+			printf("Cannot apply desired rangefinder_thresholding style (%d) for %s when the corresponding output_*_parameter_distribution option is set to %d.\n", iclass->rangefinder_thresholding_style, iclass->get_full_name().c_str() , iclass->output_parameter_distribution);
+			fflush(stdout);
+		}
 	}
 	
 	// Name is selected in calling function write_interaction_range_data_to_file.
