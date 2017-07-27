@@ -490,6 +490,8 @@ rangefinder_thresholding_style (0)
 	* -2: round range (to larger range) to integer multiple of output_binwidth 
 	* 1: shrink range to first/last value that has 0.005% of total sampling.
 	* 2: shrink range to first/last value that has 0.005% of the sampling for the most sampled bin.
+	* 3: shrink range to first/last value that has at least 10 samples per bin.
+	* 4: shrink range to first/last value that has at least 100 samples per bin.
 	Note: For options 1 or 2 to work as intended, the appropriate output_*_parameter_distribution
 	options must be enabled.
 output_pair_nonbonded_parameter_distribution (0) 

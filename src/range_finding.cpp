@@ -535,7 +535,8 @@ void write_iclass_range_specifications(InteractionClassComputer* const icomp, ch
 		} else {
 			// do nothing for these
 		}
-	} else if (iclass->rangefinder_thresholding_style == 1 || iclass->rangefinder_thresholding_style == 2) {
+	} else if (iclass->rangefinder_thresholding_style == 1 || iclass->rangefinder_thresholding_style == 2 ||
+			   iclass->rangefinder_thresholding_style == 3 || iclass->rangefinder_thresholding_style == 4) {
 		printf("Cannot apply desired rangefinder_thresholding style (%d) for %s when the corresponding output_*_parameter_distribution option is set to %d.\n", iclass->rangefinder_thresholding_style, iclass->get_full_name().c_str() , iclass->output_parameter_distribution);
 		fflush(stdout);
 	}
@@ -812,7 +813,15 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 			
 			// apply range thresholding
 			apply_thresholding_to_cutoffs(ispec, i, bin_counts, num_bins, threshold_counts);			
-			
+		
+		} else if (ispec->rangefinder_thresholding_style == 3) {
+			// Threshold is 10 counts per bin.
+			int threshold_counts = 10;
+			apply_thresholding_to_cutoffs(ispec, i, bin_counts, num_bins, threshold_counts);			
+		} else if (ispec->rangefinder_thresholding_style == 4) {
+			// Threshold is 100 counts per bin.
+			int threshold_counts = 100;
+			apply_thresholding_to_cutoffs(ispec, i, bin_counts, num_bins, threshold_counts);			
 		} else {
 			// restore the raw values for later processing
 			ispec->lower_cutoffs[i] = old_lower_cutoff;
