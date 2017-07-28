@@ -164,6 +164,7 @@ void read_other_distribution(InteractionClassComputer* const icomp, char** const
 // Output functions.
 
 void write_reference_matrix(dense_matrix* const mat_ref);
+void write_cg_matrix(dense_matrix* const mat_cg);
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp);
 
 //--------------------------------------------------------------------
@@ -788,6 +789,7 @@ void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_
     mat->iteration_step_size = control_input->iteration_step_size;
     mat->boltzmann = control_input->boltzmann;
 
+    
 	// Allocate the basic relative entropy matrix parts
     mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
     mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
@@ -3789,6 +3791,7 @@ void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const 
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  write_cg_matrix(mat_cg->dense_fm_normal_matrix);
   update_these_rem_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution);
 }
 
@@ -3820,14 +3823,15 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
 void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution)
 {
   const double SMALL = 0.001;
-  
+
+
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
   
   for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
     {
-      ref_previous_solution[j] += (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
-      ref_new_solution[j] += (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
+      ref_previous_solution[j] = (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
+      ref_new_solution[j] = (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
     }
 
 
@@ -3844,10 +3848,10 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
       double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
 
 	  // ensure that the solution does not change too much.
-      if(update > 100.0) {
-	    update = 100.0;
-	  } else if(update < -100.0) {
-	    update = -100.0;
+      if(update > 10.0) {
+	    update = 10.0;
+	  } else if(update < -10.0) {
+	    update = -10.0;
 	  }
 	  new_solution[k] = previous_solution[k] - update;
   }
@@ -4496,6 +4500,13 @@ void write_reference_matrix(dense_matrix* const ref_normal_matrix)
 	FILE* fh = fopen("reference_matrix.out", "w");
 	ref_normal_matrix->print_matrix(fh);
 	fclose(fh);
+}
+
+void write_cg_matrix(dense_matrix* const cg_normal_matrix)
+{
+  FILE* fh = fopen("cg_matrix.out","w");
+  cg_normal_matrix->print_matrix(fh);
+  fclose(fh);
 }
 
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp)
