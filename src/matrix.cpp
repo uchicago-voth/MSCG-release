@@ -3823,6 +3823,7 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
 void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution)
 {
   const double SMALL = 0.001;
+  double KT = 1/beta;
 
 
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
@@ -3848,10 +3849,10 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
       double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
 
 	  // ensure that the solution does not change too much.
-      if(update > 10.0) {
-	    update = 10.0;
-	  } else if(update < -10.0) {
-	    update = -10.0;
+      if(update > (5 * KT)) {
+	update = (5 * KT);
+      } else if(update < -(5 * KT)) {
+	update = -(5 * KT);
 	  }
 	  new_solution[k] = previous_solution[k] - update;
   }
