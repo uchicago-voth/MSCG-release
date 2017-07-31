@@ -3892,7 +3892,7 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
 
 	  // ensure that the solution does not change too much.
       if(update > (limit * KT)) {
-		update = (5 * KT);
+		update = (limit * KT);
       } else if(update < -(limit * KT)) {
 		update = -(limit * KT);
 	  }
@@ -3946,15 +3946,18 @@ void update_these_ibi_parameters(const double beta, const double chi, const dens
   
   for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
   
-      //This is the actual IBI update
-      double update = (ref_normal_matrix->get_scalar(0,k) - cg_normal_matrix->get_scalar(0,k)) * chi / beta;
+      // This is the actual IBI update (in potential energy units)
+      // The normalized number of counts is fed in for both models. 
+      // The corrections to get to an RDF cancel the ref and cg values.
+      double update = - (chi * KT) * log( (double)(cg_normal_matrix->get_scalar(0,k)/ref_normal_matrix->get_scalar(0,k)) );
       
 	  // ensure that the solution does not change too much.
       if(update > (limit * KT)) {
-		update = (5 * KT);
+		update = (limit * KT);
       } else if(update < -(limit * KT)) {
 		update = -(limit * KT);
 	  }
+	  // I think that the previous solution is a set of spline coefficients (as opposed to potentials)
 	  new_solution[k] = previous_solution[k] - update;
   }
 }
