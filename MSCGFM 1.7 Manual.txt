@@ -46,7 +46,7 @@ This package also provides support for the methods described in these references
 	Chemical Theory and Computation, 2017 ASAP Article. doi: 10.1021/acs.jctc.6b01081
 10. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Extending the Range and 
 	Physical Accuracy of Coarse-grained Models: Order Parameter Dependent Interactions", 
-	Journal of Chemical Physics, 2017 in press.
+	Journal of Chemical Physics, 147, 044113 (2017). doit:10.1063/1.4995946
 	
 Note: This code uses C++11, which may not be supported by older compilers.
 
