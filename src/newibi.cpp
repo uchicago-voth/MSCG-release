@@ -22,6 +22,7 @@
 #include "misc.h"
 
 void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, FrameSource* const fs);
+void half_binwidth(CG_MODEL_DATA* const cg);
 
 int main(int argc, char* argv[])
 {
@@ -51,6 +52,8 @@ int main(int argc, char* argv[])
     // types.h and listed in control_input.c.
     printf("Reading high level control parameters.\n");
     CG_MODEL_DATA cg(&control_input);   // CG model parameters and data; put here to initialize without default constructor
+    half_binwidth(&cg);
+    
 	copy_control_inputs_to_frd(&control_input, &fs_cg, &fs_ref);
     
     // Forces are not needed from the trajectory for this method.
@@ -362,4 +365,14 @@ void construct_full_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, F
   fs->cleanup(fs);
   
   delete [] ref_box_half_lengths;
+}
+
+void half_binwidth(CG_MODEL_DATA* const cg) {
+  std::list<InteractionClassSpec*>::iterator iclass_iterator;
+  for(iclass_iterator = cg->iclass_list.begin(); iclass_iterator != cg->iclass_list.end(); iclass_iterator++) {
+  	double new_fm_binwidth = 0.5 * (*iclass_iterator)->get_fm_binwidth();
+  	double bspline_k = (*iclass_iterator)->get_bspline_k();
+  	double output_binwidth = (*iclass_iterator)->output_binwidth;
+  	(*iclass_iterator)->set_parameters(new_fm_binwidth, bspline_k, output_binwidth);
+  }
 }

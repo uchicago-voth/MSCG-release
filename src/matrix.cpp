@@ -3896,6 +3896,11 @@ void update_these_ibi_parameters(const double beta, const double chi, const dens
   double KT = 1.0/beta;
 
   for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
+  	printf("bin_value ref %lf,\t cg %lf\n", ref_normal_matrix->get_scalar(0,k), cg_normal_matrix->get_scalar(0,k));
+  	fflush(stdout);
+  }
+  
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
   
       //This is the actual IBI update
       double update = (ref_normal_matrix->get_scalar(0,k) - cg_normal_matrix->get_scalar(0,k)) * chi / beta;
