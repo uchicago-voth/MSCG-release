@@ -149,9 +149,11 @@ int main(int argc, char* argv[])
 	if (control_input.cg_input_style == 0) {
     	printf("Reading CG frames.\n");
     	construct_full_fm_matrix(&cg,&mat_cg,&fs_cg);    
+/*
 	} else if (control_input.cg_input_style == 1) {
 		printf("Reading CG matrix from file.\n");
     	construct_rem_matrix_from_input_matrix(&mat_cg, "cg_matrix.out");
+
     } else if (control_input.cg_input_style == 2) {
     	printf("Reading CG distribution functions.\n");
     	// This can only be used if the reference trajectory provides a box size
@@ -162,7 +164,8 @@ int main(int argc, char* argv[])
     		printf("The use of CG RDF input requires a reference trajectory for input!\n");
     		exit(EXIT_FAILURE);
     	}
-    	construct_rem_matrix_from_rdfs(&cg, &mat_cg, calculate_volume(fs_ref.simulation_box_limits));
+    	construct_ibi_matrix_from_rdfs(&cg, &mat_cg, calculate_volume(fs_ref.simulation_box_limits));
+*/
 	} else {
    		printf("Unrecognized cg_input_style (%d)!\n", control_input.cg_input_style);
    		fflush(stdout);
@@ -173,7 +176,8 @@ int main(int argc, char* argv[])
     // The manner of constructing the reference matrix depends on reference_input_style.
 	if (control_input.reference_input_style == 0) {
     	printf("Reading reference frames.\n");
-    	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref);    
+    	construct_full_fm_matrix(&cg,&mat_ref,&fs_ref); 
+/*   
 	} else if (control_input.reference_input_style == 1) {
 		printf("Reading reference matrix from file.\n");
     	construct_rem_matrix_from_input_matrix(&mat_ref, "reference_matrix.out");
@@ -188,6 +192,7 @@ int main(int argc, char* argv[])
     		exit(EXIT_FAILURE);
     	}
     	construct_rem_matrix_from_rdfs(&cg, &mat_ref, calculate_volume(fs_cg.simulation_box_limits));
+*/
 	} else {
    		printf("Unrecognized reference_input_style (%d)!\n", control_input.reference_input_style);
    		fflush(stdout);
