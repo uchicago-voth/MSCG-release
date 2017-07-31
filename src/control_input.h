@@ -126,6 +126,7 @@ typedef struct ControlInputs {
     int reference_input_style;
     int cg_input_style;
   	double iteration_step_size;
+  	double max_update_size_factor;
   	double temperature;
   	double boltzmann;
 

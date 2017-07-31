@@ -291,9 +291,10 @@ struct MATRIX_DATA {
 	
 	// REM variables
 	std::vector<double> previous_rem_solution;        // Previous spline coeffs to be used in REM iteration
-    double temperature;
     double iteration_step_size;
+    double max_update_size_factor;
     double boltzmann;
+    double temperature;
     
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise

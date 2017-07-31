@@ -124,6 +124,7 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if ((strcmp("temperature", parameter_name) == 0) || (strcmp("Temperature", parameter_name) == 0)) sscanf(val, "%lf", &control_input->temperature);
     else if (strcmp("boltzmann", parameter_name) == 0) sscanf(val, "%lf", &control_input->boltzmann);
     else if (strcmp("iteration_step_size", parameter_name) == 0) sscanf(val, "%lf", &control_input->iteration_step_size);
+    else if (strcmp("max_update_size_factor", parameter_name) == 0) sscanf(val, "%lf", &control_input->max_update_size_factor);
     else if (strcmp("reference_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->reference_input_style);
     else if (strcmp("cg_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->cg_input_style);
     else check_depricated_options(parameter_name, line);
@@ -253,6 +254,7 @@ ControlInputs::ControlInputs(void)
     reference_input_style = 0;
     cg_input_style = 0;
     iteration_step_size = 1.0;
+    max_update_size_factor = 5.0;
     temperature = 300;
     boltzmann = 0.0019872041;
 
