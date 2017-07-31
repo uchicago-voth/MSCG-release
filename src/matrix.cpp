@@ -3938,30 +3938,79 @@ void update_these_ibi_parameters(const double beta, const double chi, const dens
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
   double KT = 1.0/beta;
+  double *update = new double[cg_normal_matrix->n_cols]();
 
   for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
   	printf("bin_value ref %lf,\t cg %lf\n", ref_normal_matrix->get_scalar(0,k), cg_normal_matrix->get_scalar(0,k));
   	fflush(stdout);
   }
   
+  // Determine the potential energy values of the IBI update
   for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
   
       // This is the actual IBI update (in potential energy units)
       // The normalized number of counts is fed in for both models. 
       // The corrections to get to an RDF cancel the ref and cg values.
-      double update = - (chi * KT) * log( (double)(cg_normal_matrix->get_scalar(0,k)/ref_normal_matrix->get_scalar(0,k)) );
+      update[k] = - (chi * KT) * log( (double)(cg_normal_matrix->get_scalar(0,k)/ref_normal_matrix->get_scalar(0,k)) );
       
 	  // ensure that the solution does not change too much.
-      if(update > (limit * KT)) {
-		update = (limit * KT);
-      } else if(update < -(limit * KT)) {
-		update = -(limit * KT);
+      if(update[k] > (limit * KT)) {
+		update[k] = (limit * KT);
+      } else if(update[k] < -(limit * KT)) {
+		update[k] = -(limit * KT);
 	  }
-	  // I think that the previous solution is a set of spline coefficients (as opposed to potentials)
-	  new_solution[k] = previous_solution[k] - update;
   }
-}
+    
+  // Turn the update (in potential energy units) into a set of spline coefficients to add to previous_solution.
+/*
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction, 
+    // if that interaction has a parameter distribution
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
+    
+    // These interactions do not generate parameter distributions
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
+  
+  	// swap out icci so that matrix does not go out of bounds
+  	int icci = (*icomp_iterator)->interaction_class_column_index;
+  	(*icomp_iterator)->interaction_class_column_index = 0;
+  	
+  	// Do BI for this interaction
+  	char** name = select_name((*icomp_iterator)->ispec, cg->name);
+    initialize_next_BI_matrix(mat, (*icomp_iterator));
+    
+      double junk, r, potential;
+  	  int index_among_defined_intrxns;
+  	  int counter;
 
+	  int num_entries = (2 * (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth() + 0.5));  
+	  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+
+	  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+	  mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
+	  mat->accumulate_target_force_element(mat, counter, &potential);
+
+	  delete [] derivatives;
+    
+    solve_this_BI_equation(mat, solution_counter);
+    
+    // restore icci
+    (*icomp_iterator)->interaction_class_column_index = icci;
+  }
+*/
+  
+  // Add the update to the previous_solution spline coefficients.
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
+	  // I think that the previous solution is a set of spline coefficients (as opposed to potentials)
+	  new_solution[k] = previous_solution[k] - update[k];
+  }
+
+  // clean-up
+  delete [] update;
+
+}
+	
 // All the individual frame-block matrices have now been accumulated into a single matrix
 // with the condition number of the full-trajectory sparse matrix, as have the
 // individual target vectors, so the equations are in a final, solvable form. 
