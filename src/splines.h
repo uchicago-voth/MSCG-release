@@ -25,12 +25,12 @@ protected:
 
     InteractionClassSpec *ispec_;
     std::vector<unsigned> interaction_column_indices_;
-    double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     
 public:
     SplineComputer(InteractionClassSpec* ispec);
     inline virtual ~SplineComputer() { }
     void get_bin(void);
+    double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     inline int get_n_coef(void) { return n_coef; };
     virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals) = 0;
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) = 0;

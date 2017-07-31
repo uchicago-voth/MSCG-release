@@ -116,10 +116,11 @@ int main(int argc, char* argv[])
     // Assign a host of function pointers in 'cg' new definitions
     // based on matrix implementation, basis set type, etc.
     set_up_force_computers(&cg);
-
+	set_ibi_process_pointer(&cg);
+	
     // Initialize the entropy minimizing matrix.
     printf("Initializing BI matrix.\n");
-    control_input.matrix_type = kREM; // Intentionally re-using REM matrix for BI
+    control_input.matrix_type = kIBI; // Intentionally re-using REM matrix for BI
     MATRIX_DATA mat_cg(&control_input, &cg);
     MATRIX_DATA mat_ref(&control_input, &cg);
     

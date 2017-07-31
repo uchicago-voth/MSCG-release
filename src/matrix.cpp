@@ -31,6 +31,7 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
 void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_ibi_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
@@ -275,6 +276,10 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     case kREM: // Used for relative entropy interaction determination (e.g., newrem)
         matrix_type = kREM;
         initialize_rem_matrix(this, control_input, cg);
+        break;
+    case kIBI: // Used for iterative Boltzmann inversion update for interactions (e.g., newibi)
+        matrix_type = kIBI;
+        initialize_ibi_matrix(this, control_input, cg);
         break;
     case kRecode: // Used for relative entropy framewise observables (e.g., newobs)
     	matrix_type = kRecode;
@@ -848,6 +853,45 @@ void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* c
   mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
   mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
   printf("Initialized a relative entropy matrix for framewise observables.\n");
+}
+
+void initialize_ibi_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  //mat->accumulate_fm_matrix_element        = insert_scalar_matrix_element;
+  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+  
+  // Constraint elements do not make sense for this matrix type.
+  // Target force is not necessary for REM interaction determination.
+
+  // Adjustthe size the relative entropy matrix
+  mat->fm_matrix_rows = 2;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+	// Set the appropriate matrix variables
+    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+    mat->temperature = control_input->temperature;
+    mat->iteration_step_size = control_input->iteration_step_size;
+    mat->max_update_size_factor = control_input->max_update_size_factor;
+    mat->boltzmann = control_input->boltzmann;
+
+    
+	// Allocate the basic relative entropy matrix parts
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
+    printf("Initialized an iterative Boltzmann inversion matrix.\n");
 }
 
 // "Initialize" a dummy matrix.

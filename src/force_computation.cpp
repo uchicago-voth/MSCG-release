@@ -47,6 +47,7 @@ inline void decode_density_interaction_and_calculate(DensityClassComputer* info,
 void process_normal_interaction_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
 void process_one_body_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk, const double junk2);
 void process_density_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double density_value, const int virial_flag, const double density_derivative, const double distance);
+void process_ibi_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
 
 // Functions for calculating individual 3-component matrix elements.
 
@@ -293,6 +294,13 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
         *curr_iclass_col_index += ispec->interaction_column_indices[ispec->n_to_force_match];
     }
     fm_s_comp = new BSplineAndDerivComputer(ispec);
+}
+
+void set_ibi_process_pointer(CG_MODEL_DATA* const cg) {
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+ 	(*icomp_iterator)->process_interaction_matrix_elements = process_ibi_matrix_elements; 
+  }
 }
 
 //--------------------------------------------------------------------
@@ -1018,6 +1026,61 @@ inline void process_density_matrix_elements(InteractionClassComputer* const info
     }
 }	
 
+inline void process_ibi_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
+{
+	int index_among_defined = info->index_among_defined_intrxns;
+	int index_among_matched = info->index_among_matched_interactions;
+    int index_among_tabulated = info->index_among_tabulated_interactions;
+    int index_among_symmetric = info->index_among_symmetric_interactions;
+    int index_among_symtab = info->index_among_symtab_interactions;
+    int first_nonzero_basis_index;
+    
+    if (index_among_tabulated > 0) {
+    	// No tabulated interactions for IBI
+		// This calls accumulate_tabulated_error
+		double basis_sum = 0;
+		if (index_among_symtab == 0) {
+			// This is an antisymmetric (i.e. force) interaction table.
+    	    mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    	} else {
+		    // This is a symmetric (i.e. MS-CODE) interaction table.
+    	    mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    	}
+
+		// No virial for IBI    	
+	}
+
+    if (index_among_matched > 0) {
+	    // Compute the bin for this interaction
+	    double param_less_lower_cutoff = info->fm_s_comp->get_param_less_lower_cutoff(index_among_defined, param_value);
+	    first_nonzero_basis_index = (int)(param_less_lower_cutoff / info->ispec->get_fm_binwidth() + 0.5);
+	    	    
+	    // set only the first index to 0 unless this goes past the last bin.
+	    for (int i = 0; i < info->ispec->get_bspline_k(); i++) {
+	    	info->fm_basis_fn_vals[i] = 0.0;
+	    }
+	    if ( (first_nonzero_basis_index + info->ispec->get_bspline_k()) > (int)(info->ispec->interaction_column_indices[index_among_matched + 1] - info->ispec->interaction_column_indices[index_among_matched] - 1) ) {
+	    	int diff = (first_nonzero_basis_index + info->ispec->get_bspline_k()) - (int)(info->ispec->interaction_column_indices[index_among_matched + 1] - info->ispec->interaction_column_indices[index_among_matched] - 1);
+	    	first_nonzero_basis_index -= diff;
+	    	info->fm_basis_fn_vals[diff] = 1.0;
+	    } else {
+	    	info->fm_basis_fn_vals[0] = 1.0;
+	    }
+	    
+	    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
+    	
+    	// Add to the force matching.       
+    	if (index_among_symmetric == 0) {
+    	    // This interaction is antisymmetric (i.e. force).
+		    mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    	} else {
+        	// This interaction is symmetric (i.e. MS-CODE).
+     		mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+ 		}
+ 			
+    	// No virial for IBI
+	}    
+}
 //--------------------------------------------------------------------
 // Functions for calculating sets of 3-component matrix elements for each
 // individual interacting set of particles
