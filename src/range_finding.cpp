@@ -749,7 +749,7 @@ void generate_parameter_distribution_histogram(InteractionClassComputer* const i
 		old_upper_cutoff = ispec->upper_cutoffs[i];
 		
 		// Set-up histogram based on interaction binwidth
-		if (ispec->upper_cutoffs[i] == -1.0) { // there is no sampling here. default allocate
+		if (ispec->upper_cutoffs[i] == -1.0 || ispec->upper_cutoffs[i] == -VERYLARGE) { // there is no sampling here. default allocate
 		  num_bins = 1;
 		} else {	
 	     ispec->adjust_cutoffs_for_basis(i);
