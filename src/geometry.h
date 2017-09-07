@@ -36,6 +36,11 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
 void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val);
 void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2);
 
+// As above, but unconditionally, for
+// newrem
+void calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives);
+void calc_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &paritlce_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives);
+
 // Wrapping function (apply periodic boundary conditions)
 void get_minimum_image(const int l, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 

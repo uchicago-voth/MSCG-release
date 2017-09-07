@@ -80,6 +80,34 @@ double dot_product(const double* a, const double* b)
 
 // Calculate a squared distance and one derivative.
 
+void calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
+{
+    double rr2 = 0.0;
+    std::array<double, DIMENSION> displacement;
+    subtract_min_image_vectors(particle_ids, particle_positions, simulation_box_half_lengths, displacement);
+    for (int i = 0; i < DIMENSION; i++) {
+        rr2 += displacement[i] * displacement[i];
+    }
+    for (int i = 0; i < DIMENSION; i++) {
+      derivatives[0][i] = 2.0 * displacement[i];
+    }
+    param_val = rr2;
+    
+}
+
+
+// Calculate a distance and one derivative.
+
+void calc_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
+{
+    calc_squared_distance_and_derivatives(particle_ids, particle_positions, simulation_box_half_lengths, cutoff2, param_val, derivatives);
+
+    param_val = sqrt(param_val);
+    for (int i = 0; i < DIMENSION; i++) {
+      derivatives[0][i] = 0.5 * derivatives[0][i] / param_val;
+    }
+}
+
 bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     double rr2 = 0.0;
@@ -98,6 +126,7 @@ bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids
         return true;
     }
 }
+
 
 // Calculate a distance and one derivative.
 
