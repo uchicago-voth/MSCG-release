@@ -1307,7 +1307,9 @@ void accumulate_frame_entropy_elements(InteractionClassComputer* const info, con
    int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
       this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+      //insert_scalar_matrix_element(n_body, this_column, basis_fn_vals[k], mat);    
       insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
+      //printf("Adding scalar at framerow %d and column %d with basis fx %f\n", frame_row, this_column, basis_fn_vals[k]);
    }
 }
 
@@ -3873,30 +3875,30 @@ void update_these_rem_parameters(const double beta, const double chi, const dens
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
   
   for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
-    {
-      ref_previous_solution[j] = (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
-      ref_new_solution[j] = (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
-    }
-
+  {
+    ref_previous_solution[j] = (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
+    ref_new_solution[j] = (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
+  }
+  
   for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
-      if(ref_new_solution[k] == 0) {
-	      ref_new_solution[k] = VERYSMALL_F;	  	
-      }
-      //This is the gradient decent equation
-      //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
-      //lamda_new = mat_cg->fm_solution
-      //lamda_old = mat_cg->previous_rem_solution
-      //dS/dlamda = mat_ref->previous_rem_solution
-      //Hessian   = mat_ref->fm_solution
-      double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
-
-	  // ensure that the solution does not change too much.
-      if(update > (limit * KT)) {
-		update = (limit * KT);
-      } else if(update < -(limit * KT)) {
-		update = -(limit * KT);
-	  }
-	  new_solution[k] = previous_solution[k] - update;
+    if(ref_new_solution[k] == 0) {
+      ref_new_solution[k] = VERYSMALL_F;	  	
+    }
+    //This is the gradient decent equation
+    //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
+    //lamda_new = mat_cg->fm_solution
+    //lamda_old = mat_cg->previous_rem_solution
+    //dS/dlamda = mat_ref->previous_rem_solution
+    //Hessian   = mat_ref->fm_solution
+    double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
+    
+    // ensure that the solution does not change too much.
+    if(update > (limit * KT)) {
+      update = (limit * KT);
+    } else if(update < -(limit * KT)) {
+      update = -(limit * KT);
+    }
+    new_solution[k] = previous_solution[k] - update;
   }
 }
 

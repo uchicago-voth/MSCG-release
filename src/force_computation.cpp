@@ -339,8 +339,13 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
     
     // Calculate matrix elements by looking through interaction (cell and topology) lists to find active (and non-excluded) interactions.
     std::list<InteractionClassComputer*>::iterator icomp_iterator;
-	for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
         (*icomp_iterator)->calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
+
+	//debug here --> this point already has the bad cutoff values
+	//FILE* fh = fopen("test.out","a");
+	//mat->dense_fm_normal_matrix->print_matrix(fh);
+	//fclose(fh);
     }
     cg->three_body_nonbonded_computer.calculate_3B_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, three_body_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
 }
@@ -354,20 +359,20 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
 
 void OneBodyClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
 {
-	if (ispec->class_subtype == 0) return;
-	trajectory_block_frame_index = traj_block_frame_index;
-    current_frame_starting_row = curr_frame_starting_row;
-    for (k = 0; k < (int)(topo_data.n_cg_sites); k++) {
-    	order_one_body_fm_matrix_element_calculation(this, calculate_fm_matrix_elements, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
-    }
+  if (ispec->class_subtype == 0) return;
+  trajectory_block_frame_index = traj_block_frame_index;
+  current_frame_starting_row = curr_frame_starting_row;
+  for (k = 0; k < (int)(topo_data.n_cg_sites); k++) {
+    order_one_body_fm_matrix_element_calculation(this, calculate_fm_matrix_elements, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+  }
 }
 
 void PairNonbondedClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
 {
-    if (ispec->n_defined == 0) return;
-    trajectory_block_frame_index = traj_block_frame_index;
-    current_frame_starting_row = curr_frame_starting_row;
-    walk_neighbor_list(mat, calculate_fm_matrix_elements, n_cg_types, topo_data, pair_cell_list, x, simulation_box_half_lengths);
+  if (ispec->n_defined == 0) return;
+  trajectory_block_frame_index = traj_block_frame_index;
+  current_frame_starting_row = curr_frame_starting_row;
+  walk_neighbor_list(mat, calculate_fm_matrix_elements, n_cg_types, topo_data, pair_cell_list, x, simulation_box_half_lengths);
 }
 
 inline void InteractionClassComputer::walk_neighbor_list(MATRIX_DATA* const mat, calc_pair_matrix_elements calc_matrix_elements, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
@@ -734,8 +739,14 @@ void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(calc_two_body_interaction_hash(cg_site_types[info->k], cg_site_types[info->l], n_cg_types));
     info->set_indices();
 
-	if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+    if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
     calc_matrix_elements(info, x, simulation_box_half_lengths, mat);
+    
+    //debug here --> this point already has the bad cutoff values
+    //FILE* fh = fopen("test.out","a");
+    //mat->dense_fm_normal_matrix->print_matrix(fh);
+    //fclose(fh);
+
 }
 
 void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
@@ -891,75 +902,75 @@ void accumulate_matching_order_parameter_forces(InteractionClassComputer* const 
 
 inline void process_normal_interaction_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
 {
-	int index_among_defined = info->index_among_defined_intrxns;
-	int index_among_matched = info->index_among_matched_interactions;
-    int index_among_tabulated = info->index_among_tabulated_interactions;
-    int index_among_symmetric = info->index_among_symmetric_interactions;
-    int index_among_symtab = info->index_among_symtab_interactions;
-    int first_nonzero_basis_index;
-    int temp_column_index;
-    double basis_sum;
+  int index_among_defined = info->index_among_defined_intrxns;
+  int index_among_matched = info->index_among_matched_interactions;
+  int index_among_tabulated = info->index_among_tabulated_interactions;
+  int index_among_symmetric = info->index_among_symmetric_interactions;
+  int index_among_symtab = info->index_among_symtab_interactions;
+  int first_nonzero_basis_index;
+  int temp_column_index;
+  double basis_sum;
+  
+  if (index_among_tabulated > 0) {
+    // Pull the interaction from a table. 	   
+    info->table_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->table_basis_fn_vals);
+    if (n_body == 1) {
+      basis_sum = info->table_basis_fn_vals[0];
+    } else {
+      basis_sum  = info->table_basis_fn_vals[0] + info->table_basis_fn_vals[1];
+    }
     
-    if (index_among_tabulated > 0) {
-		// Pull the interaction from a table. 	   
-    	info->table_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->table_basis_fn_vals);
-    	if (n_body == 1) {
-    		basis_sum = info->table_basis_fn_vals[0];
-    	} else {
-    		basis_sum  = info->table_basis_fn_vals[0] + info->table_basis_fn_vals[1];
-    	}
-
-    	// Add to force target.
-		if (index_among_symtab == 0) {
-			// This is an antisymmetric (i.e. force) interaction table.
-    	    mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
-    	} else {
-		    // This is a symmetric (i.e. MS-CODE) interaction table.
-    	    mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
-    	}
-    	
-    	// Add to target virial if virial_flag is non-zero.
-    	switch (virial_flag) {
-    		case 1:
-	    	    if (mat->virial_constraint_rows > 0) mat->accumulate_target_constraint_element(mat, info->trajectory_block_frame_index, -basis_sum * param_value);
-        		break;
-        	
-        	case 0: default:
-    			// These interactions do not contribute to the scalar virial.
-    			// Such interactions include angles and dihedrals.
-        		break;
-    	}
-	}
-
-    if (index_among_matched > 0) {
-	    // Compute the strength of each basis function.
-	    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
-    	
-    	// Add to the force matching.       
-    	if (index_among_symmetric == 0) {
-    	    // This interaction is antisymmetric (i.e. force).
-		    mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
-    	} else {
-        	// This interaction is symmetric (i.e. MS-CODE).
-     		mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
- 		}
- 			
-    	// Add to virial matching if virial_flag is non-zero.
-    	switch (virial_flag) {
-    		case 1:
-	    	    temp_column_index = info->interaction_class_column_index + info->ispec->interaction_column_indices[index_among_matched - 1] + first_nonzero_basis_index;
-	    		for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
-        			int basis_column = temp_column_index + i;
-        			if (mat->virial_constraint_rows > 0)(*mat->accumulate_virial_constraint_matrix_element)(info->trajectory_block_frame_index, basis_column, info->fm_basis_fn_vals[i] * param_value, mat);
-        		}
-        		break;
-        	
-        	case 0: default:
-    			// These interactions do not contribute to the scalar virial.
-    			// Such interactions include angles and dihedrals.
-        		break;
-    	}
-	}    
+    // Add to force target.
+    if (index_among_symtab == 0) {
+      // This is an antisymmetric (i.e. force) interaction table.
+      mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    } else {
+      // This is a symmetric (i.e. MS-CODE) interaction table.
+      mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    }
+    
+    // Add to target virial if virial_flag is non-zero.
+    switch (virial_flag) {
+    case 1:
+      if (mat->virial_constraint_rows > 0) mat->accumulate_target_constraint_element(mat, info->trajectory_block_frame_index, -basis_sum * param_value);
+      break;
+      
+    case 0: default:
+      // These interactions do not contribute to the scalar virial.
+      // Such interactions include angles and dihedrals.
+      break;
+    }
+  }
+  
+  if (index_among_matched > 0) {
+    // Compute the strength of each basis function.
+    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
+    
+    // Add to the force matching.       
+    if (index_among_symmetric == 0) {
+      // This interaction is antisymmetric (i.e. force).
+      mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    } else {
+      // This interaction is symmetric (i.e. MS-CODE).
+      mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    }
+    
+    // Add to virial matching if virial_flag is non-zero.
+    switch (virial_flag) {
+    case 1:
+      temp_column_index = info->interaction_class_column_index + info->ispec->interaction_column_indices[index_among_matched - 1] + first_nonzero_basis_index;
+      for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
+	int basis_column = temp_column_index + i;
+	if (mat->virial_constraint_rows > 0)(*mat->accumulate_virial_constraint_matrix_element)(info->trajectory_block_frame_index, basis_column, info->fm_basis_fn_vals[i] * param_value, mat);
+      }
+      break;
+      
+    case 0: default:
+      // These interactions do not contribute to the scalar virial.
+      // Such interactions include angles and dihedrals.
+      break;
+    }
+  }    
 }
 
 inline void process_one_body_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
@@ -1090,29 +1101,31 @@ inline void process_ibi_matrix_elements(InteractionClassComputer* const info, MA
 
 void calc_one_body_fm_matrix_element(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
-	int particle_ids[1] = {info->k};
-    std::array<double, DIMENSION>* derivatives =  new std::array<double, DIMENSION>[1];
-	for (int i = 0; i < DIMENSION; i++) derivatives[0][i] = 1.0/(double)(DIMENSION);
-    info->process_interaction_matrix_elements(info, mat, 1, particle_ids, derivatives, 1.0, 1, 0.0, 0.0);
-	delete [] derivatives;
+  int particle_ids[1] = {info->k};
+  std::array<double, DIMENSION>* derivatives =  new std::array<double, DIMENSION>[1];
+  for (int i = 0; i < DIMENSION; i++) derivatives[0][i] = 1.0/(double)(DIMENSION);
+  info->process_interaction_matrix_elements(info, mat, 1, particle_ids, derivatives, 1.0, 1, 0.0, 0.0);
+  delete [] derivatives;
 }
 
 void calc_isotropic_two_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
     int particle_ids[2] = {info->k, info->l};
     std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[1];
-	double distance;
-	if ( conditionally_calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives) ) {
-        int index_among_defined = info->index_among_defined_intrxns;
-    	if (distance < info->ispec->lower_cutoffs[index_among_defined] ||
-        	distance > info->ispec->upper_cutoffs[index_among_defined]) {
-        	delete [] derivatives;
-        	return;
-        }
-    	info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
+    double distance;
+    calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives);
+    int index_among_defined = info->index_among_defined_intrxns;
+
+    //    if (distance > (info->ispec->lower_cutoffs[index_among_defined] - 0.5*info->ispec->get_fm_binwidth() - VERYSMALL_F ) &&
+    //	(distance < info->ispec->upper_cutoffs[index_among_defined] + 0.5*info->ispec->get_fm_binwidth() + VERYSMALL_F)) {
+    if (distance >= (info->ispec->lower_cutoffs[index_among_defined] - VERYSMALL_F) &&
+	(distance <= info->ispec->upper_cutoffs[index_among_defined] + VERYSMALL_F)) {
+      info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
     }
-    delete [] derivatives;
+
+    delete [] derivatives;	
 }
+
 
 void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
