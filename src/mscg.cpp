@@ -1188,10 +1188,10 @@ void* rem_solve_and_output(void* void_in)
     // necessary.
     printf("Calculating new REM parameters\n");
     if (p_frame_source->bootstrapping_flag == 1) {
-		calculate_new_rem_parameters_and_bootstrap(mscg_struct->mat, mscg_struct->ref_mat);
+      calculate_new_rem_parameters_and_bootstrap(p_cg, mscg_struct->mat, mscg_struct->ref_mat);
 		free_bootstrapping_weights(p_frame_source);
 	} else {
-		calculate_new_rem_parameters(mscg_struct->mat, mscg_struct->ref_mat);
+      calculate_new_rem_parameters(p_cg, mscg_struct->mat, mscg_struct->ref_mat);
 	} 
 	
     // Write tabulated interaction files resulting from the basis set

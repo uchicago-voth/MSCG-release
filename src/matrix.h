@@ -488,8 +488,8 @@ void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
 
 // "Finish FM" for REM
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
-void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+void calculate_new_rem_parameters(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 
 // "Finish FM" for IBI
 void calculate_new_ibi_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);

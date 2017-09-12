@@ -135,7 +135,7 @@ void average_sparse_block_fm_solutions(MATRIX_DATA* const mat);
 void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
-void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
 void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
 
 // Bootstrapping routines
@@ -3834,15 +3834,15 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 
 // Finish REM by finding new CG parameters
 
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+void calculate_new_rem_parameters(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   write_cg_matrix(mat_cg->dense_fm_normal_matrix);
-  update_these_rem_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+  update_these_rem_parameters(cg, beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
 }
 
-void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->iteration_step_size;
@@ -3854,7 +3854,7 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
   }
   
   // update for master
-  update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+  update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
 
   // update for bootstrap copies
   for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
@@ -3863,43 +3863,91 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
     	mat_ref->previous_rem_solution[l] = back_previous_rem_solution[l];
   	}
     // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
-    update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
+	update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
   }
 }
 
-void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
 {
   double KT = 1.0/beta;
 
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
-  
-  for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
-  {
-    ref_previous_solution[j] = (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
-    ref_new_solution[j] = (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
+
+  // iterate over evey iteration to perform smoothing
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      // If that interaction is being matched,
+      if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
+	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
+	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	int start_index = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+
+	double update[n_basis_funcs];
+	double scale = 1.0;
+	
+	for(int j = 0; j < n_basis_funcs; j++) 
+	  {
+	    ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
+	    ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
+	  }
+	
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  if(ref_new_solution[k+start_index] == 0) {
+	    ref_new_solution[k+start_index] = VERYSMALL_F;	  	
+	  }
+	  //This is the gradient decent equation
+	  //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
+	  //lamda_new = mat_cg->fm_solution
+	  //lamda_old = mat_cg->previous_rem_solution
+	  //dS/dlamda = mat_ref->previous_rem_solution
+	  //Hessian   = mat_ref->fm_solution
+	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
+	  
+	  // ensure that the solution does not change too much.
+	  if(update[k] > (limit * KT)) {
+	    scale = (limit * KT) / update[k];
+	    for(int l = 0; l < n_basis_funcs; l++){
+	      update[l] *= scale;
+	    }
+	  } else if(update[k] < -(limit * KT)) {
+	    scale = -1.0*(limit * KT) / update[k];
+	    for(int l = 0; l < n_basis_funcs; l++){
+	      update[l] *= scale;
+	  }
+	  }
+	}
+	
+	
+	double update_low = update[0] + (update[0] - update[1])/2.0;
+	double update_high = update[n_basis_funcs-1] + (update[n_basis_funcs-2] - update[n_basis_funcs-1])/2.0;
+	double update_new[n_basis_funcs];
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  //smooth update based on i+1 and i-1
+	  if(k == 0){
+	    update_new[k] = (update_low + update[k] + update[k+1])/3.0;
+	  }
+	  else if(k == n_basis_funcs - 1){
+	    update_new[k] = (update_high + update[k] + update[k-1])/3.0;
+	  }
+	  else{
+	    update_new[k] = (update[k-1] + update[k] + update[k+1])/3.0;
+	  }
+	}
+	
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  new_solution[k+start_index] = previous_solution[k+start_index] - update_new[k];
+	}
+	
+	//delete [] update;
+	//delete [] update_new;
+	
+      }
+    }
   }
   
-  for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
-    if(ref_new_solution[k] == 0) {
-      ref_new_solution[k] = VERYSMALL_F;	  	
-    }
-    //This is the gradient decent equation
-    //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
-    //lamda_new = mat_cg->fm_solution
-    //lamda_old = mat_cg->previous_rem_solution
-    //dS/dlamda = mat_ref->previous_rem_solution
-    //Hessian   = mat_ref->fm_solution
-    double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
-    
-    // ensure that the solution does not change too much.
-    if(update > (limit * KT)) {
-      update = (limit * KT);
-    } else if(update < -(limit * KT)) {
-      update = -(limit * KT);
-    }
-    new_solution[k] = previous_solution[k] - update;
-  }
 }
 
 // Finish IBI by finding new CG parameters
