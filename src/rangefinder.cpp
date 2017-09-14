@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 
     //This is part of the BI routine
     //Only calculate if at least one parameter distribution exists
-	if (any_active_parameter_distributions(&cg) == true) {
+	if (any_active_parameter_distributions(&cg) == true && control_input.output_style != 3) {
 		printf("Calculating Boltzmann inversion using parameter distributions\n");
 		fflush(stdout);
 		
