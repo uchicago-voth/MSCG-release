@@ -3919,14 +3919,16 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  }
 	  }
 	}
-	//fix the update of the last point to zero (need a fixed reference for integration)
-	update[n_basis_funcs-1] = 0.0;
-
+	//fix the update of the last two point to be nearly zero (need a fixed reference for integration and a slope of zero)
+	double average_update_endpoints = (update[n_basis_funcs-1] + update[n_basis_funcs-2]) / 2.0;
+	for(int k = 0; k < n_basis_funcs; k++){
+	  update[k] -= average_update_endpoints;	  
+	}
 	
 	double update_low = update[0] + (update[0] - update[1])/2.0;
 	double update_high = update[n_basis_funcs-1] + (update[n_basis_funcs-2] - update[n_basis_funcs-1])/2.0;
 	//double update_new[n_basis_funcs];
-	for(int k = (n_basis_funcs-2); k >= 0; k--) {
+	for(int k = (n_basis_funcs-3); k >= 0; k--) {
 	  //smooth update based on i+1 and i-1, in running fashion
 	  if(k == 0){
 	    update[k] = (update_low + update[k] + update[k+1])/3.0;
