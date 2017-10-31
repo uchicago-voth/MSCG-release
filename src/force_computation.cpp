@@ -559,7 +559,6 @@ void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(calc_two_body_interaction_hash(cg_site_types[info->k], cg_site_types[info->l], n_cg_types));
     info->set_indices();
 
-	if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
     calc_matrix_elements(info, x, simulation_box_half_lengths, mat);
 }
 
@@ -568,8 +567,6 @@ void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const 
      // Calculate the appropriate matrix elements.    
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(info->calculate_hash_number(cg_site_types, n_cg_types));
     info->set_indices();
-
-    if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
 
     (*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
 }
