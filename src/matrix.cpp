@@ -3884,6 +3884,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
 	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
 	int start_index = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
 
 	double update[n_basis_funcs];
 	double scale = 1.0;
@@ -3919,31 +3920,38 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  }
 	  }
 	}
-	//fix the update of the last two point to be nearly zero (need a fixed reference for integration and a slope of zero)
-	double average_update_endpoints = (update[n_basis_funcs-1] + update[n_basis_funcs-2]) / 2.0;
+	//fix the update of the last order-2 + 1 points to be nearly zero (need a fixed reference for integration and a slope of zero)
+	double average_update_endpoints = 0.0;
+	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	  average_update_endpoints += update[n_basis_funcs-1-k];
+	}
+	average_update_endpoints /= float(n_coef - 2 + 1);
+
 	for(int k = 0; k < n_basis_funcs; k++){
 	  update[k] -= average_update_endpoints;	  
 	}
 	
-	double update_low = update[0] + (update[0] - update[1])/2.0;
-	double update_high = update[n_basis_funcs-1] + (update[n_basis_funcs-2] - update[n_basis_funcs-1])/2.0;
-	//double update_new[n_basis_funcs];
-	for(int k = (n_basis_funcs-3); k >= 0; k--) {
-	  //smooth update based on i+1 and i-1, in running fashion
-	  if(k == 0){
-	    update[k] = (update_low + update[k] + update[k+1])/3.0;
-	  }
-	  else if(k == n_basis_funcs - 2){
-	    update[k] = (update_high + update[k] + update[k-1])/3.0;
-	  }
-	  else{
-	    update[k] = (update[k-1] + update[k] + update[k+1])/3.0;
-	  }
-	}
 	
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
+
+	double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
+	//double update_new[n_basis_funcs];
+	for(int k = (n_basis_funcs-3); k >= 0; k--) {
+	  //smooth update based on i+1 and i-1, in running fashion
+	  if(k == 0){
+	    new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	  }
+	  else if(k == n_basis_funcs - 2){
+	    new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	  }
+	  else{
+	    new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	  }
+	}
+
 	
 	//delete [] update;
 	//delete [] update_new;
