@@ -3920,6 +3920,8 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  }
 	  }
 	}
+
+	
 	//fix the update of the last order-2 + 1 points to be nearly zero (need a fixed reference for integration and a slope of zero)
 	double average_update_endpoints = 0.0;
 	for(int k = 0; k < (n_coef - 2 + 1); k++) {
@@ -3934,6 +3936,15 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
+	}
+
+	double average_solution_endpoints = 0.0;
+	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	  average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
+	}
+	average_solution_endpoints /= float(n_coef - 2 + 1);
+	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
 	}
 
 	double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
