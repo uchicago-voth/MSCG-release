@@ -3946,7 +3946,11 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	for(int k = 0; k < (n_coef - 2 + 1); k++) {
 	  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
 	}
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
+	}
 
+	
 	double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
 	double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
 	//double update_new[n_basis_funcs];
