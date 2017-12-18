@@ -11,7 +11,7 @@
 #include <vector>
 #include "gsl/gsl_bspline.h"
 
-enum BasisType {kDelta = -1, kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2, kNone = 3, kPower = 4};
+enum BasisType {kDelta = -1, kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2, kNone = 3, kPower = 4, kInversePower = 5};
 
 struct InteractionClassSpec;
 
@@ -111,11 +111,24 @@ public:
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
 };
 
+
 class PowerComputer : public SplineComputer {
 
  public:
   PowerComputer(InteractionClassSpec* ispec);
   virtual ~PowerComputer() {}
+
+  virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_vals, int &first_nonzero_basis_index, std::vector<double> &vals);
+  virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+  virtual void power_eval(const double param_val, std::vector<double> &vals, unsigned n_coef);
+  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val);
+};
+
+class InversePowerComputer : public SplineComputer {
+
+ public:
+  InversePowerComputer(InteractionClassSpec* ispec);
+  virtual ~InversePowerComputer() {}
 
   virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_vals, int &first_nonzero_basis_index, std::vector<double> &vals);
   virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);

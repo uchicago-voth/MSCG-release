@@ -24,15 +24,17 @@ SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
         if (ispec->get_basis_type() == kBSpline) {
             return new BSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kLinearSpline) {
-            return new LinearSplineComputer(ispec);
+          return new LinearSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kDelta) {
-        	return new DeltaSplineComputer(ispec);
+          return new DeltaSplineComputer(ispec);
         } else if (ispec->get_basis_type() == kBSplineAndDeriv) {
-        	return new BSplineAndDerivComputer(ispec);
-	} else if (ispec->get_basis_type () == kPower) {
-	        return new PowerComputer(ispec);
+          return new BSplineAndDerivComputer(ispec);
+	} else if (ispec->get_basis_type() == kPower) {
+	  return new PowerComputer(ispec);
+	} else if (ispec->get_basis_type() == kInversePower) {
+	  return new InversePowerComputer(ispec);
         } else if (ispec->get_basis_type() == kNone) {
-        	return NULL;
+          return NULL;
         } else {
             fprintf(stderr, "Unrecognized spline class.\n");
             exit(EXIT_FAILURE);
@@ -410,13 +412,74 @@ void PowerComputer::power_eval(const double param_val, std::vector<double> &vals
   double functemp = 1;
   for(i=0;i<n_coef;i++)
     {
+      vals[i] = functemp;
+      functemp *= param_val;
+    }
+  
+}
+
+double PowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+{
+  int i;
+  double functemp = 1;
+  double forcetemp = 0.0;
+  
+  for(i=0;i<n_coef;i++)
+    {
+      forcetemp += spline_coeffs[i] * functemp;
+      functemp = functemp*axis_val;
+    }
+  return forcetemp;
+}
+
+
+InversePowerComputer::InversePowerComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
+{
+    printf("Allocating b-spline temporaries for %d interactions.\n", n_to_force_match);
+}
+
+
+void InversePowerComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
+{
+    assert(vals.size() == n_coef);
+    //size_t istart, iend;
+    //double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
+    //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth() + 0.5);
+    
+    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
+    double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
+    power_eval(param_val, vals, n_coef);
+    first_nonzero_basis_index = 0;
+    
+}
+
+double InversePowerComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis)
+{
+    int ici_value = 0;
+    double force = 0.0;
+    //   double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
+    int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
+    if (index_among_matched_interactions > 0) {
+		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
+    }
+    force = power_axis(index_among_defined, spline_coeffs,axis);
+
+    return force;
+}
+
+void InversePowerComputer::power_eval(const double param_val, std::vector<double> &vals, unsigned n_coef)
+{
+  int i;
+  double functemp = 1;
+  for(i=0;i<n_coef;i++)
+    {
       functemp /= param_val;
       vals[i] = functemp;
     }
   
 }
 
-double PowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+double InversePowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
 {
   int i;
   double functemp = 1;
