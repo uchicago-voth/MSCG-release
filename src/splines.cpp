@@ -450,9 +450,9 @@ void PowerComputer::deriv_eval(const double param_val, std::vector<double> &vals
 {
   int i;
   double functemp = 1;
-  for(i=1;i<n_coef;i++)
+  for(i=0;i<n_coef;i++)
     {
-      vals[i] = functemp;
+      vals[i] = i * functemp;
       functemp *= param_val;
     }
   
@@ -480,9 +480,9 @@ double PowerComputer::deriv_axis(const int index_among_defined, const std::vecto
   double functemp = 1;
   double derivtemp = 0.0;
   
-  for(i=1;i<n_coef;i++)
+  for(i=0;i<n_coef;i++)
     {
-      derivtemp += spline_coeffs[i] * functemp;
+      derivtemp += i * spline_coeffs[i] * functemp;
       functemp = functemp*axis_val;
     }
   return derivtemp;
@@ -569,7 +569,7 @@ void InversePowerComputer::deriv_eval(const double param_val, std::vector<double
   for(i=0;i<n_coef;i++)
     {
       functemp /= param_val;
-      vals[i] = functemp;
+      vals[i] = -i * functemp;
     }
   
 }
@@ -597,7 +597,7 @@ double InversePowerComputer::deriv_axis(const int index_among_defined, const std
   for(i=0;i<n_coef;i++)
     {
       functemp = (-1)*(i+1)*functemp/axis_val;
-      derivtemp += spline_coeffs[i] * functemp;
+      derivtemp += -i * spline_coeffs[i] * functemp;
     }
   return derivtemp;
 }
