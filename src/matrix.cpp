@@ -434,6 +434,9 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     if (control_input->bootstrapping_flag == 1) {
 		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
+
+    	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     // Initialized the matrix and vector to zero.
@@ -485,6 +488,9 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
     }
 	mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_rows, mat->accumulation_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->accumulation_matrix_columns]();
+
+		mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
 
     mat->lapack_tau = new double[mat->accumulation_matrix_columns]();
 
