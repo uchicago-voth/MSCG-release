@@ -687,7 +687,7 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 		  if ((basis_type == kBSpline) ||
 		      (basis_type == kBSplineAndDeriv) ||
 		      (basis_type == kLinearSpline) ||
-		      (basis_tyep == kDelta))
+		      (basis_type == kDelta))
 		    {
 		      
 			grid_i = floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) + 1;
