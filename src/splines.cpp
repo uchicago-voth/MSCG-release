@@ -414,7 +414,7 @@ double PowerComputer::evaluate_spline(const int index_among_defined, const int f
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    force = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
+    force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value);
 
     return force;
 }
@@ -428,7 +428,7 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    deriv = deriv_axis(index_among_defined, spline_coeffs,axis,ici_value);
+    deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value);
 
     return deriv;
 }
@@ -531,7 +531,7 @@ double InversePowerComputer::evaluate_spline(const int index_among_defined, cons
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    force = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
+    force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value);
 
     return force;
 }
@@ -544,7 +544,7 @@ double InversePowerComputer::evaluate_spline_deriv(const int index_among_defined
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    deriv = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
+    deriv = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value);
 
     return deriv;
 }
