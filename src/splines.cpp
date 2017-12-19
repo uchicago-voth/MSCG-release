@@ -414,7 +414,7 @@ double PowerComputer::evaluate_spline(const int index_among_defined, const int f
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    force = power_axis(index_among_defined, spline_coeffs,axis);
+    force = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
 
     return force;
 }
@@ -428,7 +428,7 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    deriv = deriv_axis(index_among_defined, spline_coeffs,axis);
+    deriv = deriv_axis(index_among_defined, spline_coeffs,axis,ici_value);
 
     return deriv;
 }
@@ -458,7 +458,7 @@ void PowerComputer::deriv_eval(const double param_val, std::vector<double> &vals
   
 }
 
-double PowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+double PowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value)
 {
   
   int i;
@@ -467,13 +467,13 @@ double PowerComputer::power_axis(const int index_among_defined, const std::vecto
   
   for(i=0;i<n_coef;i++)
     {
-      forcetemp += spline_coeffs[i] * functemp;
+      forcetemp += spline_coeffs[i + ici_value] * functemp;
       functemp = functemp*axis_val;
     }
   return forcetemp;
 }
 
-double PowerComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+double PowerComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value)
 {
   
   int i;
@@ -482,7 +482,7 @@ double PowerComputer::deriv_axis(const int index_among_defined, const std::vecto
   
   for(i=0;i<n_coef;i++)
     {
-      derivtemp += i * spline_coeffs[i] * functemp;
+      derivtemp += i * spline_coeffs[i + ici_value] * functemp;
       functemp = functemp*axis_val;
     }
   return derivtemp;
@@ -531,7 +531,7 @@ double InversePowerComputer::evaluate_spline(const int index_among_defined, cons
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    force = power_axis(index_among_defined, spline_coeffs,axis);
+    force = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
 
     return force;
 }
@@ -544,7 +544,7 @@ double InversePowerComputer::evaluate_spline_deriv(const int index_among_defined
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    deriv = power_axis(index_among_defined, spline_coeffs,axis);
+    deriv = power_axis(index_among_defined, spline_coeffs,axis,ici_value);
 
     return deriv;
 }
@@ -574,7 +574,7 @@ void InversePowerComputer::deriv_eval(const double param_val, std::vector<double
   
 }
 
-double InversePowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+double InversePowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value)
 {
   int i;
   double functemp = 1;
@@ -583,12 +583,12 @@ double InversePowerComputer::power_axis(const int index_among_defined, const std
   for(i=0;i<n_coef;i++)
     {
       functemp = functemp/axis_val;
-      forcetemp += spline_coeffs[i] * functemp;
+      forcetemp += spline_coeffs[i+ici_value] * functemp;
     }
   return forcetemp;
 }
 
-double InversePowerComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val)
+double InversePowerComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value)
 {
   int i;
   double functemp = 1/axis_val;
@@ -597,7 +597,7 @@ double InversePowerComputer::deriv_axis(const int index_among_defined, const std
   for(i=0;i<n_coef;i++)
     {
       functemp = (-1)*(i+1)*functemp/axis_val;
-      derivtemp += -i * spline_coeffs[i] * functemp;
+      derivtemp += -i * spline_coeffs[i+ici_value] * functemp;
     }
   return derivtemp;
 }
