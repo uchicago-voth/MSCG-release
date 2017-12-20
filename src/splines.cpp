@@ -385,7 +385,7 @@ void PowerComputer::calculate_basis_fn_vals(const int index_among_defined, const
     //double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
     //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth() + 0.5);
     
-    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
+    //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     power_eval(param_val, vals, n_coef);
     first_nonzero_basis_index = 0;
@@ -399,7 +399,7 @@ void PowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, 
     //double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
     //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth() + 0.5);
     
-    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
+    //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     deriv_eval(param_val, vals, n_coef);
     first_nonzero_basis_index = 0;
@@ -502,7 +502,7 @@ void InversePowerComputer::calculate_basis_fn_vals(const int index_among_defined
     //double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
     //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth() + 0.5);
     
-    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
+    //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     power_eval(param_val, vals, n_coef);
     first_nonzero_basis_index = 0;
@@ -516,7 +516,7 @@ void InversePowerComputer::calculate_bspline_deriv_vals(const int index_among_de
     //double param_less_lower_cutoff = get_param_less_lower_cutoff(index_among_defined, param_val);
     //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth() + 0.5);
     
-    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
+    //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     deriv_eval(param_val, vals, n_coef);
     first_nonzero_basis_index = 0;
