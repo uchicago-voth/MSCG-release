@@ -3899,7 +3899,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  if(ref_new_solution[k+start_index] == 0) {
 	    ref_new_solution[k+start_index] = VERYSMALL_F;	  	
 	  }
-	  //This is the gradient decent equation
+	  //This is the gradient descent equation
 	  //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
 	  //lamda_new = mat_cg->fm_solution
 	  //lamda_old = mat_cg->previous_rem_solution
@@ -3922,12 +3922,12 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	}
 
 	
-	//fix the update of the last order-2 + 1 points to be nearly zero (need a fixed reference for integration and a slope of zero)
+	//fix the update of the last order - 2 + 2 points to be nearly zero (need a fixed reference for integration and a slope of zero)
 	double average_update_endpoints = 0.0;
-	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	for(int k = 0; k < (n_coef - 2 + 2); k++) {
 	  average_update_endpoints += update[n_basis_funcs-1-k];
 	}
-	average_update_endpoints /= float(n_coef - 2 + 1);
+	average_update_endpoints /= float(n_coef - 2 + 2);
 
 	for(int k = 0; k < n_basis_funcs; k++){
 	  update[k] -= average_update_endpoints;	  
@@ -3939,11 +3939,11 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	}
 
 	double average_solution_endpoints = 0.0;
-	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	for(int k = 0; k < (n_coef - 2 + 2); k++) {
 	  average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
 	}
-	average_solution_endpoints /= float(n_coef - 2 + 1);
-	for(int k = 0; k < (n_coef - 2 + 1); k++) {
+	average_solution_endpoints /= float(n_coef - 2 + 2);
+	for(int k = 0; k < (n_coef - 2 + 2); k++) {
 	  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
 	}
 	for(int k = 0; k < n_basis_funcs; k++) {
