@@ -3894,6 +3894,12 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	    ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
 	    ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
 	  }
+
+	//shift new solution based on value of prev solution of that interaction
+	//	double shiftVal = ref_new_solution[n_basis_funcs+start_index];
+	//	for(int k = 0; k < n_basis_funcs; k++) {
+	//	  ref_new_solution[k+start_index]-=shiftVal;
+	//	}
 	
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  if(ref_new_solution[k+start_index] == 0) {
@@ -3908,6 +3914,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
 	  
 	  // ensure that the solution does not change too much.
+	  /*
 	  if(update[k] > (limit * KT)) {
 	    scale = (limit * KT) / update[k];
 	    for(int l = 0; l < n_basis_funcs; l++){
@@ -3917,8 +3924,9 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	    scale = -1.0*(limit * KT) / update[k];
 	    for(int l = 0; l < n_basis_funcs; l++){
 	      update[l] *= scale;
+	    }
 	  }
-	  }
+	  */
 	}
 
 	
@@ -3933,7 +3941,6 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  update[k] -= average_update_endpoints;	  
 	}
 	
-	
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
@@ -3943,10 +3950,11 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
 	}
 	average_solution_endpoints /= float(n_coef - 2 + 2);
+
 	for(int k = 0; k < (n_coef - 2 + 2); k++) {
 	  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
 	}
-	for(int k = 0; k < n_basis_funcs; k++) {
+	for(int k = 0; k < (n_basis_funcs-(n_coef - 2 + 2)); k++) {
 	  new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
 	}
 
