@@ -3888,7 +3888,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 
 	double update[n_basis_funcs];
 	double scale = 1.0;
-	
+	double tempscale = 1.0;
 	for(int j = 0; j < n_basis_funcs; j++) 
 	  {
 	    ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
@@ -3912,24 +3912,24 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  //dS/dlamda = mat_ref->previous_rem_solution
 	  //Hessian   = mat_ref->fm_solution
 	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
-	  
-	  // ensure that the solution does not change too much.
-	  /*
+
+
+	  // ensure that the solution does not change too much
+	  // by finding the maximum change
 	  if(update[k] > (limit * KT)) {
-	    scale = (limit * KT) / update[k];
-	    for(int l = 0; l < n_basis_funcs; l++){
-	      update[l] *= scale;
-	    }
+	    tempscale = (limit * KT) / update[k];
 	  } else if(update[k] < -(limit * KT)) {
-	    scale = -1.0*(limit * KT) / update[k];
-	    for(int l = 0; l < n_basis_funcs; l++){
-	      update[l] *= scale;
-	    }
+	    tempscale = -1.0*(limit * KT) / update[k];
 	  }
-	  */
+	  if(tempscale < scale) scale = tempscale;
 	}
 
+	// apply scale here
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  update[k] *= scale;
+	}
 	
+
 	//fix the update of the last order - 2 + 2 points to be nearly zero (need a fixed reference for integration and a slope of zero)
 	double average_update_endpoints = 0.0;
 	for(int k = 0; k < (n_coef - 2 + 2); k++) {
@@ -3940,11 +3940,13 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	for(int k = 0; k < n_basis_funcs; k++){
 	  update[k] -= average_update_endpoints;	  
 	}
-	
+
+	// apply the update here
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
 
+	// a bit repetitive, but ensures that the final points are smoothed (i.e., averaged) and all values are shifted by reference
 	double average_solution_endpoints = 0.0;
 	for(int k = 0; k < (n_coef - 2 + 2); k++) {
 	  average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
