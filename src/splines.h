@@ -122,10 +122,10 @@ class PowerComputer : public SplineComputer {
   void calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
   virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
   double evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis); 
-  virtual void power_eval(const double param_val, std::vector<double> &vals, unsigned n_coef);
-  virtual void deriv_eval(const double param_val, std::vector<double> &vals, unsigned n_coef);
-  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value);
-  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value);
+  virtual void power_eval(const double param_val, std::vector<double> &vals);
+  virtual void deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
 };
 
 class InversePowerComputer : public SplineComputer {
@@ -138,10 +138,10 @@ class InversePowerComputer : public SplineComputer {
   void calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
   virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
   double evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis); 
-  virtual void power_eval(const double param_val, std::vector<double> &vals, unsigned n_coef);
-  virtual void deriv_eval(const double param_val, std::vector<double> &vals, unsigned n_coef);
-  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value);
-  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value);
+  virtual void power_eval(const double param_val, std::vector<double> &vals);
+  virtual void deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
 
 };
   
