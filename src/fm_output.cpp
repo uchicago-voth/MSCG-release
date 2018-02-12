@@ -493,8 +493,9 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
     for (int k = 0; k < n_basis_funcs; k++) {
         fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined] - 1] + k]);
     // Complete the line.
-    fprintf(spline_output_filep, "\n");
     }
+    fprintf(spline_output_filep, "\n");
+    
 	fclose(spline_output_filep);
 }
 
