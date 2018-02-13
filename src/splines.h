@@ -123,9 +123,13 @@ class PowerComputer : public SplineComputer {
   virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
   double evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis); 
   virtual void power_eval(const double param_val, std::vector<double> &vals);
+  virtual void inverse_power_eval(const double param_val, std::vector<double> &vals);
   virtual void deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual void inverse_deriv_eval(const double param_val, std::vector<double> &vals);
   virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double inverse_power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
   virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double inverse_deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
 };
 
 class InversePowerComputer : public SplineComputer {
