@@ -439,9 +439,9 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
     if (ispec_->get_char_id() == 'n'){
-      force = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+      deriv = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     } else {
-    deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+      deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     }
     return deriv;
 }
