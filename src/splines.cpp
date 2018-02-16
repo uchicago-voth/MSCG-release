@@ -389,6 +389,9 @@ void PowerComputer::calculate_basis_fn_vals(const int index_among_defined, const
     //    double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     if (ispec_->get_char_id() == 'n'){
       inverse_power_eval(param_val, vals);
+    } else if (ispec_->get_char_id() == 'a'){
+      double new_param_val = param_val*(3.14/180);      
+      power_eval(new_param_val, vals);
     } else {
       power_eval(param_val, vals);
     }
@@ -406,6 +409,9 @@ void PowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, 
     //    double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
     if (ispec_->get_char_id() == 'n'){
       inverse_deriv_eval(param_val, vals);
+    } else if (ispec_->get_char_id() == 'a'){
+      double new_param_val = param_val*(3.14/180);      
+      deriv_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
     }
@@ -423,6 +429,9 @@ double PowerComputer::evaluate_spline(const int index_among_defined, const int f
     }
     if (ispec_->get_char_id() == 'n'){
       force = inverse_power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+    } else if (ispec_->get_char_id() == 'a'){
+      double new_axis = axis*(3.14/180);      
+      force = power_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else {
       force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     }
@@ -440,7 +449,10 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
     }
     if (ispec_->get_char_id() == 'n'){
       deriv = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
-    } else {
+    } else if (ispec_->get_char_id() == 'a'){
+      double new_axis = axis*(3.14/180);      
+      deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
+    } else{
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     }
     return deriv;
@@ -505,9 +517,11 @@ void PowerComputer::inverse_power_eval(const double param_val, std::vector<doubl
 {
   unsigned i;
   double functemp = 1;
+  //  printf("%lf\n",param_val);
   for(i=0;i<n_coef;i++)
     {
       functemp /= param_val;
+      //      printf("%e\n",functemp);
       vals[i] = functemp;
     }
   
