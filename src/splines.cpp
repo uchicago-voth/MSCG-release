@@ -31,8 +31,8 @@ SplineComputer* set_up_fm_spline_comp(InteractionClassSpec *ispec)
           return new BSplineAndDerivComputer(ispec);
 	} else if (ispec->get_basis_type() == kPower) {
 	  return new PowerComputer(ispec);
-	} else if (ispec->get_basis_type() == kInversePower) {
-	  return new InversePowerComputer(ispec);
+	} else if (ispec->get_basis_type() == kLJ) {
+	  return new LJComputer(ispec);
         } else if (ispec->get_basis_type() == kNone) {
           return NULL;
         } else {
@@ -576,13 +576,13 @@ double PowerComputer::inverse_deriv_axis(const int index_among_defined, const st
 }
 
 
-InversePowerComputer::InversePowerComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
+LJComputer::LJComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
     printf("Allocating b-spline temporaries for %d interactions.\n", n_to_force_match);
 }
 
 
-void InversePowerComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
+void LJComputer::calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
 {
     assert(vals.size() == n_coef);
     //size_t istart, iend;
@@ -591,12 +591,20 @@ void InversePowerComputer::calculate_basis_fn_vals(const int index_among_defined
     
     //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     //    double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    power_eval(param_val, vals);
-    first_nonzero_basis_index = 0;
-    
+    double new_param_val;
+    if (ispec_->get_char_id() == 'n'){
+      new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
+      inverse_power_eval(param_val, vals);
+    } else if (ispec_->get_char_id() == 'a'){
+      new_param_val = param_val*(3.14/180);      
+      power_eval(new_param_val, vals);
+    } else {
+      power_eval(param_val, vals);
+    }
+    first_nonzero_basis_index = 0;        
 }
 
-void InversePowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
+void LJComputer::calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals)
 {
     assert(vals.size() == n_coef);
     //size_t istart, iend;
@@ -605,11 +613,19 @@ void InversePowerComputer::calculate_bspline_deriv_vals(const int index_among_de
     
     //    int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     //double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    deriv_eval(param_val, vals);
-    first_nonzero_basis_index = 0;
+    double new_param_val;
+    if (ispec_->get_char_id() == 'n'){
+      new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
+      inverse_deriv_eval(param_val, vals);
+    } else if (ispec_->get_char_id() == 'a'){
+      new_param_val = param_val*(3.14/180);      
+      deriv_eval(new_param_val, vals);
+    } else {
+      deriv_eval(param_val, vals);
+    }
 }
 
-double InversePowerComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis)
+double LJComputer::evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis)
 {
     int ici_value = 0;
     double force = 0.0;
@@ -618,12 +634,21 @@ double InversePowerComputer::evaluate_spline(const int index_among_defined, cons
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value, first_nonzero_basis_index);
+    double new_axis;
+    if (ispec_->get_char_id() == 'n'){
+      new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
+      force = inverse_power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+    } else if (ispec_->get_char_id() == 'a'){
+      new_axis = axis*(3.14/180);      
+      force = power_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
+    } else {
+      force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+    }
 
     return force;
 }
 
-double InversePowerComputer::evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
+double LJComputer::evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) 
 {
   int ici_value = 0;
   double deriv = 0.0;
@@ -631,61 +656,123 @@ double InversePowerComputer::evaluate_spline_deriv(const int index_among_defined
     if (index_among_matched_interactions > 0) {
 		ici_value = interaction_column_indices_[index_among_matched_interactions - 1];
     }
-    deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value, first_nonzero_basis_index);
-
+    double new_axis;
+    if (ispec_->get_char_id() == 'n'){
+      new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
+      deriv = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+    } else if (ispec_->get_char_id() == 'a'){
+      new_axis = axis*(3.14/180);      
+      deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
+    } else{
+      deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
+    }
     return deriv;
 }
   
 
-void InversePowerComputer::power_eval(const double param_val, std::vector<double> &vals)
+void LJComputer::power_eval(const double param_val, std::vector<double> &vals)
 {
-  unsigned i;
   double functemp = 1;
-  for(i=0;i<n_coef;i++)
-    {
-      functemp /= param_val;
-      vals[i] = functemp;
-    }
-  
+  vals[0] = functemp;
+  functemp *= param_val;
+  vals[1] = functemp;
 }
 
-void InversePowerComputer::deriv_eval(const double param_val, std::vector<double> &vals)
+void LJComputer::inverse_power_eval(const double param_val, std::vector<double> &vals)
 {
- unsigned i;
+  int i;
+  double functemp = 1;
+  for(i=0;i<ispec_->LJ_term1;i++)
+    {
+      functemp /= param_val;
+    }
+  vals[0] = functemp;
+  for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
+    {
+      functemp /= param_val;
+    }
+  vals[1] = functemp;
+}
+
+
+
+void LJComputer::deriv_eval(const double param_val, std::vector<double> &vals)
+{
+  vals[0] = 0;
+  vals[1] = 1;  
+}
+
+void LJComputer::inverse_deriv_eval(const double param_val, std::vector<double> &vals)
+{
+  int i;
   double functemp = 1/param_val;
-  for(i=0;i<n_coef;i++)
+  for(i=0;i<ispec_->LJ_term1;i++)
     {
       functemp /= param_val;
-      vals[i] = -i * functemp;
     }
-  
+  vals[0] = functemp;
+  for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
+    {
+      functemp /= param_val;
+    }
+  vals[1] = functemp;
 }
 
-double InversePowerComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+
+double LJComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
 {
-  unsigned i;
   double functemp = 1;
   double forcetemp = 0.0;
-  
-  for(i=0;i<n_coef;i++)
-    {
-      functemp = functemp/axis_val;
-      forcetemp += spline_coeffs[i+ici_value] * functemp;
-    }
+
+  forcetemp += functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
+  functemp *= axis_val;
+  forcetemp += functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
   return forcetemp;
 }
 
-double InversePowerComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+double LJComputer::inverse_power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
 {
-  unsigned i;
+  int i;
+  double functemp = 1;
+  double forcetemp = 0.0;
+  for(i=0;i<ispec_->LJ_term1;i++)
+    {
+      functemp /= axis_val;
+    }
+  forcetemp += functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
+  for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
+    {
+      functemp /= axis_val;
+    }
+  forcetemp += functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+  return forcetemp;
+}
+
+double LJComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  double derivtemp = 0.0;
+
+  derivtemp = spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+  
+  return derivtemp;
+}
+
+double LJComputer::inverse_deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  int i;
   double functemp = 1/axis_val;
   double derivtemp = 0.0;
-  
-  for(i=0;i<n_coef;i++)
+  for(i=0;i<ispec_->LJ_term1;i++)
     {
-      functemp = (-1)*(i+1)*functemp/axis_val;
-      derivtemp += -i * spline_coeffs[i+ici_value] * functemp;
+      functemp /= axis_val;
     }
+  derivtemp += functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
+  for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
+    {
+      functemp /= axis_val;
+    }
+  derivtemp += functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+  
   return derivtemp;
 }
 

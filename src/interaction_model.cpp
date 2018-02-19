@@ -707,7 +707,7 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 			// Delta basis is only 1 column wide.
 			else if (basis_type == kDelta) interaction_column_indices[counter + 1] = interaction_column_indices[counter] + 1;
 			counter++;
-		    } else if ((basis_type == kPower) || (basis_type == kInversePower) )
+		    } else if ((basis_type == kPower) || (basis_type == kLJ) )
 		    {
 		      grid_i = get_bspline_k();
 		      interaction_column_indices[counter + 1] = interaction_column_indices[counter] + grid_i;
