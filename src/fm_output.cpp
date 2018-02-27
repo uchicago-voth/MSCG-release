@@ -99,7 +99,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
 			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
-			    (*icomp_iterator)->ispec->get_basis_type() == kInversePower ) {
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -116,7 +116,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 						if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
 						    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
 						    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
-						    (*icomp_iterator)->ispec->get_basis_type() == kInversePower ) {
+						    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
 							write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 						} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 						   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -136,7 +136,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
 			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
-			    (*icomp_iterator)->ispec->get_basis_type() == kInversePower ) {
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -152,7 +152,7 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
             	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
 			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
-			    (*icomp_iterator)->ispec->get_basis_type() == kInversePower ) {
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 		    			} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
