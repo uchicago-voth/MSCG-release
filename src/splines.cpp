@@ -525,11 +525,13 @@ void PowerComputer::inverse_power_eval(const double param_val, std::vector<doubl
 {
   unsigned i;
   double functemp = 1;
+  double cutofftemp = 1;
   //  printf("%lf\n",param_val);
   for(i=0;i<n_coef;i++)
     {
-      vals[i] = functemp;
+      vals[i] = functemp - cutofftemp;
       functemp /= param_val;
+      cutofftemp /= 2.0;
     }
   
 }
@@ -551,11 +553,12 @@ double PowerComputer::inverse_power_axis(const int index_among_defined, const st
   unsigned i;
   double functemp = 1;
   double forcetemp = 0.0;
-  
+  double cutofftemp = 1;
   for(i=0;i<n_coef;i++)
     {
-      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * functemp;
+      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * (functemp - cutofftemp);
       functemp = functemp/axis_val;
+      cutofftemp = cutofftemp/2.0;
     }
   return forcetemp;
 }
