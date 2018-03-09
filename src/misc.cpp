@@ -163,7 +163,7 @@ int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double
     }
   // And then adding new ones
   //while(axis_vals[0] - spacing > spacing)
-  while(axis_vals[0] - spacing > 0.0)
+  while(axis_vals[0] - spacing > spacing)
     {
       axis_it = axis_vals.begin();
       force_it = force_vals.begin();
