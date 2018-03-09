@@ -560,7 +560,7 @@ double PowerComputer::inverse_power_axis(const int index_among_defined, const st
     {
       functemp = functemp/axis_val;
       cutofftemp = cutofftemp/2.0;
-      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * (functemp) - cutofftemp);
+      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * (functemp - cutofftemp);
     }
   return forcetemp;
 }
@@ -579,6 +579,51 @@ double PowerComputer::inverse_deriv_axis(const int index_among_defined, const st
   return derivtemp;
 }
 
+void PowerComputer::fourier_eval(const double param_val, std::vector<double> &vals)
+{
+  unsigned i;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      vals[i] = sin((i+1)*param_val);
+      vals[(n_coef/2) +i] = cos((i+1)*param_val);
+    }
+}
+
+void PowerComputer::fourier_deriv_eval(const double param_val, std::vector<double> &vals)
+{
+  unsigned i;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      vals[i] = (i+1)*cos((i+1)*param_val);
+      vals[(n_coef/2) +1] = -(i+1)*sin((i+1)*param_val);
+    }
+}
+
+double PowerComputer::fourier_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  unsigned i;
+  double forcetemp = 0.0;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * sin((i+1)*axis_val);
+      forcetemp += spline_coeffs[(n_coef/2) + i+ici_value + first_nonzero_basis_index] * cos((i+1)*axis_val);
+    }
+  return forcetemp;
+}
+
+double PowerComputer::fourier_deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  unsigned i;
+  double derivtemp = 0.0;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      derivtemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * sin((i+1)*axis_val);
+      derivtemp += spline_coeffs[(n_coef/2) + i+ici_value + first_nonzero_basis_index] * cos((i+1)*axis_val);
+    }
+  return derivtemp;
+}
+
+ 
 
 LJComputer::LJComputer(InteractionClassSpec* ispec) : SplineComputer(ispec)
 {
@@ -682,6 +727,7 @@ void LJComputer::power_eval(const double param_val, std::vector<double> &vals)
     {
       vals[0] = functemp;
       functemp *= param_val;
+    }
 }
 
 void LJComputer::inverse_power_eval(const double param_val, std::vector<double> &vals)
@@ -704,7 +750,7 @@ void LJComputer::inverse_power_eval(const double param_val, std::vector<double> 
 
 void LJComputer::deriv_eval(const double param_val, std::vector<double> &vals)
 {
-  unisgned i;
+  unsigned i;
   double functemp = 1.0;
   vals[0] = 0;
   for(i=1;i<n_coef;i++)
@@ -718,11 +764,11 @@ void LJComputer::inverse_deriv_eval(const double param_val, std::vector<double> 
 {
   int i;
   double functemp = 1/param_val;
-  for(i=0;i<ispec_->LJ_term1);i++)
+  for(i=0;i<ispec_->LJ_term1;i++)
     {
       functemp /= param_val;
     }
-  vals[0] = -ipsec_->LJ_term1*functemp;
+  vals[0] = -ispec_->LJ_term1*functemp;
   for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
     {
       functemp /= param_val;
@@ -793,6 +839,50 @@ double LJComputer::inverse_deriv_axis(const int index_among_defined, const std::
     }
   derivtemp += ispec_->LJ_term2 * functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
   
+  return derivtemp;
+}
+
+void LJComputer::fourier_eval(const double param_val, std::vector<double> &vals)
+{
+  unsigned i;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      vals[i] = sin((i+1)*param_val);
+      vals[(n_coef/2) +i] = cos((i+1)*param_val);
+    }
+}
+
+void LJComputer::fourier_deriv_eval(const double param_val, std::vector<double> &vals)
+{
+  unsigned i;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      vals[i] = (i+1)*cos((i+1)*param_val);
+      vals[(n_coef/2) +1] = -(i+1)*sin((i+1)*param_val);
+    }
+}
+
+double LJComputer::fourier_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  unsigned i;
+  double forcetemp = 0.0;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * sin((i+1)*axis_val);
+      forcetemp += spline_coeffs[(n_coef/2) + i+ici_value + first_nonzero_basis_index] * cos((i+1)*axis_val);
+    }
+  return forcetemp;
+}
+
+double LJComputer::fourier_deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
+{
+  unsigned i;
+  double derivtemp = 0.0;
+  for(i=0;i<(n_coef/2);i++)
+    {
+      derivtemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * sin((i+1)*axis_val);
+      derivtemp += spline_coeffs[(n_coef/2) + i+ici_value + first_nonzero_basis_index] * cos((i+1)*axis_val);
+    }
   return derivtemp;
 }
 
