@@ -3874,7 +3874,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
 
-  // iterate over evey iteration to perform smoothing
+  // We split the REM calculation to be performed over each individual interaction
   std::list<InteractionClassComputer*>::iterator icomp_iterator;
   for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
     // For every defined interaction,
@@ -3886,26 +3886,23 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	int start_index = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
 	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
 
+	// Calculate the REM update based on the first and second derivatives (dU/dparam)
 	double update[n_basis_funcs];
 	double scale = 1.0;
 	double tempscale = 1.0;
-	for(int j = 0; j < n_basis_funcs; j++) 
-	  {
-	    ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
-	    ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
-	  }
-
-	//shift new solution based on value of prev solution of that interaction
-	//	double shiftVal = ref_new_solution[n_basis_funcs+start_index];
-	//	for(int k = 0; k < n_basis_funcs; k++) {
-	//	  ref_new_solution[k+start_index]-=shiftVal;
-	//	}
+	for(int j = 0; j < n_basis_funcs; j++) {  
+	  ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
+	  ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
+	}
 	
+	// Apply a small numerical correction to prevent divide-by-zero
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  if(ref_new_solution[k+start_index] == 0) {
 	    ref_new_solution[k+start_index] = VERYSMALL_F;	  	
 	  }
-	  //This is the gradient descent equation
+
+	  //We use gradient descent (future iterations should consider other optimization schemes)
+	  //e.g., stochastic or conjugate gradient
 	  //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
 	  //lamda_new = mat_cg->fm_solution
 	  //lamda_old = mat_cg->previous_rem_solution
@@ -3915,7 +3912,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 
 
 	  // ensure that the solution does not change too much
-	  // by finding the maximum change
+	  // by finding the maximum change (or minimum tempscale)
 	  if(update[k] > (limit * KT)) {
 	    tempscale = (limit * KT) / update[k];
 	  } else if(update[k] < -(limit * KT)) {
@@ -3924,59 +3921,62 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  if(tempscale < scale) scale = tempscale;
 	}
 
-	// apply scale here
+	// apply per-interaction scaling here
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  update[k] *= scale;
 	}
+
+	//The next smoothing steps should only be applied when nonbonded potentials are being considered with SPLINES
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  //fix the update of the last n(=order) points to be nearly zero (need a fixed reference for integration and a slope of nearly zero)
+	  double average_update_endpoints = 0.0;
+	  for(int k = 0; k < n_coef; k++) {
+	    average_update_endpoints += update[n_basis_funcs-1-k];
+	  }
+	  average_update_endpoints /= double(n_coef);
+	  for(int k = 0; k < n_basis_funcs; k++){
+	    update[k] -= average_update_endpoints;	  
+	  }
+	}
 	
-
-	//fix the update of the last order - 2 + 2 points to be nearly zero (need a fixed reference for integration and a slope of zero)
-	double average_update_endpoints = 0.0;
-	for(int k = 0; k < (n_coef - 2 + 2); k++) {
-	  average_update_endpoints += update[n_basis_funcs-1-k];
-	}
-	average_update_endpoints /= float(n_coef - 2 + 2);
-
-	for(int k = 0; k < n_basis_funcs; k++){
-	  update[k] -= average_update_endpoints;	  
-	}
-
-	// apply the update here
+	// *************************************** REM UPDATE STEP *********************************************
+	// apply the REM update here
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
+	// *************************************** REM UPDATE STEP *********************************************
 
-	// a bit repetitive, but ensures that the final points are smoothed (i.e., averaged) and all values are shifted by reference
-	double average_solution_endpoints = 0.0;
-	for(int k = 0; k < (n_coef - 2 + 2); k++) {
-	  average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
-	}
-	average_solution_endpoints /= float(n_coef - 2 + 2);
+	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are a bit smoothed and shifted to prevent simulation instabilities
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  double average_solution_endpoints = 0.0;
+	  for(int k = 0; k < n_coef; k++) {
+	    average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
+	  }
+	  average_solution_endpoints /= double(n_coef);
+	  
+	  for(int k = 0; k < n_coef; k++) {
+	    new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
+	  }
+	  for(int k = 0; k < (n_basis_funcs-(n_coef)); k++) {
+	    new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
+	  }
+	  
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
 
-	for(int k = 0; k < (n_coef - 2 + 2); k++) {
-	  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
-	}
-	for(int k = 0; k < (n_basis_funcs-(n_coef - 2 + 2)); k++) {
-	  new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
-	}
-
-	
-	double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
-	double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
-	//double update_new[n_basis_funcs];
-	for(int k = (n_basis_funcs-3); k >= 0; k--) {
 	  //smooth update based on i+1 and i-1, in running fashion
-	  if(k == 0){
-	    new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
-	  }
-	  else if(k == n_basis_funcs - 2){
-	    new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
-	  }
-	  else{
-	    new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	  for(int k = (n_basis_funcs-3); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - 2){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
 	  }
 	}
-
 	
 	//delete [] update;
 	//delete [] update_new;
