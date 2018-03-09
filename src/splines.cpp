@@ -483,7 +483,9 @@ void PowerComputer::deriv_eval(const double param_val, std::vector<double> &vals
 {
   unsigned i;
   double functemp = 1;
-  for(i=0;i<n_coef;i++)
+
+  vals[0] = 0.0;
+  for(i=1;i<n_coef;i++)
     {
       vals[i] = i * functemp;
       functemp *= param_val;
@@ -513,7 +515,7 @@ double PowerComputer::deriv_axis(const int index_among_defined, const std::vecto
   double functemp = 1;
   double derivtemp = 0.0;
   
-  for(i=0;i<n_coef;i++)
+  for(i=1;i<n_coef;i++)
     {
       derivtemp += i * spline_coeffs[i + ici_value + first_nonzero_basis_index] * functemp;
       functemp = functemp*axis_val;
@@ -529,9 +531,9 @@ void PowerComputer::inverse_power_eval(const double param_val, std::vector<doubl
   //  printf("%lf\n",param_val);
   for(i=0;i<n_coef;i++)
     {
-      vals[i] = functemp - cutofftemp;
       functemp /= param_val;
       cutofftemp /= 2.0;
+      vals[i] = functemp - cutofftemp;
     }
   
 }
@@ -542,7 +544,7 @@ void PowerComputer::inverse_deriv_eval(const double param_val, std::vector<doubl
   double functemp = 1/param_val;
   for(i=0;i<n_coef;i++)
     {
-      vals[i] = -i * functemp;
+      vals[i] = -(i+1) * functemp;
       functemp /= param_val;
     }
   
@@ -556,9 +558,9 @@ double PowerComputer::inverse_power_axis(const int index_among_defined, const st
   double cutofftemp = 1;
   for(i=0;i<n_coef;i++)
     {
-      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * (functemp - cutofftemp);
       functemp = functemp/axis_val;
       cutofftemp = cutofftemp/2.0;
+      forcetemp += spline_coeffs[i+ici_value + first_nonzero_basis_index] * (functemp) - cutofftemp);
     }
   return forcetemp;
 }
@@ -571,8 +573,8 @@ double PowerComputer::inverse_deriv_axis(const int index_among_defined, const st
   
   for(i=0;i<n_coef;i++)
     {
-      derivtemp += -i * spline_coeffs[i+ici_value + first_nonzero_basis_index] * functemp;
-      functemp = (-1)*(i)*functemp/axis_val;
+      derivtemp += -(i+1) * spline_coeffs[i+ici_value + first_nonzero_basis_index] * functemp;
+      functemp = functemp/axis_val;
     }
   return derivtemp;
 }
@@ -674,10 +676,12 @@ double LJComputer::evaluate_spline_deriv(const int index_among_defined, const in
 
 void LJComputer::power_eval(const double param_val, std::vector<double> &vals)
 {
+  unsigned i;
   double functemp = 1;
-  vals[0] = functemp;
-  functemp *= param_val;
-  vals[1] = functemp;
+  for(i=0;i<n_coef;i++)
+    {
+      vals[0] = functemp;
+      functemp *= param_val;
 }
 
 void LJComputer::inverse_power_eval(const double param_val, std::vector<double> &vals)
@@ -700,35 +704,44 @@ void LJComputer::inverse_power_eval(const double param_val, std::vector<double> 
 
 void LJComputer::deriv_eval(const double param_val, std::vector<double> &vals)
 {
+  unisgned i;
+  double functemp = 1.0;
   vals[0] = 0;
-  vals[1] = 1;  
+  for(i=1;i<n_coef;i++)
+    {
+      vals[0]= i * functemp;
+      functemp *= param_val;
+    }
 }
 
 void LJComputer::inverse_deriv_eval(const double param_val, std::vector<double> &vals)
 {
   int i;
   double functemp = 1/param_val;
-  for(i=0;i<ispec_->LJ_term1;i++)
+  for(i=0;i<ispec_->LJ_term1);i++)
     {
       functemp /= param_val;
     }
-  vals[0] = functemp;
+  vals[0] = -ipsec_->LJ_term1*functemp;
   for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
     {
       functemp /= param_val;
     }
-  vals[1] = functemp;
+  vals[1] = -ispec_->LJ_term2*functemp;
 }
 
 
 double LJComputer::power_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
 {
+  unsigned i;
   double functemp = 1;
   double forcetemp = 0.0;
 
-  forcetemp += functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
-  functemp *= axis_val;
-  forcetemp += functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+  for(i=0;i<n_coef;i++)
+    {
+      forcetemp += functemp * spline_coeffs[i + ici_value + first_nonzero_basis_index];
+      functemp *= axis_val;
+    }
   return forcetemp;
 }
 
@@ -752,10 +765,15 @@ double LJComputer::inverse_power_axis(const int index_among_defined, const std::
 
 double LJComputer::deriv_axis(const int index_among_defined, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index)
 {
+  unsigned i;
   double derivtemp = 0.0;
+  double functemp = 1.0;
 
-  derivtemp = spline_coeffs[1 + ici_value + first_nonzero_basis_index];
-  
+  for(i=1;i<n_coef;i++)
+    {
+      derivtemp += i * functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+      functemp *= axis_val;
+    }
   return derivtemp;
 }
 
@@ -768,12 +786,12 @@ double LJComputer::inverse_deriv_axis(const int index_among_defined, const std::
     {
       functemp /= axis_val;
     }
-  derivtemp += functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
+  derivtemp += ispec_->LJ_term1 * functemp * spline_coeffs[ici_value + first_nonzero_basis_index];
   for(i=ispec_->LJ_term1;i<ispec_->LJ_term2;i++)
     {
       functemp /= axis_val;
     }
-  derivtemp += functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
+  derivtemp += ispec_->LJ_term2 * functemp * spline_coeffs[1 + ici_value + first_nonzero_basis_index];
   
   return derivtemp;
 }
