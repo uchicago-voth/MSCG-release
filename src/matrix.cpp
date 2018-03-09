@@ -3929,6 +3929,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	//The next smoothing steps should only be applied when nonbonded potentials are being considered with SPLINES
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
 	  //fix the update of the last n(=order) points to be nearly zero (need a fixed reference for integration and a slope of nearly zero)
+	  //printf("In the first smoothing loop\n");
 	  double average_update_endpoints = 0.0;
 	  for(int k = 0; k < n_coef; k++) {
 	    average_update_endpoints += update[n_basis_funcs-1-k];
@@ -3937,6 +3938,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  for(int k = 0; k < n_basis_funcs; k++){
 	    update[k] -= average_update_endpoints;	  
 	  }
+	  //printf("First set of average update endpoints over n_coef %d is %f\n", n_coef, average_update_endpoints);
 	}
 	
 	// *************************************** REM UPDATE STEP *********************************************
@@ -3946,21 +3948,28 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	}
 	// *************************************** REM UPDATE STEP *********************************************
 
-	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are a bit smoothed and shifted to prevent simulation instabilities
+	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are a bit smoothed to prevent simulation instabilities
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  //printf("In the second smoothing loop\n");
 	  double average_solution_endpoints = 0.0;
 	  for(int k = 0; k < n_coef; k++) {
-	    average_solution_endpoints += new_solution[n_basis_funcs-1-k+start_index];
+	    average_solution_endpoints += new_solution[k+start_index + n_basis_funcs-1-k];
 	  }
 	  average_solution_endpoints /= double(n_coef);
-	  
+	  //printf("Second set of average solution endpoints over n_coef %d is %f\n", n_coef, average_solution_endpoints);
 	  for(int k = 0; k < n_coef; k++) {
 	    new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
+	    //printf("Index %d is now set to spline coeff %f\n", n_basis_funcs-1-k+start_index, new_solution[n_basis_funcs-1-k+start_index]);
 	  }
+
+	  // this next shift is unnecessary since final points are relatively smooth now
+	  /*
 	  for(int k = 0; k < (n_basis_funcs-(n_coef)); k++) {
 	    new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
+	    printf("Index %d is now set to spline coeff %f\n", k+start_index, new_solution[k+start_index]);
 	  }
-	  
+	  */
+
 	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
 	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
 
