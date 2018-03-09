@@ -3889,8 +3889,12 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
       if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
 	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
 	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
-	int start_index = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	int interaction_column_index = (*icomp_iterator)->interaction_class_column_index;
+	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; // this start index is currently wrong for bonds/angles, needs to be shifted
 	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
+
+	//printf("Checking interaction_class_column_index %d\n", (*icomp_iterator)->interaction_class_column_index);
+	//printf("Checking index_among_matched %d, n_basis_funcs %d, start_index %d, n_coef %d\n", index_among_matched, n_basis_funcs, start_index, n_coef);
 
 	// Calculate the REM update based on the first and second derivatives (dU/dparam)
 	double update[n_basis_funcs];
@@ -3946,6 +3950,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  }
 	  //printf("First set of average update endpoints over n_coef %d is %f\n", n_coef, average_update_endpoints);
 	}
+
 	
 	// *************************************** REM UPDATE STEP *********************************************
 	// apply the REM update here
@@ -3953,6 +3958,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
 	// *************************************** REM UPDATE STEP *********************************************
+	// printf("For first basis coefficient, previous solution was %f and new solution was %f\n", previous_solution[start_index], new_solution[start_index]);
 
 	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are a bit smoothed to prevent simulation instabilities
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
@@ -3985,6 +3991,26 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
 	    }
 	    else if(k == n_basis_funcs - 2){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	  }
+	}
+	
+	// perform similar smoothing for bspline bonds and angles
+	if (((*icomp_iterator)->ispec->get_char_id() == 'a' || (*icomp_iterator)->ispec->get_char_id() == 'b') && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
+
+	  //smooth update based on i+1 and i-1, in running fashion
+	  for(int k = (n_basis_funcs-1); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - 1){
 	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
 	    }
 	    else{
