@@ -437,6 +437,9 @@ void PowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, 
     } else if (ispec_->get_char_id() == 'a'){
       new_param_val = param_val*(3.14/180);      
       deriv_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(3.14/180);
+      fourier_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
     }
@@ -459,6 +462,9 @@ double PowerComputer::evaluate_spline(const int index_among_defined, const int f
     } else if (ispec_->get_char_id() == 'a'){
       new_axis = axis*(3.14/180);      
       force = power_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_axis = axis*(3.14/180);
+      force = fourier_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else {
       force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     }
