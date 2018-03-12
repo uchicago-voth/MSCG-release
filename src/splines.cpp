@@ -413,8 +413,11 @@ void PowerComputer::calculate_basis_fn_vals(const int index_among_defined, const
       new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
       inverse_power_eval(param_val, vals);
     } else if (ispec_->get_char_id() == 'a'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       power_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(M_PI/180);
+      fourier_eval(new_param_val, vals);
     } else {
       power_eval(param_val, vals);
     }
@@ -435,11 +438,11 @@ void PowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, 
       new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
       inverse_deriv_eval(param_val, vals);
     } else if (ispec_->get_char_id() == 'a'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       deriv_eval(new_param_val, vals);
     } else if (ispec_->get_char_id() == 'd'){
-      new_param_val = param_val*(3.14/180);
-      fourier_eval(new_param_val, vals);
+      new_param_val = param_val*(M_PI/180);
+      fourier_deriv_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
     }
@@ -460,10 +463,10 @@ double PowerComputer::evaluate_spline(const int index_among_defined, const int f
       new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
       force = inverse_power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     } else if (ispec_->get_char_id() == 'a'){
-      new_axis = axis*(3.14/180);      
+      new_axis = axis*(M_PI/180);      
       force = power_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else if (ispec_->get_char_id() == 'd'){
-      new_axis = axis*(3.14/180);
+      new_axis = axis*(M_PI/180);
       force = fourier_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else {
       force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
@@ -485,8 +488,11 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
       new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
       deriv = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     } else if (ispec_->get_char_id() == 'a'){
-      new_axis = axis*(3.14/180);      
+      new_axis = axis*(M_PI/180);      
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
+    } else if (ispec_->get_char_id() =='a'){
+      new_axis = axis*(M_PI/180);
+      deriv = fourier_deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else{
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     }
