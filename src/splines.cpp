@@ -394,6 +394,9 @@ void PowerComputer::calculate_basis_fn_vals(const int index_among_defined, const
     } else if (ispec_->get_char_id() == 'a'){
       new_param_val = param_val*(3.14/180);      
       power_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(3.14/180);      
+      fourier_eval(new_param_val, vals);    
     } else {
       power_eval(param_val, vals);
     }
@@ -416,6 +419,9 @@ void PowerComputer::calculate_bspline_deriv_vals(const int index_among_defined, 
     } else if (ispec_->get_char_id() == 'a'){
       new_param_val = param_val*(3.14/180);      
       deriv_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(3.14/180);      
+      fourier_deriv_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
     }
@@ -647,6 +653,9 @@ void LJComputer::calculate_basis_fn_vals(const int index_among_defined, const do
     } else if (ispec_->get_char_id() == 'a'){
       new_param_val = param_val*(3.14/180);      
       power_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(3.14/180);      
+      fourier_eval(new_param_val, vals);
     } else {
       power_eval(param_val, vals);
     }
@@ -669,6 +678,9 @@ void LJComputer::calculate_bspline_deriv_vals(const int index_among_defined, con
     } else if (ispec_->get_char_id() == 'a'){
       new_param_val = param_val*(3.14/180);      
       deriv_eval(new_param_val, vals);
+    } else if (ispec_->get_char_id() == 'd'){
+      new_param_val = param_val*(3.14/180);      
+      fourier_deriv_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
     }
