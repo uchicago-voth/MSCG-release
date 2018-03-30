@@ -192,8 +192,8 @@ ControlInputs::ControlInputs(void)
     radius_of_gyration_bspline_k = 4;
     basis_set_type = 0;
     matrix_type = 0;
-    lesser_LJ_parameter = 6;
-    greater_LJ_parameter = 12;
+    lesser_LJ_parameter = 7;
+    greater_LJ_parameter = 13;
     pair_nonbonded_output_binwidth = 0.05;
     pair_bond_output_binwidth = 0.05;
     angle_output_binwidth = 1.0;

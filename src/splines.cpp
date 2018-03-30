@@ -105,7 +105,7 @@ BSplineComputer::BSplineComputer(InteractionClassSpec* ispec) : SplineComputer(i
 	check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
 	bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
 	if(ispec_->get_char_id() == 'a'){
-	  gsl_bspline_knots_uniform((ispec_->lower_cutoffs[i]*3.14/180.0 - VERYSMALL_F), (ispec_->upper_cutoffs[i]*3.14/180.0 + VERYSMALL_F), bspline_workspaces[counter]);
+	  gsl_bspline_knots_uniform((ispec_->lower_cutoffs[i]*M_PI/180.0 - VERYSMALL_F), (ispec_->upper_cutoffs[i]*M_PI/180.0 + VERYSMALL_F), bspline_workspaces[counter]);
 	}
 	else {
 	  gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i] - VERYSMALL_F, ispec_->upper_cutoffs[i] + VERYSMALL_F, bspline_workspaces[counter]);
@@ -134,7 +134,7 @@ void BSplineComputer::calculate_basis_fn_vals(const int index_among_defined, con
     //first_nonzero_basis_index = (int)(param_less_lower_cutoff / ispec_->get_fm_binwidth());
     
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    if(ispec_->get_char_id() == 'a') axis_val *= (3.14/180.0);
+    if(ispec_->get_char_id() == 'a') axis_val *= (M_PI/180.0);
 
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
@@ -152,7 +152,7 @@ double BSplineComputer::evaluate_spline(const int index_among_defined, const int
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    if(ispec_->get_char_id() == 'a') axis_val *= (3.14/180.0);
+    if(ispec_->get_char_id() == 'a') axis_val *= (M_PI/180.0);
 
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
@@ -196,7 +196,7 @@ BSplineAndDerivComputer::BSplineAndDerivComputer(InteractionClassSpec* ispec) : 
 	check_bspline_size(n_to_print_minus_bspline_k, (int)(n_coef));
 	bspline_workspaces[counter] = gsl_bspline_alloc(n_coef, n_to_print_minus_bspline_k);
 	if(ispec_->get_char_id() == 'a'){
-	  gsl_bspline_knots_uniform((ispec_->lower_cutoffs[i] * 3.14/180.0 - VERYSMALL_F), (ispec_->upper_cutoffs[i] *3.14/180.0 + VERYSMALL_F), bspline_workspaces[counter]);
+	  gsl_bspline_knots_uniform((ispec_->lower_cutoffs[i] * M_PI/180.0 - VERYSMALL_F), (ispec_->upper_cutoffs[i] *M_PI/180.0 + VERYSMALL_F), bspline_workspaces[counter]);
 	}
 	else {
 	  gsl_bspline_knots_uniform(ispec_->lower_cutoffs[i] - VERYSMALL_F, ispec_->upper_cutoffs[i] + VERYSMALL_F, bspline_workspaces[counter]);
@@ -247,7 +247,7 @@ void BSplineAndDerivComputer::calculate_basis_fn_vals(const int index_among_defi
     
     int index_among_matched = ispec_->defined_to_matched_intrxn_index_map[index_among_defined] - 1;
     double axis_val = check_against_cutoffs(param_val, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    if(ispec_->get_char_id() == 'a') axis_val *= (3.14/180.0);
+    if(ispec_->get_char_id() == 'a') axis_val *= (M_PI/180.0);
 
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched]);
     first_nonzero_basis_index = istart;
@@ -264,7 +264,7 @@ double BSplineAndDerivComputer::evaluate_spline(const int index_among_defined, c
     double force = 0.0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    if(ispec_->get_char_id() == 'a') axis_val *= (3.14/180.0);
+    if(ispec_->get_char_id() == 'a') axis_val *= (M_PI/180.0);
 
     gsl_bspline_eval_nonzero(axis_val, bspline_vectors, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
@@ -284,7 +284,7 @@ double BSplineAndDerivComputer::evaluate_spline_deriv(const int index_among_defi
     int ici_value = 0;
     int index_among_matched_interactions = ispec_->defined_to_matched_intrxn_index_map[index_among_defined];
     double axis_val = check_against_cutoffs(axis, ispec_->lower_cutoffs[index_among_defined], ispec_->upper_cutoffs[index_among_defined]);
-    if(ispec_->get_char_id() == 'a') axis_val *= (3.14/180.0);
+    if(ispec_->get_char_id() == 'a') axis_val *= (M_PI/180.0);
 
     gsl_bspline_deriv_eval_nonzero(axis_val, size_t(1), bspline_matrices, &istart, &iend, bspline_workspaces[index_among_matched_interactions - 1]);
     if (index_among_matched_interactions > 0) {
@@ -674,10 +674,10 @@ void LJComputer::calculate_basis_fn_vals(const int index_among_defined, const do
       new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
       inverse_power_eval(param_val, vals);
     } else if (ispec_->get_char_id() == 'a'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       power_eval(new_param_val, vals);
     } else if (ispec_->get_char_id() == 'd'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       fourier_eval(new_param_val, vals);
     } else {
       power_eval(param_val, vals);
@@ -699,10 +699,10 @@ void LJComputer::calculate_bspline_deriv_vals(const int index_among_defined, con
       new_param_val = param_val * 2/ispec_->upper_cutoffs[index_among_defined];
       inverse_deriv_eval(param_val, vals);
     } else if (ispec_->get_char_id() == 'a'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       deriv_eval(new_param_val, vals);
     } else if (ispec_->get_char_id() == 'd'){
-      new_param_val = param_val*(3.14/180);      
+      new_param_val = param_val*(M_PI/180);      
       fourier_deriv_eval(new_param_val, vals);
     } else {
       deriv_eval(param_val, vals);
@@ -723,7 +723,7 @@ double LJComputer::evaluate_spline(const int index_among_defined, const int firs
       new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
       force = inverse_power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     } else if (ispec_->get_char_id() == 'a'){
-      new_axis = axis*(3.14/180);      
+      new_axis = axis*(M_PI/180);      
       force = power_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else {
       force = power_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
@@ -745,7 +745,7 @@ double LJComputer::evaluate_spline_deriv(const int index_among_defined, const in
       new_axis = axis * 2/ispec_->upper_cutoffs[index_among_defined];
       deriv = inverse_deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
     } else if (ispec_->get_char_id() == 'a'){
-      new_axis = axis*(3.14/180);      
+      new_axis = axis*(M_PI/180);      
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else{
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,axis,ici_value,first_nonzero_basis_index);
@@ -760,7 +760,7 @@ void LJComputer::power_eval(const double param_val, std::vector<double> &vals)
   double functemp = 1;
   for(i=0;i<n_coef;i++)
     {
-      vals[0] = functemp;
+      vals[i] = functemp;
       functemp *= param_val;
     }
 }
@@ -790,7 +790,7 @@ void LJComputer::deriv_eval(const double param_val, std::vector<double> &vals)
   vals[0] = 0;
   for(i=1;i<n_coef;i++)
     {
-      vals[0]= i * functemp;
+      vals[i]= i * functemp;
       functemp *= param_val;
     }
 }
