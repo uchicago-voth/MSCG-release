@@ -490,7 +490,7 @@ double PowerComputer::evaluate_spline_deriv(const int index_among_defined, const
     } else if (ispec_->get_char_id() == 'a'){
       new_axis = axis*(M_PI/180);      
       deriv = deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
-    } else if (ispec_->get_char_id() =='a'){
+    } else if (ispec_->get_char_id() =='d'){
       new_axis = axis*(M_PI/180);
       deriv = fourier_deriv_axis(index_among_matched_interactions, spline_coeffs,new_axis,ici_value,first_nonzero_basis_index);
     } else{
