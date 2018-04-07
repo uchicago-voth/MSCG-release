@@ -3945,9 +3945,11 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	    average_update_endpoints += update[n_basis_funcs-1-k];
 	  }
 	  average_update_endpoints /= double(n_coef);
-	  for(int k = 0; k < n_basis_funcs; k++){
-	    update[k] -= average_update_endpoints;	  
-	  }
+
+	  // turn off this rigid shift in update, seems unneccessary...
+	  //	  for(int k = 0; k < n_basis_funcs; k++){
+	  //	    update[k] -= average_update_endpoints;	  
+	  //	  }
 	  //printf("First set of average update endpoints over n_coef %d is %f\n", n_coef, average_update_endpoints);
 	}
 
