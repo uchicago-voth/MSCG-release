@@ -3892,6 +3892,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	int interaction_column_index = (*icomp_iterator)->interaction_class_column_index;
 	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; // this start index is currently wrong for bonds/angles, needs to be shifted
 	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
+	//printf("Solving for %d basis funcs with %d n_coeff for this interaction", n_basis_funcs, n_coef);
 
 	//printf("Checking interaction_class_column_index %d\n", (*icomp_iterator)->interaction_class_column_index);
 	//printf("Checking index_among_matched %d, n_basis_funcs %d, start_index %d, n_coef %d\n", index_among_matched, n_basis_funcs, start_index, n_coef);
@@ -3946,16 +3947,16 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  }
 	  average_update_endpoints /= double(n_coef);
 
-	  // turn off this rigid shift in update, seems unneccessary...
-	  //	  for(int k = 0; k < n_basis_funcs; k++){
-	  //	    update[k] -= average_update_endpoints;	  
-	  //	  }
+	  for(int k = 0; k < (n_coef-2+1); k++){
+	    //update[k] -= average_update_endpoints;	  
+	    update[n_basis_funcs-1-k] = 0.0;	  
+	  }
 	  //printf("First set of average update endpoints over n_coef %d is %f\n", n_coef, average_update_endpoints);
 	}
 
 	
 	// *************************************** REM UPDATE STEP *********************************************
-	// apply the REM update here
+	// apply the REM update here (but the final k-2+1 basis funcs should be zero)
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
@@ -3966,15 +3967,15 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
 	  //printf("In the second smoothing loop\n");
 	  double average_solution_endpoints = 0.0;
-	  for(int k = 0; k < n_coef; k++) {
-	    average_solution_endpoints += new_solution[k+start_index + n_basis_funcs-1-k];
-	  }
-	  average_solution_endpoints /= double(n_coef);
+	  //for(int k = 0; k < n_coef; k++) {
+	  //  average_solution_endpoints += new_solution[k+start_index + n_basis_funcs-1-k];
+	  //}
+	  //average_solution_endpoints /= double(n_coef);
 	  //printf("Second set of average solution endpoints over n_coef %d is %f\n", n_coef, average_solution_endpoints);
-	  for(int k = 0; k < n_coef; k++) {
-	    new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
+	  //for(int k = 0; k < n_coef; k++) {
+	  //  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
 	    //printf("Index %d is now set to spline coeff %f\n", n_basis_funcs-1-k+start_index, new_solution[n_basis_funcs-1-k+start_index]);
-	  }
+	  //}
 
 	  // this next shift is unnecessary since final points are relatively smooth now
 	  /*
@@ -3985,14 +3986,14 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  */
 
 	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
-	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-(n_coef-2+1)+start_index] + (new_solution[n_basis_funcs-(n_coef-2+1)-1+start_index] - new_solution[n_basis_funcs-(n_coef-2+1)+start_index])/2.0;
 
 	  //smooth update based on i+1 and i-1, in running fashion
-	  for(int k = (n_basis_funcs-3); k >= 0; k--) {
+	  for(int k = (n_basis_funcs- (n_coef-2+1) ); k >= 0; k--) {
 	    if(k == 0){
 	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
 	    }
-	    else if(k == n_basis_funcs - 2){
+	    else if(k == n_basis_funcs - (n_coef-2+1) ){
 	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
 	    }
 	    else{
