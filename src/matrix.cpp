@@ -3984,16 +3984,16 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	    printf("Index %d is now set to spline coeff %f\n", k+start_index, new_solution[k+start_index]);
 	  }
 	  */
-
+	  int num_const_knots = n_coef - 2; // + 1;
 	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
-	  double solution_high = new_solution[n_basis_funcs-(n_coef-2+1)+start_index] + (new_solution[n_basis_funcs-(n_coef-2+1)-1+start_index] - new_solution[n_basis_funcs-(n_coef-2+1)+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-(num_const_knots)+start_index] + (new_solution[n_basis_funcs-(num_const_knots)-1+start_index] - new_solution[n_basis_funcs-(num_const_knots)+start_index])/2.0;
 
 	  //smooth update based on i+1 and i-1, in running fashion
-	  for(int k = (n_basis_funcs- (n_coef-2+1) ); k >= 0; k--) {
+	  for(int k = (n_basis_funcs-(num_const_knots) ); k >= 0; k--) {
 	    if(k == 0){
 	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
 	    }
-	    else if(k == n_basis_funcs - (n_coef-2+1) ){
+	    else if(k == n_basis_funcs - (num_const_knots) ){
 	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
 	    }
 	    else{
