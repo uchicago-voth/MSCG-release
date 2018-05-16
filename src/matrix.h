@@ -176,8 +176,10 @@ struct dense_matrix {
 		//Allocate this CSR
 		int nnz = get_nnz();
 		int counter = 0;
-		int column_indices[nnz];
-		int row_sizes[n_rows + 1];
+		int *column_indices;
+		int *row_sizes;
+		column_indices = new int[nnz]();
+		row_sizes = new int[n_rows + 1]();
 		row_sizes[0] = 0;
 		
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, nnz);
