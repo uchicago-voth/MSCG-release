@@ -1,3 +1,8 @@
+########################################
+# CMake build system
+# Created by Christoph Junghans
+########################################
+cmake_minimum_required(VERSION 3.1)
 cmake_minimum_required(VERSION 3.1)
 
 project(mscg LANGUAGES CXX)
