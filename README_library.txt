@@ -61,6 +61,7 @@ examples - many examples making use of the library with expected output
 scripts - miscellaneous helper scripts such as a mapping script
 src - source code files
 MAKE - various makefiles
+CMake - CMake Build system
 
 
 Developer Usage
