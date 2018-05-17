@@ -1,6 +1,9 @@
 Release Notes
 =============
 
+Version 1.7.3 (May 17, 2018)
+	* Changed variable array declaritions that interfaced with lammps to comply with C++11 standard
+
 Version 1.7.2 (November 13, 2017)
 	* Fixed bug relating to dihedral outputs
 
