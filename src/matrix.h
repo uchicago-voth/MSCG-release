@@ -207,6 +207,8 @@ struct dense_matrix {
 			fprintf(fh,"%d ", row_sizes[i]);
 		}
 		fprintf(fh,"\n");
+		delete [] column_indices;
+		delete [] row_sizes;
 	}
 	
 	inline int get_nnz() const {
