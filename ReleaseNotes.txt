@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 1.7.2 (November 13, 2017)
+	* Fixed bug relating to dihedral outputs
+
+Version 1.7.1 (October 31, 2017)
+	* Fixed bug relating to "tab" interactions
+
 Version 1.7.0 (July 20, 2017)
 	* Added density interactions
 		** Updated manual
