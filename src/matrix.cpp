@@ -3873,6 +3873,15 @@ void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_
   }
 }
 
+/*
+Main workhorse for REM optimization
+This method determines the next iteration of each basis set coefficient
+based on the REM update rule. Here, steepest descent is used.
+Some additional post-processing is used to promote the stability of the next solution:
+   (1) Basis coefficients are smoothed based on adjacent-averaging
+   (2) The last few spline knots are fixed to ensure a "reference" energy
+   (3) A "cap" on the maximum allowed change (per interaction) 
+ */
 void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
 {
   double KT = 1.0/beta;
@@ -3890,12 +3899,9 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
 	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
 	int interaction_column_index = (*icomp_iterator)->interaction_class_column_index;
-	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; // this start index is currently wrong for bonds/angles, needs to be shifted
+	// NOTE: is this start index still wrong for bonds/angles, needs to be shifted?
+	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; 
 	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
-	//printf("Solving for %d basis funcs with %d n_coeff for this interaction", n_basis_funcs, n_coef);
-
-	//printf("Checking interaction_class_column_index %d\n", (*icomp_iterator)->interaction_class_column_index);
-	//printf("Checking index_among_matched %d, n_basis_funcs %d, start_index %d, n_coef %d\n", index_among_matched, n_basis_funcs, start_index, n_coef);
 
 	// Calculate the REM update based on the first and second derivatives (dU/dparam)
 	double update[n_basis_funcs];
@@ -3921,7 +3927,6 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	  //Hessian   = mat_ref->fm_solution
 	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
 
-
 	  // ensure that the solution does not change too much
 	  // by finding the maximum change (or minimum tempscale)
 	  if(update[k] > (limit * KT)) {
@@ -3940,51 +3945,25 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	//The next smoothing steps should only be applied when nonbonded potentials are being considered with SPLINES
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
 	  //fix the update of the last n(=order) points to be nearly zero (need a fixed reference for integration and a slope of nearly zero)
-	  //printf("In the first smoothing loop\n");
-	  double average_update_endpoints = 0.0;
-	  for(int k = 0; k < n_coef; k++) {
-	    average_update_endpoints += update[n_basis_funcs-1-k];
-	  }
-	  average_update_endpoints /= double(n_coef);
-
-	  for(int k = 0; k < (n_coef-2+1); k++){
+	  for(int k = 0; k < (n_coef); k++){
 	    //update[k] -= average_update_endpoints;	  
 	    update[n_basis_funcs-1-k] = 0.0;	  
 	  }
-	  //printf("First set of average update endpoints over n_coef %d is %f\n", n_coef, average_update_endpoints);
 	}
 
 	
 	// *************************************** REM UPDATE STEP *********************************************
-	// apply the REM update here (but the final k-2+1 basis funcs should be zero)
+	// apply the REM update here (but the final n_coeff basis func updates should be zero)
 	for(int k = 0; k < n_basis_funcs; k++) {
 	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
 	}
 	// *************************************** REM UPDATE STEP *********************************************
-	// printf("For first basis coefficient, previous solution was %f and new solution was %f\n", previous_solution[start_index], new_solution[start_index]);
 
-	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are a bit smoothed to prevent simulation instabilities
+	
+
+	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are locally smoothed to prevent simulation instabilities (ie, force fluctuations)
 	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
-	  //printf("In the second smoothing loop\n");
-	  double average_solution_endpoints = 0.0;
-	  //for(int k = 0; k < n_coef; k++) {
-	  //  average_solution_endpoints += new_solution[k+start_index + n_basis_funcs-1-k];
-	  //}
-	  //average_solution_endpoints /= double(n_coef);
-	  //printf("Second set of average solution endpoints over n_coef %d is %f\n", n_coef, average_solution_endpoints);
-	  //for(int k = 0; k < n_coef; k++) {
-	  //  new_solution[n_basis_funcs-1-k+start_index] = average_solution_endpoints; 
-	    //printf("Index %d is now set to spline coeff %f\n", n_basis_funcs-1-k+start_index, new_solution[n_basis_funcs-1-k+start_index]);
-	  //}
-
-	  // this next shift is unnecessary since final points are relatively smooth now
-	  /*
-	  for(int k = 0; k < (n_basis_funcs-(n_coef)); k++) {
-	    new_solution[k+start_index] = new_solution[k+start_index] - average_solution_endpoints;
-	    printf("Index %d is now set to spline coeff %f\n", k+start_index, new_solution[k+start_index]);
-	  }
-	  */
-	  int num_const_knots = n_coef - 2 + 2; // + 1;
+	  int num_const_knots = n_coef; 
 	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
 	  double solution_high = new_solution[n_basis_funcs-(num_const_knots)+start_index] + (new_solution[n_basis_funcs-(num_const_knots)-1+start_index] - new_solution[n_basis_funcs-(num_const_knots)+start_index])/2.0;
 
