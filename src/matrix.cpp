@@ -3984,7 +3984,7 @@ void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, con
 	    printf("Index %d is now set to spline coeff %f\n", k+start_index, new_solution[k+start_index]);
 	  }
 	  */
-	  int num_const_knots = n_coef - 2 + 1; // + 1;
+	  int num_const_knots = n_coef - 2 + 2; // + 1;
 	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
 	  double solution_high = new_solution[n_basis_funcs-(num_const_knots)+start_index] + (new_solution[n_basis_funcs-(num_const_knots)-1+start_index] - new_solution[n_basis_funcs-(num_const_knots)+start_index])/2.0;
 

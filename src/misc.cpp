@@ -169,7 +169,8 @@ int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double
       force_it = force_vals.begin();
 
       axis_vals.insert(axis_it, axis_vals[0] - spacing);
-      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
+      //      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
+      force_vals.insert(force_it, force_vals[0] + (force_vals[0] - force_vals[1])/spacing);
     }
   return flag;
 }

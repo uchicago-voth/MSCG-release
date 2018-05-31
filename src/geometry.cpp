@@ -165,8 +165,8 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std
         // Calculate the cosine
         double rr_20 = sqrt(rr2_20);
         double rr_21 = sqrt(rr2_21);
-		double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
-		check_cos(cos_theta);
+	double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
+	check_cos(cos_theta);
         
         // Calculate the angle.
         double theta = acos(cos_theta);
@@ -180,8 +180,8 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std
 
         for (unsigned i = 0; i < DIMENSION; i++) {
         	// derivatives for the end particles
-        	derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
+	  derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
+	  derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
         }
         delete [] dist_derivs_20;
     	delete [] dist_derivs_21;
@@ -205,7 +205,7 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
         // Calculate the cosine
         rr_20 = sqrt(rr2_20);
         rr_21 = sqrt(rr2_21);
-		double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
+	double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
         check_cos(cos_theta);
         
         // Calculate the angle.
@@ -219,8 +219,8 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
         double rr_11c = cos_theta / (rr_21 * rr_21 * sin_theta);
 
         for (unsigned i = 0; i < DIMENSION; i++) {
-            derivatives[0][i] = - 0.5 * (dist_derivs_21[0][i] * rr_01_1 + rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = - 0.5 * (dist_derivs_20[0][i] * rr_01_1 + rr_11c * dist_derivs_21[0][i]);
+	  derivatives[0][i] = - 0.5 * (dist_derivs_21[0][i] * rr_01_1 + rr_00c * dist_derivs_20[0][i]);
+	  derivatives[1][i] = - 0.5 * (dist_derivs_20[0][i] * rr_01_1 + rr_11c * dist_derivs_21[0][i]);
         }
     }    
     return true;
