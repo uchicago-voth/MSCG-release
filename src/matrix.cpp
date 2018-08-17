@@ -135,7 +135,7 @@ void average_sparse_block_fm_solutions(MATRIX_DATA* const mat);
 void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
-void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
 void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
 
 // Bootstrapping routines
@@ -434,6 +434,9 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     if (control_input->bootstrapping_flag == 1) {
 		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
+
+    	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     // Initialized the matrix and vector to zero.
@@ -485,6 +488,9 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
     }
 	mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_rows, mat->accumulation_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->accumulation_matrix_columns]();
+
+		mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
 
     mat->lapack_tau = new double[mat->accumulation_matrix_columns]();
 
@@ -3834,15 +3840,15 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
 
 // Finish REM by finding new CG parameters
 
-void calculate_new_rem_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+void calculate_new_rem_parameters(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   write_reference_matrix(mat_ref->dense_fm_normal_matrix);
   write_cg_matrix(mat_cg->dense_fm_normal_matrix);
-  update_these_rem_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+  update_these_rem_parameters(cg, beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
 }
 
-void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
 {
   double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
   double chi = mat_cg->iteration_step_size;
@@ -3854,7 +3860,7 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
   }
   
   // update for master
-  update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+  update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
 
   // update for bootstrap copies
   for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
@@ -3863,43 +3869,145 @@ void calculate_new_rem_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRI
     	mat_ref->previous_rem_solution[l] = back_previous_rem_solution[l];
   	}
     // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
-    update_these_rem_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
+	update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
   }
 }
 
-void update_these_rem_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
+/*
+Main workhorse for REM optimization
+This method determines the next iteration of each basis set coefficient
+based on the REM update rule. Here, steepest descent is used.
+Some additional post-processing is used to promote the stability of the next solution:
+   (1) Basis coefficients are smoothed based on adjacent-averaging
+   (2) The last few spline knots are fixed to ensure a "reference" energy
+   (3) A "cap" on the maximum allowed change (per interaction) 
+ */
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
 {
   double KT = 1.0/beta;
 
   assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
   assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
-  
-  for(int j = 0; j < ref_normal_matrix->n_cols; j++) 
-  {
-    ref_previous_solution[j] = (ref_normal_matrix->get_scalar(0,j) - cg_normal_matrix->get_scalar(0,j)) * beta;
-    ref_new_solution[j] = (cg_normal_matrix->get_scalar(1,j) - cg_normal_matrix->get_scalar(0,j) * cg_normal_matrix->get_scalar(0,j)) * beta * beta;
+
+  // We split the REM calculation to be performed over each individual interaction
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      // If that interaction is being matched,
+      if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
+	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
+	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	int interaction_column_index = (*icomp_iterator)->interaction_class_column_index;
+	// NOTE: is this start index still wrong for bonds/angles, needs to be shifted?
+	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; 
+	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
+
+	// Calculate the REM update based on the first and second derivatives (dU/dparam)
+	double update[n_basis_funcs];
+	double scale = 1.0;
+	double tempscale = 1.0;
+	for(int j = 0; j < n_basis_funcs; j++) {  
+	  ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
+	  ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
+	}
+	
+	// Apply a small numerical correction to prevent divide-by-zero
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  if(ref_new_solution[k+start_index] == 0) {
+	    ref_new_solution[k+start_index] = VERYSMALL_F;	  	
+	  }
+
+	  //We use gradient descent (future iterations should consider other optimization schemes)
+	  //e.g., stochastic or conjugate gradient
+	  //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
+	  //lamda_new = mat_cg->fm_solution
+	  //lamda_old = mat_cg->previous_rem_solution
+	  //dS/dlamda = mat_ref->previous_rem_solution
+	  //Hessian   = mat_ref->fm_solution
+	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
+
+	  // ensure that the solution does not change too much
+	  // by finding the maximum change (or minimum tempscale)
+	  if(update[k] > (limit * KT)) {
+	    tempscale = (limit * KT) / update[k];
+	  } else if(update[k] < -(limit * KT)) {
+	    tempscale = -1.0*(limit * KT) / update[k];
+	  }
+	  if(tempscale < scale) scale = tempscale;
+	}
+
+	// apply per-interaction scaling here
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  update[k] *= scale;
+	}
+
+	//The next smoothing steps should only be applied when nonbonded potentials are being considered with SPLINES
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  //fix the update of the last n(=order) points to be nearly zero (need a fixed reference for integration and a slope of nearly zero)
+	  for(int k = 0; k < (n_coef); k++){
+	    //update[k] -= average_update_endpoints;	  
+	    update[n_basis_funcs-1-k] = 0.0;	  
+	  }
+	}
+
+	
+	// *************************************** REM UPDATE STEP *********************************************
+	// apply the REM update here (but the final n_coeff basis func updates should be zero)
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
+	}
+	// *************************************** REM UPDATE STEP *********************************************
+
+	
+
+	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are locally smoothed to prevent simulation instabilities (ie, force fluctuations)
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  int num_const_knots = n_coef; 
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-(num_const_knots)+start_index] + (new_solution[n_basis_funcs-(num_const_knots)-1+start_index] - new_solution[n_basis_funcs-(num_const_knots)+start_index])/2.0;
+
+	  //smooth update based on i+1 and i-1, in running fashion
+	  for(int k = (n_basis_funcs-(num_const_knots) ); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - (num_const_knots) ){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	  }
+	}
+	
+	// perform similar smoothing for bspline bonds and angles
+	if (((*icomp_iterator)->ispec->get_char_id() == 'a' || (*icomp_iterator)->ispec->get_char_id() == 'b') && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
+
+	  //smooth update based on i+1 and i-1, in running fashion
+	  for(int k = (n_basis_funcs-1); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - 1){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	  }
+	}
+	
+	//delete [] update;
+	//delete [] update_new;
+	
+      }
+    }
   }
   
-  for(int k = 0; k < cg_normal_matrix->n_cols; k++) {
-    if(ref_new_solution[k] == 0) {
-      ref_new_solution[k] = VERYSMALL_F;	  	
-    }
-    //This is the gradient decent equation
-    //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
-    //lamda_new = mat_cg->fm_solution
-    //lamda_old = mat_cg->previous_rem_solution
-    //dS/dlamda = mat_ref->previous_rem_solution
-    //Hessian   = mat_ref->fm_solution
-    double update = ( ref_previous_solution[k] / ref_new_solution[k] ) * chi;
-    
-    // ensure that the solution does not change too much.
-    if(update > (limit * KT)) {
-      update = (limit * KT);
-    } else if(update < -(limit * KT)) {
-      update = -(limit * KT);
-    }
-    new_solution[k] = previous_solution[k] - update;
-  }
 }
 
 // Finish IBI by finding new CG parameters

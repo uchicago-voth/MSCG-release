@@ -684,6 +684,12 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 
 	for (int i = 0; i < n_defined; i++) {
 		if (defined_to_matched_intrxn_index_map[i] != 0) { // This includes antisymmetric (i.e. force) and symmetric (i.e. MS-CODE) interactions.
+		  if ((basis_type == kBSpline) ||
+		      (basis_type == kBSplineAndDeriv) ||
+		      (basis_type == kLinearSpline) ||
+		      (basis_type == kDelta))
+		    {
+		      
 			grid_i = floor((upper_cutoffs[i] - lower_cutoffs[i]) / fm_binwidth + 0.5) + 1;
 			if (grid_i > 1000) {
 				fprintf(stderr, "\nWarning: An individual interaction has more than 1000 bins associated with it!\n");
@@ -701,6 +707,12 @@ void InteractionClassSpec::setup_indices_in_fm_matrix(void)
 			// Delta basis is only 1 column wide.
 			else if (basis_type == kDelta) interaction_column_indices[counter + 1] = interaction_column_indices[counter] + 1;
 			counter++;
+		    } else if ((basis_type == kPower) || (basis_type == kLJ) )
+		    {
+		      grid_i = get_bspline_k();
+		      interaction_column_indices[counter + 1] = interaction_column_indices[counter] + grid_i;
+		      counter++;
+		    }		      
 		}
 	}
 }

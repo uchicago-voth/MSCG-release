@@ -82,6 +82,8 @@ typedef struct ControlInputs {
     int three_body_bspline_k;               // B-spline k value for nonbonded three body interactions
 	int density_bspline_k;                  // B-spline k value for density interactions
     int basis_set_type;
+  int lesser_LJ_parameter;
+  int greater_LJ_parameter;
     
     // Output specifications. 
     int output_style;

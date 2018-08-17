@@ -106,6 +106,8 @@ struct InteractionClassSpec {
     double *lower_cutoffs;
     double *upper_cutoffs;
     double cutoff;
+  int LJ_term1;
+  int LJ_term2;
     
     double external_table_spline_binwidth;
     double **external_table_spline_coefficients;
@@ -322,6 +324,8 @@ struct PairNonbondedClassSpec: InteractionClassSpec {
 		output_binwidth = control_input->pair_nonbonded_output_binwidth;
 		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_pair_nonbonded_parameter_distribution;
+		LJ_term1 = control_input->lesser_LJ_parameter;
+		LJ_term2 = control_input->greater_LJ_parameter;
 	}
 		
 	void determine_defined_intrxns(TopologyData *topo_data) {

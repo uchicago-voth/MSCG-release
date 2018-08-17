@@ -127,6 +127,8 @@ void set_control_parameter(const char* parameter_name, const char* val, ControlI
     else if (strcmp("max_update_size_factor", parameter_name) == 0) sscanf(val, "%lf", &control_input->max_update_size_factor);
     else if (strcmp("reference_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->reference_input_style);
     else if (strcmp("cg_input_style", parameter_name) == 0) sscanf(val, "%d", &control_input->cg_input_style);
+    else if (strcmp("lesser_lj_parameter", parameter_name) == 0) sscanf(val, "%d", &control_input->lesser_LJ_parameter);
+    else if (strcmp("greater_lj_parameter", parameter_name) == 0) sscanf(val, "%d", &control_input->greater_LJ_parameter);
     else check_depricated_options(parameter_name, line);
 }
 
@@ -190,6 +192,8 @@ ControlInputs::ControlInputs(void)
     radius_of_gyration_bspline_k = 4;
     basis_set_type = 0;
     matrix_type = 0;
+    lesser_LJ_parameter = 7;
+    greater_LJ_parameter = 13;
     pair_nonbonded_output_binwidth = 0.05;
     pair_bond_output_binwidth = 0.05;
     angle_output_binwidth = 1.0;

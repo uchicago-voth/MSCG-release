@@ -97,7 +97,9 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
  	   	            	write_bootstrapping_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag, cg->pair_nonbonded_cutoff);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -112,7 +114,9 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 					
 						// Write special output files for the specific spline types.	      
 						if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-							(*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+						    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+						    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+						    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
 							write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 						} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 						   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -130,7 +134,9 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
  	   	            	write_bootstrapping_one_param_table_files(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
 	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -144,7 +150,9 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 				  		write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
 		    			} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
 	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
@@ -484,10 +492,11 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
     // Print the spline coefficients.
     for (int k = 0; k < n_basis_funcs; k++) {
       fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined] - 1] + k]);
+      // Complete the line.
     }
-    // Complete the line.
     fprintf(spline_output_filep, "\n");
-	fclose(spline_output_filep);
+    
+    fclose(spline_output_filep);
 }
 
 void write_output_solution(MATRIX_DATA* const mat)
@@ -677,7 +686,11 @@ void write_bootstrapping_one_param_bspline_file(InteractionClassComputer* const 
     for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
     	// Print the spline coefficients.
     	for (unsigned k = 0; k < interaction_column_indices; k++) {
+<<<<<<< HEAD
 	  fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns] - 1] + k]);
+=======
+        	fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns] - 1] + k]);
+>>>>>>> development_robust_rem
     	}
     
 	    // Complete the line and flush.

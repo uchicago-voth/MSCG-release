@@ -174,12 +174,12 @@ int main(int argc, char* argv[])
     //Find the solution to the entropy minimization equations.
     printf("Calculating new REM parameters.\n");
     if (fs_cg.bootstrapping_flag == 1) {
-    	calculate_new_rem_parameters_and_bootstrap(&mat_cg, &mat_ref);
-		free_bootstrapping_weights(&fs_cg);
-	} else {
-		calculate_new_rem_parameters(&mat_cg, &mat_ref);
-	} 
-
+      calculate_new_rem_parameters_and_bootstrap(&cg, &mat_cg, &mat_ref);
+      free_bootstrapping_weights(&fs_cg);
+    } else {
+      calculate_new_rem_parameters(&cg, &mat_cg, &mat_ref);
+    } 
+    
     // Write tabulated interaction files resulting from the basis set
     // coefficients found in the solution step.
     printf("Writing final output.\n");
