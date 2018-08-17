@@ -686,11 +686,7 @@ void write_bootstrapping_one_param_bspline_file(InteractionClassComputer* const 
     for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
     	// Print the spline coefficients.
     	for (unsigned k = 0; k < interaction_column_indices; k++) {
-<<<<<<< HEAD
 	  fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns] - 1] + k]);
-=======
-        	fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns] - 1] + k]);
->>>>>>> development_robust_rem
     	}
     
 	    // Complete the line and flush.
