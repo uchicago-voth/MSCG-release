@@ -18,10 +18,13 @@ typedef struct ControlInputs {
     int n_frames;
     int frames_per_traj_block;
     int volume_weighting_flag;
+    int scalar_matching_flag;
     
     // Input specifications
     int use_statistical_reweighting;
+    int reference_statistical_reweighting;
 	int pressure_constraint_flag;
+	int cg_observable_flag;
 	int position_dimension;
 	
 	// Additional features
@@ -36,8 +39,14 @@ typedef struct ControlInputs {
     uint_fast32_t random_num_seed;					// Only used when dynamic_state_sampling or bootstrapping_flag is 1
 
     // Interaction style specifications.
+    int one_body_flag;							// 1 to enable fitting one-body terms for specific types; 0 otherwise
     int angle_interaction_style;                // 1 to use distance-based angular interactions; 0 for angle-based angle interactions.
     int dihedral_interaction_style;             // 1 to use distance-based dihedral interactions; 0 for angle-based dihedral interactions.
+    int r13_distance_flag;
+    int r14_distance_flag;
+    int r15_distance_flag;
+    int helical_flag;
+    int radius_of_gyration_flag;
     int three_body_flag;
     int three_body_nonbonded_exclusion_flag;
     int excluded_style;						// 0 no exclusions; 2 exclude 1-2 bonded; 3 exclude 1-2 and 1-3 bonded; 4 exclude 1-2, 1-3 and 1-4 bonded interactions
@@ -54,15 +63,27 @@ typedef struct ControlInputs {
     double pair_bond_fm_binwidth;
     double angle_fm_binwidth;
     double dihedral_fm_binwidth;
+    double r13_fm_binwidth;
+    double r14_fm_binwidth;
+    double r15_fm_binwidth;
+    double helical_fm_binwidth;
+    double radius_of_gyration_fm_binwidth;
     double three_body_fm_binwidth;
 	double density_fm_binwidth;
     int nonbonded_bspline_k;                // B-spline k value for nonbonded pair interactions
     int pair_bond_bspline_k;                // B-spline k value for bonded pair interactions
     int angle_bspline_k;                    // B-spline k value for bonded angular interactions
     int dihedral_bspline_k;                 // B-spline k value for bonded dihedral interactions
+    int r13_bspline_k;
+    int r14_bspline_k;
+    int r15_bspline_k;
+    int helical_bspline_k;
+    int radius_of_gyration_bspline_k;		// B-spline k value for radius of gyration interations
     int three_body_bspline_k;               // B-spline k value for nonbonded three body interactions
 	int density_bspline_k;                  // B-spline k value for density interactions
     int basis_set_type;
+  int lesser_LJ_parameter;
+  int greater_LJ_parameter;
     
     // Output specifications. 
     int output_style;
@@ -76,20 +97,38 @@ typedef struct ControlInputs {
     double pair_bond_output_binwidth;
     double angle_output_binwidth;
     double dihedral_output_binwidth;
+    double r13_output_binwidth;
+    double r14_output_binwidth;
+    double r15_output_binwidth;
+    double helical_output_binwidth;
+    double radius_of_gyration_output_binwidth;
     double three_body_nonbonded_output_binwidth;
 	double density_output_binwidth;
 	int density_flag;
 	int density_weights_flag;
 
 	// Rangefinder only output specifications
+	int rangefinder_thresholding_style;
 	int output_pair_nonbonded_parameter_distribution;
     int output_pair_bond_parameter_distribution;
     int output_angle_parameter_distribution;
     int output_dihedral_parameter_distribution;
+    int output_r13_parameter_distribution;
+    int output_r14_parameter_distribution;
+    int output_r15_parameter_distribution;
+    int output_helical_parameter_distribution;
+    int output_radius_of_gyration_parameter_distribution;
 	int output_density_parameter_distribution;
-        
-    // Iteration and BI specification
-    double iteration_step_size;
+    
+    // Newfm  only output specifications
+    int output_raw_splines;
+    int output_raw_frame_blocks;
+    
+    //REM and IBI specification
+    int reference_input_style;
+    int cg_input_style;
+  	double iteration_step_size;
+  	double max_update_size_factor;
   	double temperature;
   	double boltzmann;
 

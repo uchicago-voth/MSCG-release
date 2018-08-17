@@ -21,7 +21,7 @@ regularization_style 1
 regularization_scalar 1.0
 dynamic_types 1
 angle_type 1
-density_interactions_flag 3	# Which type of density interactions to use (3 is Lucy weighted)
+density_interactions_flag 1	# Which type of density interactions to use (1 is Gaussian weighted)
 density_cutoff_distance 12.5	# Cutoff distance used for density weight functions. Used for density's own cell/neighbor list.
 density_basis_set_resolution 0.1 # Spacing of spline knots for density B-splines (internal representation).
 density_output_binwidth 0.1 # Spacing of output files for density interactions.

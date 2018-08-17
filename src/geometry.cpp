@@ -80,6 +80,34 @@ double dot_product(const double* a, const double* b)
 
 // Calculate a squared distance and one derivative.
 
+void calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
+{
+    double rr2 = 0.0;
+    std::array<double, DIMENSION> displacement;
+    subtract_min_image_vectors(particle_ids, particle_positions, simulation_box_half_lengths, displacement);
+    for (int i = 0; i < DIMENSION; i++) {
+        rr2 += displacement[i] * displacement[i];
+    }
+    for (int i = 0; i < DIMENSION; i++) {
+      derivatives[0][i] = 2.0 * displacement[i];
+    }
+    param_val = rr2;
+    
+}
+
+
+// Calculate a distance and one derivative.
+
+void calc_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
+{
+    calc_squared_distance_and_derivatives(particle_ids, particle_positions, simulation_box_half_lengths, cutoff2, param_val, derivatives);
+
+    param_val = sqrt(param_val);
+    for (int i = 0; i < DIMENSION; i++) {
+      derivatives[0][i] = 0.5 * derivatives[0][i] / param_val;
+    }
+}
+
 bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const double cutoff2, double &param_val, std::array<double, DIMENSION>* &derivatives)
 {
     double rr2 = 0.0;
@@ -98,6 +126,7 @@ bool conditionally_calc_squared_distance_and_derivatives(const int* particle_ids
         return true;
     }
 }
+
 
 // Calculate a distance and one derivative.
 
@@ -136,8 +165,8 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std
         // Calculate the cosine
         double rr_20 = sqrt(rr2_20);
         double rr_21 = sqrt(rr2_21);
-		double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
-		check_cos(cos_theta);
+	double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
+	check_cos(cos_theta);
         
         // Calculate the angle.
         double theta = acos(cos_theta);
@@ -151,8 +180,8 @@ bool conditionally_calc_angle_and_derivatives(const int* particle_ids, const std
 
         for (unsigned i = 0; i < DIMENSION; i++) {
         	// derivatives for the end particles
-        	derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
+	  derivatives[0][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_21[0][i] * rr_01_1 - rr_00c * dist_derivs_20[0][i]);
+	  derivatives[1][i] = 0.5 * DEGREES_PER_RADIAN * (dist_derivs_20[0][i] * rr_01_1 - rr_11c * dist_derivs_21[0][i]);
         }
         delete [] dist_derivs_20;
     	delete [] dist_derivs_21;
@@ -176,7 +205,7 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
         // Calculate the cosine
         rr_20 = sqrt(rr2_20);
         rr_21 = sqrt(rr2_21);
-		double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
+	double cos_theta = dot_product(dist_derivs_20[0], dist_derivs_21[0]) / (4.0 * rr_20 * rr_21);
         check_cos(cos_theta);
         
         // Calculate the angle.
@@ -190,8 +219,8 @@ bool conditionally_calc_angle_and_intermediates(const int* particle_ids, std::ar
         double rr_11c = cos_theta / (rr_21 * rr_21 * sin_theta);
 
         for (unsigned i = 0; i < DIMENSION; i++) {
-            derivatives[0][i] = - 0.5 * (dist_derivs_21[0][i] * rr_01_1 + rr_00c * dist_derivs_20[0][i]);
-            derivatives[1][i] = - 0.5 * (dist_derivs_20[0][i] * rr_01_1 + rr_11c * dist_derivs_21[0][i]);
+	  derivatives[0][i] = - 0.5 * (dist_derivs_21[0][i] * rr_01_1 + rr_00c * dist_derivs_20[0][i]);
+	  derivatives[1][i] = - 0.5 * (dist_derivs_20[0][i] * rr_01_1 + rr_11c * dist_derivs_21[0][i]);
         }
     }    
     return true;
@@ -278,6 +307,115 @@ bool conditionally_calc_dihedral_and_derivatives(const int* particle_ids, const 
 		derivatives[2][i] = dtf * fcoef + dth * hcoef;
 	}
     return true;
+}
+
+void calc_radius_of_gyration_and_derivatives(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, std::array<double, DIMENSION>* &derivatives)
+{
+
+	double rg2 = 0.0;
+	int sub_particle_ids[2];
+	std::array<double, DIMENSION>* whole_molecule = new std::array<double, DIMENSION>[num_particles];
+	std::array<double, DIMENSION> com, displacement;
+	
+	// Get individual particle displacements to reconstruct the whole molecule positions continuously
+	for (int j = 0; j < DIMENSION; j++) whole_molecule[0][j] = 0.0;
+	for (int i = 1; i < num_particles; i++) {
+		sub_particle_ids[0] = particle_ids[i-1];
+		sub_particle_ids[1] = particle_ids[i];
+		subtract_min_image_vectors(sub_particle_ids, particle_positions, simulation_box_half_lengths, displacement); 
+		for (int j = 0; j < DIMENSION; j++) whole_molecule[i][j] = whole_molecule[i - 1][j] + displacement[j];		
+	}
+	
+	// Calculate the center of mass.
+	// The displacements are averaged relative to the first particle (which is the center of this reference frame). 
+	for (int j = 0; j < DIMENSION; j++) com[j] = 0.0;
+	for (int i = 0; i < num_particles; i++) {
+		for (int j = 0; j < DIMENSION; j++) com[j] += whole_molecule[i][j];
+	}		
+	for (int j = 0; j < DIMENSION; j++) com[j] /= (double)(num_particles);
+
+	// Now, simultaneously calculate the derivative and the radius of gyration.
+	// The last index is treated separately since its derivative is not explicitly calculated.
+	for (int i = 0; i < num_particles - 1; i++) {
+		for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule[particle_ids[i]][j] - com[j];
+		for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
+		for (int j = 0; j < DIMENSION; j++) derivatives[i][j] = 2.0 * displacement[j] / (double)(num_particles);
+	}
+
+	// The last index should not have derivatives calculated
+	for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule[particle_ids[num_particles - 1]][j] - com[j];
+	for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
+
+	// Include the scaling.
+	param_val = rg2 / (double)(num_particles);	
+}
+
+void calc_fraction_helical_and_derivatives(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int n_ids, double &param_val, std::array<double,DIMENSION>* &derivatives, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
+{
+	std::array<double, DIMENSION>* displacement = new std::array<double, DIMENSION>[1];
+	int sub_particle_ids[2];
+	double distance, diff, contribution, deriv_magnitude;
+	param_val = 0.0;
+	
+	// zero derivatives to start
+	for (int i = 0; i < n_ids - 1; i++) {
+		for (int k = 0; k < DIMENSION; k++) {
+			derivatives[i][k] = 0.0;
+		}
+	}
+	
+	// calculate fraction helical content and its derivative
+	for (int i = 0; i < n_helical_ids; i++) {
+		sub_particle_ids[0] = helical_ids[2 * i];
+		sub_particle_ids[1] = helical_ids[2 * i + 1];
+		conditionally_calc_distance_and_derivatives(sub_particle_ids, particle_positions, simulation_box_half_lengths, 1000000.0, distance, displacement);
+
+		diff = distance - r0;
+		contribution = exp( - 0.5 * diff * diff / sigma2);
+		param_val += contribution;
+		
+		// Accumulate the derivative as long as the first index is not the last particle in particle_ids
+		deriv_magnitude = diff * contribution / (sigma2 * distance * n_helical_ids);
+		if (sub_particle_ids[0] != particle_ids[n_ids - 1]) {
+			// find this index in particle_ids
+			int index = -1;
+			for (int j = 0; j < n_ids - 1; j++) {
+				if (particle_ids[j] == sub_particle_ids[0]) {
+					index = j;
+					break;
+				}	
+			}
+			if (index == -1) {
+				printf("Error in indices for helical calculation!\n");
+			} else {
+				for (int k = 0; k < DIMENSION; k++) {
+					derivatives[index][k] += displacement[0][k] * deriv_magnitude;
+				}
+			}
+		}
+
+		// Accumulate this derivative as long as the second index is not the last particle in particle_ids
+		if (sub_particle_ids[1] != particle_ids[n_ids - 1]) {
+			// find this index in particle_ids
+			int index = -1;
+			for (int j = 0; j < n_ids - 1; j++) {
+				if (particle_ids[j] == sub_particle_ids[1]) {
+					index = j;
+					break;
+				}	
+			}
+			if (index == -1) {
+				printf("Error in indices for helical calculation!\n");
+			} else {
+				for (int k = 0; k < DIMENSION; k++) {
+					derivatives[index][k] -= displacement[0][k] * deriv_magnitude;
+				}
+			}		
+		}
+	}
+	param_val /= (double)(n_helical_ids);
+
+	delete [] displacement;
 }
 
 //------------------------------------------------------------
@@ -371,6 +509,57 @@ void calc_dihedral(const int* particle_ids, const std::array<double, DIMENSION>*
 	} else {
 		param_val = theta;
 	}    	
+}
+
+void calc_radius_of_gyration(const int* particle_ids, const std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val)
+{
+	double rg2 = 0.0;
+	int sub_particle_ids[2];
+	std::array<double, DIMENSION>* whole_molecule = new std::array<double, DIMENSION>[num_particles];
+	std::array<double, DIMENSION> com, displacement;
+	
+	// Get individual particle displacements to reconstruct the whole molecule positions continuously
+	for (int j = 0; j < DIMENSION; j++) whole_molecule[0][j] = 0.0;
+	for (int i = 1; i < num_particles; i++) {
+		sub_particle_ids[0] = particle_ids[i-1];
+		sub_particle_ids[1] = particle_ids[i];
+		subtract_min_image_vectors(sub_particle_ids, particle_positions, simulation_box_half_lengths, displacement); 
+		for (int j = 0; j < DIMENSION; j++) whole_molecule[i][j] = whole_molecule[i - 1][j] + displacement[j];		
+	}
+	
+	// Calculate the center of mass.
+	// The displacements are averaged relative to the first particle (which is the center of this reference frame). 
+	for (int j = 0; j < DIMENSION; j++) com[j] = 0.0;
+	for (int i = 0; i < num_particles; i++) {
+		for (int j = 0; j < DIMENSION; j++) com[j] += whole_molecule[i][j];
+	}		
+	for (int j = 0; j < DIMENSION; j++) com[j] /= (double)(num_particles);
+	
+	// Now, calculate the radius of gyration as distances from the center of mass.
+	for (int i = 0; i < num_particles; i++) {
+		for (int j = 0; j < DIMENSION; j++) displacement[j] = whole_molecule[particle_ids[i]][j] - com[j];
+		for (int j = 0; j < DIMENSION; j++) rg2 += (displacement[j] * displacement[j]);
+	}
+	
+	// Include the scaling.
+	param_val = rg2 / (double)(num_particles);	
+}
+
+
+void calc_fraction_helical(const int* particle_ids, std::array<double, DIMENSION>* const &particle_positions, const real *simulation_box_half_lengths, const int num_particles, double &param_val, const int* helical_ids, const int n_helical_ids, const int r0, const double sigma2)
+{
+	int sub_particle_ids[2];
+	double distance, diff;
+	param_val = 0.0;
+	
+	for (int i = 0; i < n_helical_ids; i++) {
+		sub_particle_ids[0] = helical_ids[2 * i];
+		sub_particle_ids[1] = helical_ids[2 * i + 1];
+		calc_distance(sub_particle_ids, particle_positions, simulation_box_half_lengths, distance);
+		diff = distance - r0;
+		param_val += exp( - 0.5 * diff * diff / sigma2);
+	}
+	param_val /= (double)(n_helical_ids);
 }
 
 inline void check_sine(double &s)

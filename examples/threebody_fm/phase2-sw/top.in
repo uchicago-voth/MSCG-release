@@ -1,8 +1,8 @@
 cgsites 233
 cgtypes 1
 1
-threebody 1
-1 1 1 -0.454 3.7
+threebody 1 # If three_body_nonbonded_style != 0, number of 3-body interactions
+1 1 1 -0.454 3.7 # Triplet of types interacting (midle - end - end), cos(theta_0), 3-body cutoff distance
 moltypes 1
 mol 1 1
 sitetypes

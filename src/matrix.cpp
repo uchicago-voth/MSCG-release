@@ -30,6 +30,9 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
 void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 void initialize_dummy_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_ibi_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
+void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg);
 
 // Helper matrix initialization routines
 
@@ -49,8 +52,18 @@ void set_accumulation_matrix_to_zero(MATRIX_DATA* const mat, dense_matrix* const
 void set_dummy_matrix_to_zero(MATRIX_DATA* const mat);
 
 // Interface-level functions that convert force magnitude and derivatives to matrix elements.
+void accumulate_vector_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int *particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_vector_symmetric_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_vector_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_vector_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
+void accumulate_frame_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat);
 
@@ -60,6 +73,10 @@ void insert_sparse_matrix_element(const int i, const int j, double* const x, MAT
 void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat);
+
+void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
+void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
+void insert_scalar_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat);
 
 void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat);
 void insert_sparse_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat);
@@ -88,6 +105,8 @@ void accumulate_accumulation_matrices(MATRIX_DATA* const mat);
 void solve_sparse_matrix(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA* const mat);
 void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA* const mat);
+void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat);
+void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA* const mat);
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat);
 
 // Helper solver routines
@@ -116,6 +135,8 @@ void average_sparse_block_fm_solutions(MATRIX_DATA* const mat);
 void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_dense_fm_normal_equations(MATRIX_DATA* const mat);
 void solve_accumulation_form_fm_equations(MATRIX_DATA* const mat);
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
+void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit);
 
 // Bootstrapping routines
 
@@ -137,9 +158,14 @@ void read_binary_dense_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_accumulation_fm_matrix(MATRIX_DATA* const mat);
 void read_binary_sparse_fm_matrix(MATRIX_DATA* const mat);
 void read_regularization_vector(MATRIX_DATA* const mat);
+void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data, char ** const name);
+void read_pair_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume);
+void read_other_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs);
 
 // Output functions.
 
+void write_reference_matrix(dense_matrix* const mat_ref);
+void write_cg_matrix(dense_matrix* const mat_cg);
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp);
 
 //--------------------------------------------------------------------
@@ -159,13 +185,10 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     output_solution_flag 			= control_input->output_solution_flag;
     rcond							= control_input->rcond;
     itnlim 							= control_input->itnlim;
+    iterative_calculation_flag 		= control_input->iterative_calculation_flag;
 	num_sparse_threads 				= control_input->num_sparse_threads;
 	position_dimension 				= control_input->position_dimension;
 	volume_weighting_flag 			= control_input->volume_weighting_flag;
-
-	// Copy iterative information.
-    iterative_calculation_flag 		= control_input->iterative_calculation_flag;
-	iteration_step_size     		= control_input->iteration_step_size;
 	
 	// Copy bootstrapping information.
 	bootstrapping_flag 				= control_input->bootstrapping_flag;
@@ -180,6 +203,13 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     output_residual                 = control_input->output_residual;
     force_sq_total					= 0.0;
  
+  	// Copy and  initialize output matrix options.
+ 	output_raw_frame_blocks			= control_input->output_raw_frame_blocks;
+ 	output_raw_splines				= control_input->output_raw_splines;
+ 	if  (output_raw_frame_blocks == 1) {
+ 		frame_block_fh = fopen("matrix.csr", "w");
+ 	}
+
     // Set blockwise composition weighting factors
     frames_per_traj_block 			= control_input->frames_per_traj_block;
 	current_frame_weight 			= 1.0;
@@ -191,10 +221,29 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
     // Will be changed in newfm.cpp if there is another value from read_frame_weights
     normalization = 1.0 /  (double) control_input->n_frames;
     
-    // Set accumulate_*_forces function pointers
-    accumulate_matching_forces 				= accumulate_vector_matching_forces;
-	accumulate_tabulated_forces 			= accumulate_vector_tabulated_forces;
-	
+    // Set size_per_vector based on scalar_matching_flag
+    size_per_vector = DIMENSION;
+    if (control_input->scalar_matching_flag == 1) {
+    	size_per_vector = 1;
+    }
+    
+    // Set accumulate_*_forces function pointers for scalar versus vector matching
+    if (control_input->scalar_matching_flag == 1) {
+    	accumulate_matching_forces 				= accumulate_scalar_matching_forces;
+		accumulate_symmetric_matching_forces 	= accumulate_scalar_matching_forces;
+		accumulate_one_body_force 				= accumulate_scalar_one_body_force;
+		accumulate_tabulated_forces 			= accumulate_scalar_tabulated_forces;
+		accumulate_symmetric_tabulated_forces 	= accumulate_scalar_tabulated_forces;
+		accumulate_one_body_tabulated_force 	= accumulate_scalar_one_body_tabulated_force;
+    } else {
+    	accumulate_matching_forces 				= accumulate_vector_matching_forces;
+		accumulate_symmetric_matching_forces	= accumulate_vector_symmetric_matching_forces;
+		accumulate_one_body_force 			 	= accumulate_vector_one_body_force;
+		accumulate_tabulated_forces 			= accumulate_vector_tabulated_forces;
+		accumulate_symmetric_tabulated_forces 	= accumulate_vector_symmetric_tabulated_forces;
+		accumulate_one_body_tabulated_force 	= accumulate_vector_one_body_tabulated_force;
+    }
+   
     // Determine the size of the matrix from model specifications (default sizing)
 	if (control_input->matrix_type != kDummy) determine_matrix_columns_and_rows(this, cg, control_input->frames_per_traj_block, control_input->pressure_constraint_flag);
 
@@ -224,6 +273,18 @@ MATRIX_DATA::MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *cons
         matrix_type = kDummy;
         initialize_dummy_matrix(this, control_input, cg);
         break;
+    case kREM: // Used for relative entropy interaction determination (e.g., newrem)
+        matrix_type = kREM;
+        initialize_rem_matrix(this, control_input, cg);
+        break;
+    case kIBI: // Used for iterative Boltzmann inversion update for interactions (e.g., newibi)
+        matrix_type = kIBI;
+        initialize_ibi_matrix(this, control_input, cg);
+        break;
+    case kRecode: // Used for relative entropy framewise observables (e.g., newobs)
+    	matrix_type = kRecode;
+    	initialize_frame_observable_matrix(this, control_input, cg);
+    	break;
     default:
         printf("Invalid matrix type.");
         exit(EXIT_FAILURE);
@@ -285,6 +346,12 @@ void matrix_sanity_checks(ControlInputs* const control_input) {
 		control_input->frames_per_traj_block = 1;
 	}
 	
+	if( ((MatrixType)(control_input->matrix_type) == kREM) && (control_input->frames_per_traj_block == 1) ) {
+	    printf("frame block size must be 1 when doing relative entropy minimization\n");
+	    printf("Setting block_size to 1.\n");
+	    control_input->frames_per_traj_block = 1;
+	}
+	
 	if (control_input->frames_per_traj_block < 1) {
 		printf("Please change the block size to a positive number and recheck your inputs before rerunning.\n");
 		exit(EXIT_FAILURE);
@@ -310,6 +377,10 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     mat->accumulate_fm_matrix_element = insert_dense_matrix_element;
     mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
     mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
+    
+    if (control_input->scalar_matching_flag == 1) {
+    	mat->accumulate_fm_matrix_element = insert_scalar_dense_matrix_element;
+    }
     
     if (control_input->bootstrapping_flag == 1) {
     	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
@@ -363,6 +434,9 @@ void initialize_dense_matrix(MATRIX_DATA* const mat, ControlInputs* const contro
     if (control_input->bootstrapping_flag == 1) {
 		allocate_bootstrapping(mat, control_input, mat->fm_matrix_columns, mat->fm_matrix_columns);
     }
+
+    	mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
 	mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns , mat->fm_matrix_columns);
     mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns]();
     // Initialized the matrix and vector to zero.
@@ -415,6 +489,9 @@ void initialize_accumulation_matrix(MATRIX_DATA* const mat, ControlInputs* const
 	mat->dense_fm_matrix = new dense_matrix(mat->accumulation_matrix_rows, mat->accumulation_matrix_columns);
 	mat->dense_fm_normal_rhs_vector = new double[mat->accumulation_matrix_columns]();
 
+		mat->fm_solution = std::vector<double>(mat->fm_matrix_columns);
+
+
     mat->lapack_tau = new double[mat->accumulation_matrix_columns]();
 
     // Initialized the matrix to zero.
@@ -432,6 +509,10 @@ void initialize_sparse_matrix(MATRIX_DATA* const mat, ControlInputs* const contr
     mat->accumulate_target_force_element = accumulate_force_into_dense_target_vector;
     mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
    	mat->sparse_matrix = NULL;
+
+    if (control_input->scalar_matching_flag == 1) {
+    	mat->accumulate_fm_matrix_element = insert_scalar_sparse_matrix_element;
+    }
 
    	if (control_input->bootstrapping_flag == 1) {
     	mat->do_end_of_frameblock_matrix_manipulations = solve_sparse_matrix_for_bootstrap;
@@ -517,6 +598,10 @@ void initialize_sparse_dense_normal_matrix(MATRIX_DATA* const mat, ControlInputs
     mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
     mat->sparse_matrix = NULL;
     
+    if (control_input->scalar_matching_flag == 1) {
+    	mat->accumulate_fm_matrix_element = insert_scalar_sparse_matrix_element;
+    }
+
     if (control_input->bootstrapping_flag == 1) {
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap;
     } else {
@@ -599,6 +684,11 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     mat->accumulate_target_constraint_element = accumulate_constraint_into_dense_target_vector;
 	mat->sparse_matrix = NULL;
 	
+    if (control_input->scalar_matching_flag == 1) {
+    	mat->accumulate_fm_matrix_element = insert_scalar_sparse_matrix_element;
+    }
+    
+
    	if (control_input->bootstrapping_flag == 1) {
     	mat->do_end_of_frameblock_matrix_manipulations = convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap;
     } else {
@@ -677,6 +767,137 @@ void initialize_sparse_sparse_normal_matrix(MATRIX_DATA* const mat, ControlInput
     mat->sparse_matrix = new csr_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns, mat->max_nonzero_normal_elements);
     
 	printf("Initialized a sparse-sparse normal FM matrix.\n");
+}
+
+// Initialize a matrix for relative entropy determination/update of interactions.
+
+void initialize_rem_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  //mat->accumulate_fm_matrix_element        = insert_scalar_matrix_element;
+  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+  
+  // Constraint elements do not make sense for this matrix type.
+  // Target force is not necessary for REM interaction determination.
+
+  // Adjustthe size the relative entropy matrix
+  mat->fm_matrix_rows = 2;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+	// Set the appropriate matrix variables
+    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+    mat->temperature = control_input->temperature;
+    mat->iteration_step_size = control_input->iteration_step_size;
+    mat->max_update_size_factor = control_input->max_update_size_factor;
+    mat->boltzmann = control_input->boltzmann;
+
+    
+	// Allocate the basic relative entropy matrix parts
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
+    printf("Initialized a relative entropy matrix.\n");
+}
+
+// Initialize a matrix for relative entropy determination/update of framewise observables.
+// Using the "Gaussian relaxation", this become a least squares problem.
+
+void initialize_frame_observable_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  mat->accumulate_target_force_element       = accumulate_scalar_into_dense_target_vector; // difference of FG and ref observable values
+  mat->accumulate_fm_matrix_element          = insert_dense_matrix_element;
+
+  // For normal form (least squares from Gaussian relaxation)
+  if (control_input->bootstrapping_flag == 1) {
+    mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_bootstrap;
+  } else { 
+	mat->do_end_of_frameblock_matrix_manipulations = convert_dense_fm_equation_to_normal_form_and_accumulate;
+  }
+
+  // For solving normal form
+  if (control_input->bootstrapping_flag == 1) {
+    mat->finish_fm = solve_dense_fm_normal_bootstrapping_equations;
+  } else {
+	mat->finish_fm = solve_dense_fm_normal_equations;
+  }
+  
+  // Constraint elements do not make sense for this matrix type.
+  
+  // This allows frameblocks of arbitrary size to be accumulated.
+  mat->fm_matrix_rows = control_input->frames_per_traj_block;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+  // Set the appropriate matrix variables
+  mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+  mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+  
+  // Allocate the basic relative entropy matrix parts
+  mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+  mat->dense_fm_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns);
+  mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns); 
+  mat->dense_fm_rhs_vector = new double[mat->fm_matrix_rows];
+  mat->dense_fm_normal_rhs_vector = new double[mat->fm_matrix_columns];
+  printf("Initialized a relative entropy matrix for framewise observables.\n");
+}
+
+void initialize_ibi_matrix(MATRIX_DATA* const mat, ControlInputs* const control_input, CG_MODEL_DATA* const cg)
+{
+  // Set (and override) matrix function pointers
+  mat->set_fm_matrix_to_zero                 = set_dense_matrix_to_zero;
+  mat->accumulate_matching_forces            = accumulate_frame_entropy_elements;
+  mat->accumulate_symmetric_matching_forces  = accumulate_frame_entropy_elements;
+  mat->accumulate_one_body_force 			 = accumulate_frame_entropy_elements;
+  mat->accumulate_tabulated_forces           = accumulate_tabulated_error; // does nothing
+  mat->accumulate_symmetric_tabulated_forces = accumulate_tabulated_error;
+  mat->accumulate_one_body_tabulated_force   = accumulate_tabulated_error;
+  //mat->accumulate_fm_matrix_element        = insert_scalar_matrix_element;
+  mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix;
+  
+  // Constraint elements do not make sense for this matrix type.
+  // Target force is not necessary for REM interaction determination.
+
+  // Adjustthe size the relative entropy matrix
+  mat->fm_matrix_rows = 2;
+  
+  printf("Number of rows for dense matrix algorithm: %d \n", mat->fm_matrix_rows);
+  printf("Number of columns for dense matrix algorithm: %d \n", mat->fm_matrix_columns);
+
+	// Set the appropriate matrix variables
+    mat->accumulation_matrix_columns = mat->fm_matrix_columns;
+    mat->accumulation_matrix_rows = mat->fm_matrix_rows; 
+    mat->temperature = control_input->temperature;
+    mat->iteration_step_size = control_input->iteration_step_size;
+    mat->max_update_size_factor = control_input->max_update_size_factor;
+    mat->boltzmann = control_input->boltzmann;
+
+    
+	// Allocate the basic relative entropy matrix parts
+    mat->fm_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+    mat->previous_rem_solution = std::vector<double>(mat->fm_matrix_columns, 0);
+	mat->dense_fm_matrix = new dense_matrix(mat->frames_per_traj_block, mat->fm_matrix_columns); // This allows frameblocks of variable size to be accumulated.
+    mat->dense_fm_normal_matrix = new dense_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns); 
+    printf("Initialized an iterative Boltzmann inversion matrix.\n");
 }
 
 // "Initialize" a dummy matrix.
@@ -798,9 +1019,9 @@ void determine_matrix_columns_and_rows( MATRIX_DATA* const mat, CG_MODEL_DATA* c
 	mat->rows_less_constraint_rows = cg->n_cg_sites * frames_per_traj_block;
     if (pressure_constraint_flag != 0) {
         mat->virial_constraint_rows = frames_per_traj_block;
-        mat->fm_matrix_rows = mat->rows_less_constraint_rows * DIMENSION + frames_per_traj_block;
+        mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector + frames_per_traj_block;
     }
-	mat->fm_matrix_rows = mat->rows_less_constraint_rows * DIMENSION + mat->virial_constraint_rows;
+	mat->fm_matrix_rows = mat->rows_less_constraint_rows * mat->size_per_vector + mat->virial_constraint_rows;
 }
 
 void determine_BI_interaction_rows_and_cols(MATRIX_DATA* mat, InteractionClassComputer* const icomp)
@@ -836,6 +1057,8 @@ void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input
    	for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
   		mat->bootstrap_solutions[i] = std::vector<double>(cols);
 	}
+	
+	if (mat->matrix_type == kREM) mat->do_end_of_frameblock_matrix_manipulations = calculate_frame_average_and_add_to_normal_matrix_and_bootstrap;
 }
     
 // Estimate upper and lower bounds for the number of non-zero elements in normal matrix
@@ -949,6 +1172,18 @@ void set_dummy_matrix_to_zero(MATRIX_DATA* const mat) {}
 // a set of spline coefficients.
 //---------------------------------------------------------------------
 
+void accumulate_vector_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // Calculate the associated forces.
+    // Use flat arrays for performance.
+    std::array<double, DIMENSION> forces;
+    for (int j = 0; j < DIMENSION; j++) {
+        forces[j] = table_fn_val * derivatives[0][j];
+    }
+    // Load those forces into the target vector.
+	mat->accumulate_target_force_element(mat, particle_ids[0] + info->current_frame_starting_row, &forces[0]);
+}
+
 void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
 {
     // Calculate the associated forces.
@@ -964,6 +1199,43 @@ void accumulate_vector_tabulated_forces(InteractionClassComputer* const info, co
     // Load those forces into the target vector.
     for (int i = 0; i < n_body; i++) {
         mat->accumulate_target_force_element(mat, particle_ids[i] + info->current_frame_starting_row, &forces[DIMENSION * i]);
+    }
+}
+
+void accumulate_vector_symmetric_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // Calculate the associated forces.
+    // Use flat arrays for performance.
+    std::vector<double> forces(DIMENSION * n_body);
+    for (int j = 0; j < DIMENSION; j++) forces[DIMENSION * (n_body - 1) + j] = 0.0;
+    for (int i = 0; i < n_body - 1; i++) {
+        for (int j = 0; j < DIMENSION; j++) {
+            forces[DIMENSION * i + j] = table_fn_val * fabs(derivatives[i][j]);
+            forces[DIMENSION * (n_body - 1) + j] += table_fn_val * fabs(derivatives[i][j]);
+        }
+    }
+    // Load those forces into the target vector.
+    for (int i = 0; i < n_body; i++) {
+        mat->accumulate_target_force_element(mat, particle_ids[i] + info->current_frame_starting_row, &forces[DIMENSION * i]);
+    }
+}
+
+void accumulate_vector_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // For each basis function,
+    int this_column;
+    int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+    int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+    std::array<double, DIMENSION> forces;
+    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+        // Calculate the associated forces.
+        // Use flat force array for performance.
+        for (int j = 0; j < DIMENSION; j++) {
+ 		    forces[j] = -basis_fn_vals[k] * derivatives[0][j];
+            }
+        // Load those forces into the target vector.
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, this_column, &forces[0], mat);
     }
 }
 
@@ -989,6 +1261,150 @@ void accumulate_vector_matching_forces(InteractionClassComputer* const info, con
         this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
         for (int i = 0; i < n_body; i++) {
             (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[DIMENSION * i], mat);
+        }
+    }
+}
+
+void accumulate_vector_symmetric_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // For each basis function,
+	int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
+    std::vector<double> forces(DIMENSION * n_body);
+    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+        // Calculate the associated forces.
+        // Use flat force array for performance.
+        for (int j = 0; j < DIMENSION; j++) forces[DIMENSION * (n_body - 1) + j] = 0.0;
+        for (int i = 0; i < n_body - 1; i++) {
+            for (int j = 0; j < DIMENSION; j++) {
+                forces[DIMENSION * i + j] = basis_fn_vals[k] * fabs(derivatives[i][j]);
+                forces[DIMENSION * (n_body - 1) + j] += basis_fn_vals[k] * fabs(derivatives[i][j]);
+            }
+        }
+        // Load those forces into the target vector.
+	   this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+       for (int i = 0; i < n_body; i++) {
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[DIMENSION * i], mat);
+        }
+    }
+}
+
+void accumulate_scalar_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+{
+   int this_column;
+   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int n_cg_sites = mat->rows_less_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
+   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+      this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
+   }
+}
+
+void accumulate_frame_entropy_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+{
+   int this_column;
+   int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+   int n_cg_sites = mat->rows_less_constraint_rows / mat->frames_per_traj_block / mat->size_per_vector; // This is (n_cg_sites * frames_per_traj_block * size_per_vector) / (frames_per_traj_block * size_per_vector);
+   int frame_row = (info->current_frame_starting_row / n_cg_sites) % mat->frames_per_traj_block; // This is (frame_index * n_cg_sites) / (n_cg_sites) with 1-base offset removed
+   for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+      this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+      //insert_scalar_matrix_element(n_body, this_column, basis_fn_vals[k], mat);    
+      insert_scalar_matrix_element(frame_row, this_column, basis_fn_vals[k], mat);    
+      //printf("Adding scalar at framerow %d and column %d with basis fx %f\n", frame_row, this_column, basis_fn_vals[k]);
+   }
+}
+
+void accumulate_BI_elements(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat)
+{
+  int this_column;
+  int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+  int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
+  for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+	this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+	insert_scalar_matrix_element(n_body, this_column, basis_fn_vals[k], mat);
+  }
+}
+
+void accumulate_tabulated_error(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+  printf("Tabulated interactions cannot be done for relative entropy interactions. Please remove tabulated interactions from rmin files.\n");
+  fflush(stdout);
+  exit(EXIT_FAILURE);
+}
+
+//---------------------------------------------------------------------
+// Scalar versions of the above functions (note symmetric and regular 
+// interactions are the same since the derivative is ignored).
+//---------------------------------------------------------------------
+
+void accumulate_scalar_one_body_tabulated_force(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // Calculate the associated forces.
+	std::array<double, 1> forces;
+    forces[0] = table_fn_val;
+
+    // Load this force into the target vector.
+	mat->accumulate_target_force_element(mat, particle_ids[0] + info->current_frame_starting_row, &forces[0]);
+}
+
+void accumulate_scalar_tabulated_forces(InteractionClassComputer* const info, const double &table_fn_val, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // Calculate the associated forces.
+    std::vector<double> forces(n_body);
+    forces[(n_body - 1)] = 0.0;
+    for (int i = 0; i < n_body - 1; i++) {
+        forces[i] = table_fn_val;
+        forces[(n_body - 1)] += -table_fn_val;
+    }
+    // Load those forces into the target vector.
+    for (int i = 0; i < n_body; i++) {
+        mat->accumulate_target_force_element(mat, particle_ids[i] + info->current_frame_starting_row, &forces[i]);
+    }
+}
+
+void accumulate_scalar_one_body_force(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // For each basis function,
+	int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+    std::array<double, 1> forces;
+    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+        // Calculate the associated forces.
+        // Use flat force array for performance.
+ 	    forces[0] = -basis_fn_vals[k];
+        // Load those forces into the target vector.
+        (*mat->accumulate_fm_matrix_element)(particle_ids[0] + info->current_frame_starting_row, this_column, &forces[0], mat);
+    }
+}
+
+void accumulate_scalar_matching_forces(InteractionClassComputer* const info, const int first_nonzero_basis_index, const std::vector<double> &basis_fn_vals, const int n_body, const int* particle_ids, std::array<double, DIMENSION>* const &derivatives, MATRIX_DATA * const mat) 
+{
+    // For each basis function,
+    int this_column;
+	int ref_column = info->interaction_class_column_index + info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+	int basis_columns = info->ispec->interaction_column_indices[info->index_among_matched_interactions] - info->ispec->interaction_column_indices[info->index_among_matched_interactions - 1];
+
+    std::vector<double> forces(n_body);
+    for (unsigned k = 0; k < basis_fn_vals.size(); k++) {
+        // Calculate the associated forces.
+        // Use flat force array for performance.
+        forces[(n_body - 1)] = 0.0;
+        for (int i = 0; i < n_body - 1; i++) {
+            forces[i] = -basis_fn_vals[k];
+            forces[(n_body - 1)] += basis_fn_vals[k];
+        }
+        // Load those forces into the target vector.
+        this_column = ref_column + ( (first_nonzero_basis_index + k) % basis_columns );
+        for (int i = 0; i < n_body; i++) {
+            (*mat->accumulate_fm_matrix_element)(particle_ids[i] + info->current_frame_starting_row, this_column, &forces[i], mat);
         }
     }
 }
@@ -1084,24 +1500,103 @@ void insert_sparse_matrix_element(const int i, const int j, double* const x, MAT
     }   
 }
 
+// Add a nonzero scalar value to a linked list format sparse matrix.
+
+void insert_scalar_sparse_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
+{
+    struct linked_list_sparse_matrix_element* curr_elem, *prev_elem, *head, *pt;    
+    head = mat->ll_sparse_matrix_row_heads[i].h;
+    
+    // If the linked list is empty
+    if (head == NULL) {
+        pt = new linked_list_sparse_matrix_element;
+        mat->ll_sparse_matrix_row_heads[i].h = pt;
+        pt->col = j;
+        pt->valx[0] = x[0];
+        pt->next = NULL;
+        mat->ll_sparse_matrix_row_heads[i].n += 1;
+        
+    // If the linked list is not empty
+    } else {
+        curr_elem = head;
+        prev_elem = NULL;
+        while (curr_elem != NULL) {
+            // If the element exists, add
+            if (curr_elem->col == j) {
+                curr_elem->valx[0] += x[0];
+                prev_elem = curr_elem;
+                break;
+            
+            // If the new element should be ahead of the next in the list
+            } else if (curr_elem->col > j) {
+                
+                // If the new element should be the first in the list
+                if (prev_elem == NULL) {
+                    pt = new linked_list_sparse_matrix_element;
+                    mat->ll_sparse_matrix_row_heads[i].h = pt;
+                    pt->col = j;
+                    pt->valx[0] = x[0];
+                    pt->next = curr_elem;
+
+                // General case
+                } else {
+                    pt = new linked_list_sparse_matrix_element;
+                    prev_elem->next = pt;
+                    pt->col = j;
+                    pt->valx[0] = x[0];
+                    pt->next = curr_elem;
+                }
+                mat->ll_sparse_matrix_row_heads[i].n += 1;
+                prev_elem = curr_elem;
+                break;
+            }
+            prev_elem = curr_elem;
+            curr_elem = prev_elem->next;
+        }
+        
+        // If the new element should be the last
+        if (prev_elem->col < j) {
+            pt = new linked_list_sparse_matrix_element;
+            prev_elem->next = pt;
+            pt->col = j;
+            pt->valx[0] = x[0];
+            pt->next = NULL;
+            mat->ll_sparse_matrix_row_heads[i].n += 1;
+        }
+    }   
+}
 // Add a dimension-sized force element to a dense matrix.
 
 inline void insert_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_vector(DIMENSION * i, j, x);
+    mat->dense_fm_matrix->add_vector(mat->size_per_vector * i, j, x);
 }
 
 // Add a dimension-sized force element to an accumulation matrix.
 
 inline void insert_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_vector(DIMENSION * i + mat->accumulation_row_shift, j, x);
+    mat->dense_fm_matrix->add_vector(mat->size_per_vector * i + mat->accumulation_row_shift, j, x);
 }
 
 inline void insert_scalar_matrix_element(const int i, const int j, double const x, MATRIX_DATA* const mat)
 {
   mat->dense_fm_matrix->add_scalar(i,j,x);
 }  
+
+// Add a scalar force element to a dense matrix.
+
+inline void insert_scalar_dense_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
+{
+    mat->dense_fm_matrix->add_scalar(mat->size_per_vector * i, j, x[0]);
+}
+
+// Add a scalar force element to an accumulation matrix.
+
+inline void insert_scalar_accumulation_matrix_element(const int i, const int j, double* const x, MATRIX_DATA* const mat)
+{
+    mat->dense_fm_matrix->add_scalar(mat->size_per_vector * i + mat->accumulation_row_shift, j, x[0]);
+}
 
 // Add a one-component virial contribution element to a dense matrix held 
 // alongside a sparse matrix; The virial rows will be dense, so only the
@@ -1111,7 +1606,7 @@ inline void insert_scalar_matrix_element(const int i, const int j, double const 
 
 inline void insert_dense_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * DIMENSION, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * mat->size_per_vector, n, x);
 }
 
 // Add a scalar virial contribution to a sparse matrix.
@@ -1125,7 +1620,7 @@ inline void insert_sparse_matrix_virial_element(const int m, const int n, const 
 
 inline void insert_accumulation_matrix_virial_element(const int m, const int n, const double x, MATRIX_DATA* const mat)
 {
-    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * DIMENSION + mat->accumulation_row_shift, n, x);
+    mat->dense_fm_matrix->add_scalar(mat->rows_less_constraint_rows * mat->size_per_vector + mat->accumulation_row_shift, n, x);
 }
 
 //--------------------------------------------------------------------
@@ -1173,7 +1668,9 @@ void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* cons
         calculate_target_force_dense_vector(shift_i, site_i, mat, f);
     } else if (mat->matrix_type == kAccumulation) {
         calculate_target_force_accumulation_vector(shift_i, site_i, mat, f);
-    }
+    } else if (mat->matrix_type == kREM || mat->matrix_type == kRecode) {
+    	// Do not accumulate per-particle values for kREM or kRecode.
+	}
 }
 
 // Calculate the RHS vector for dense or sparse matrix calculations
@@ -1240,6 +1737,7 @@ void accumulate_scalar_into_dense_target_vector(MATRIX_DATA* mat, int particle_i
 
 void convert_dense_fm_equation_to_normal_form_and_accumulate(MATRIX_DATA* const mat)
 {
+	if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
     double frame_weight = mat->get_frame_weight() * mat->normalization;
  	create_dense_normal_form(mat, frame_weight, mat->dense_fm_matrix,mat->dense_fm_normal_matrix, mat->dense_fm_rhs_vector, mat->dense_fm_normal_rhs_vector);
 }
@@ -1248,6 +1746,7 @@ void convert_dense_fm_equation_to_normal_form_and_bootstrap(MATRIX_DATA* const m
 {
 	int onei = 1.0;
 	int matrix_size = mat->fm_matrix_columns * mat->fm_matrix_columns;
+	if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
 	// Create temp normal matrix and rhs vector.
 	dense_matrix* temp_normal_matrix = new dense_matrix(mat->fm_matrix_columns, mat->fm_matrix_columns);
@@ -1297,6 +1796,7 @@ void convert_dense_target_force_vector_to_normal_form_and_accumulate(MATRIX_DATA
 void accumulate_accumulation_matrices(MATRIX_DATA* const mat)
 {
     int info_in;
+    if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
@@ -1319,6 +1819,7 @@ void accumulate_accumulation_matrices_for_bootstrap(MATRIX_DATA* const mat)
 	exit(EXIT_FAILURE);
 	
     int info_in;
+    if (mat->output_raw_frame_blocks == 1) mat->dense_fm_matrix->print_matrix_csr(mat->frame_block_fh);
 
     // Initialize the operation if this is the first block.
     if (mat->trajectory_block_index == 0) {
@@ -1408,6 +1909,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_accumulate(MATRIX_DATA
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1458,6 +1960,7 @@ void convert_sparse_fm_equation_to_sparse_normal_form_and_bootstrap(MATRIX_DATA*
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
     csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
    
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1537,6 +2040,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_accumulate(MATRIX_DATA*
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
    
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1631,6 +2135,7 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
    int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
    csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
    convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+   if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
    
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -1740,6 +2245,52 @@ void convert_sparse_fm_equation_to_dense_normal_form_and_bootstrap(MATRIX_DATA* 
 	  } 
       // CSR formatted FM and normal temp matrices are freed by destructor at end of function
   	 }
+}
+
+void calculate_frame_average_and_add_to_normal_matrix(MATRIX_DATA* const mat)
+{
+  double frame_weight = mat->get_frame_weight() * mat->normalization; 
+  for (int frame = 0; frame < mat->frames_per_traj_block; frame++) {
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the value to the first row of normal matrix
+		  mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+		  // Add the squared value to the second row of normal matrix
+		  mat->dense_fm_matrix->assign_scalar(frame, i, mat->dense_fm_matrix->get_scalar(frame, i) *  mat->dense_fm_matrix->get_scalar(frame, i));
+		  mat->dense_fm_normal_matrix->add_scalar(1, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+	  }
+  }
+}
+
+void calculate_frame_average_and_add_to_normal_matrix_and_bootstrap(MATRIX_DATA* const mat)
+{
+  double frame_weight = mat->get_frame_weight() * mat->normalization; 
+  double boot_weight;
+  for (int frame = 0; frame < mat->frames_per_traj_block; frame++) {
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the value to the first row of normal matrix (for master and then each bootstrapping replica)
+		  mat->dense_fm_normal_matrix->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+
+		  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+			boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+			if(boot_weight == 0.0) continue;
+			boot_weight *= mat->bootstrapping_normalization[j];
+			mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(0, i, mat->dense_fm_matrix->get_scalar(frame,i) * boot_weight);
+		 }
+	  }
+  
+	  for (int i = 0; i < mat->fm_matrix_columns; i++) {
+		  // Add the squared value to the second row of normal matrix (for master and then each bootstrapping replica)
+		  mat->dense_fm_matrix->assign_scalar(frame, i, mat->dense_fm_matrix->get_scalar(frame, i) *  mat->dense_fm_matrix->get_scalar(frame, i));
+		  mat->dense_fm_normal_matrix->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(frame, i) * frame_weight);
+
+		  for (int j = 0; j < mat->bootstrapping_num_estimates; j++) {
+			boot_weight = mat->bootstrapping_weights[j][mat->trajectory_block_index];
+			if(boot_weight == 0.0) continue;
+			boot_weight *= mat->bootstrapping_normalization[j];
+			mat->bootstrapping_dense_fm_normal_matrices[j]->add_scalar(1, 2, mat->dense_fm_matrix->get_scalar(frame,i) * boot_weight);
+		  }
+	  }
+  }
 }
 
 void do_nothing_to_fm_matrix(MATRIX_DATA* const mat) {}
@@ -2043,6 +2594,7 @@ void solve_this_sparse_matrix(MATRIX_DATA* const mat)
     int n_nonzero_matrix_elements = get_n_nonzero_matrix_elements(mat);
 	csr_matrix csr_fm_matrix(mat->fm_matrix_rows, mat->fm_matrix_columns, n_nonzero_matrix_elements);
     convert_linked_list_to_csr_matrix(mat, csr_fm_matrix);
+	if (mat->output_raw_frame_blocks == 1) csr_fm_matrix.print_matrix_csr(mat->frame_block_fh);
 	
    // Convert CSR matrix and dense RHS vector to normal-form    
    // Form sparse normal-form left-hand side matrix using mkl_dcsrmultcsr
@@ -2586,11 +3138,11 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
     	double residual = calculate_sparse_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 		printf("iteration %d: residual %lf\n", iteration, residual);
 		
-	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / DIMENSION);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
 	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
-		double beta  = (double)(DIMENSION) * n_cg_sites * n_frames / residual;
+		double beta  = (double)(mat->size_per_vector) * n_cg_sites * n_frames / residual;
 		
 		for (int i = 0; i < mat->fm_matrix_columns; i++) {
 			alpha_vec[i] = alpha;
@@ -2712,7 +3264,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 			}
 			
 			// Beta Scalar
-			beta =  (DIMENSION * n_cg_sites * n_frames - trace_product) / residual;	
+			beta =  (mat->size_per_vector * n_cg_sites * n_frames - trace_product) / residual;	
 
 		   write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		}
@@ -2729,7 +3281,7 @@ void solve_sparse_fm_normal_equations(MATRIX_DATA* const mat)
 		delete [] solution;
 		delete [] reg_vec;
 		delete product_reg_normal_matrix_inv_normal_matrix;
-    }
+	}
     
    // Free the CSR formatted normal matrix
    delete [] backup_rhs;
@@ -2939,11 +3491,11 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 	    
     	double residual = calculate_dense_residual(mat, backup_normal_matrix, backup_rhs, mat->fm_solution, mat->normalization);
 	    
-	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / DIMENSION);
+	    double n_cg_sites = (double)( mat->rows_less_constraint_rows/ mat->frames_per_traj_block / mat->size_per_vector);
 		double n_frames = 1.0 / mat->normalization;
 		
 	    double alpha = (double)(mat->fm_matrix_columns) / cblas_ddot(mat->fm_matrix_columns, solution, onei, solution, onei);
-		double beta  = (double)(DIMENSION) * n_cg_sites * n_frames / residual;
+		double beta  = (double)(mat->size_per_vector) * n_cg_sites * n_frames / residual;
 		
 		for (i = 0; i < mat->fm_matrix_columns; i++) {
 			alpha_vec[i] = alpha;
@@ -3053,7 +3605,7 @@ void solve_dense_fm_normal_equations(MATRIX_DATA* const mat)
 			}
 			
 			// Beta Scalar
-			beta =  ((double)(DIMENSION) * n_cg_sites * n_frames - trace_product) / residual;				
+			beta =  ((double)(mat->size_per_vector) * n_cg_sites * n_frames - trace_product) / residual;				
 
 			write_iteration(alpha_vec, beta, mat->fm_solution, residual, iteration, alpha_fp, beta_fp, sol_fp, res_fp);
 		}
@@ -3155,7 +3707,6 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     // is no longer needed.
     printf("Freeing raw FM equations.\n");
     fflush(stdout);
-    //delete mat->dense_fm_matrix;
     
     if (mat->iterative_calculation_flag == 1) {
         
@@ -3306,6 +3857,289 @@ void solve_dense_fm_normal_bootstrapping_equations(MATRIX_DATA* const mat)
     delete [] mat->bootstrapping_dense_fm_normal_matrices;
 }
 
+// Finish REM by finding new CG parameters
+
+void calculate_new_rem_parameters(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  write_cg_matrix(mat_cg->dense_fm_normal_matrix);
+  update_these_rem_parameters(cg, beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+}
+
+void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  double chi = mat_cg->iteration_step_size;
+  std::vector<double> back_previous_rem_solution(mat_ref->fm_matrix_columns);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  // copy previous_rem_solution to bootstrapping copies
+  for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    back_previous_rem_solution[l] = mat_ref->previous_rem_solution[l];
+  }
+  
+  // update for master
+  update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+
+  // update for bootstrap copies
+  for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
+  	// Restore original previous_rem_solution
+  	for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    	mat_ref->previous_rem_solution[l] = back_previous_rem_solution[l];
+  	}
+    // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)
+	update_these_rem_parameters(cg, beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_ref->fm_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
+  }
+}
+
+/*
+Main workhorse for REM optimization
+This method determines the next iteration of each basis set coefficient
+based on the REM update rule. Here, steepest descent is used.
+Some additional post-processing is used to promote the stability of the next solution:
+   (1) Basis coefficients are smoothed based on adjacent-averaging
+   (2) The last few spline knots are fixed to ensure a "reference" energy
+   (3) A "cap" on the maximum allowed change (per interaction) 
+ */
+void update_these_rem_parameters(CG_MODEL_DATA* const cg, const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &ref_new_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
+{
+  double KT = 1.0/beta;
+
+  assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
+  assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
+
+  // We split the REM calculation to be performed over each individual interaction
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+      // If that interaction is being matched,
+      if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
+	int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
+	int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	int interaction_column_index = (*icomp_iterator)->interaction_class_column_index;
+	// NOTE: is this start index still wrong for bonds/angles, needs to be shifted?
+	int start_index = interaction_column_index + (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1]; 
+	int n_coef = (*icomp_iterator)->ispec->get_bspline_k();
+
+	// Calculate the REM update based on the first and second derivatives (dU/dparam)
+	double update[n_basis_funcs];
+	double scale = 1.0;
+	double tempscale = 1.0;
+	for(int j = 0; j < n_basis_funcs; j++) {  
+	  ref_previous_solution[j+start_index] = (ref_normal_matrix->get_scalar(0,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index)) * beta;
+	  ref_new_solution[j+start_index] = (cg_normal_matrix->get_scalar(1,j+start_index) - cg_normal_matrix->get_scalar(0,j+start_index) * cg_normal_matrix->get_scalar(0,j+start_index)) * beta * beta;
+	}
+	
+	// Apply a small numerical correction to prevent divide-by-zero
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  if(ref_new_solution[k+start_index] == 0) {
+	    ref_new_solution[k+start_index] = VERYSMALL_F;	  	
+	  }
+
+	  //We use gradient descent (future iterations should consider other optimization schemes)
+	  //e.g., stochastic or conjugate gradient
+	  //lamda_new = lamda_old - chi * dS/dlamda / Hessian(i,i)
+	  //lamda_new = mat_cg->fm_solution
+	  //lamda_old = mat_cg->previous_rem_solution
+	  //dS/dlamda = mat_ref->previous_rem_solution
+	  //Hessian   = mat_ref->fm_solution
+	  update[k] = ( ref_previous_solution[k+start_index] / ref_new_solution[k+start_index] ) * chi;
+
+	  // ensure that the solution does not change too much
+	  // by finding the maximum change (or minimum tempscale)
+	  if(update[k] > (limit * KT)) {
+	    tempscale = (limit * KT) / update[k];
+	  } else if(update[k] < -(limit * KT)) {
+	    tempscale = -1.0*(limit * KT) / update[k];
+	  }
+	  if(tempscale < scale) scale = tempscale;
+	}
+
+	// apply per-interaction scaling here
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  update[k] *= scale;
+	}
+
+	//The next smoothing steps should only be applied when nonbonded potentials are being considered with SPLINES
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  //fix the update of the last n(=order) points to be nearly zero (need a fixed reference for integration and a slope of nearly zero)
+	  for(int k = 0; k < (n_coef); k++){
+	    //update[k] -= average_update_endpoints;	  
+	    update[n_basis_funcs-1-k] = 0.0;	  
+	  }
+	}
+
+	
+	// *************************************** REM UPDATE STEP *********************************************
+	// apply the REM update here (but the final n_coeff basis func updates should be zero)
+	for(int k = 0; k < n_basis_funcs; k++) {
+	  new_solution[k+start_index] = previous_solution[k+start_index] - update[k];
+	}
+	// *************************************** REM UPDATE STEP *********************************************
+
+	
+
+	// a bit repetitive, but ensure that the nonbonded SPLINE potentials are locally smoothed to prevent simulation instabilities (ie, force fluctuations)
+	if ((*icomp_iterator)->ispec->get_char_id() == 'n' && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+	  int num_const_knots = n_coef; 
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-(num_const_knots)+start_index] + (new_solution[n_basis_funcs-(num_const_knots)-1+start_index] - new_solution[n_basis_funcs-(num_const_knots)+start_index])/2.0;
+
+	  //smooth update based on i+1 and i-1, in running fashion
+	  for(int k = (n_basis_funcs-(num_const_knots) ); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - (num_const_knots) ){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	  }
+	}
+	
+	// perform similar smoothing for bspline bonds and angles
+	if (((*icomp_iterator)->ispec->get_char_id() == 'a' || (*icomp_iterator)->ispec->get_char_id() == 'b') && (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv) {
+
+	  double solution_low = new_solution[0+start_index] + (new_solution[0+start_index] - new_solution[1+start_index])/2.0;
+	  double solution_high = new_solution[n_basis_funcs-1+start_index] + (new_solution[n_basis_funcs-2+start_index] - new_solution[n_basis_funcs-1+start_index])/2.0;
+
+	  //smooth update based on i+1 and i-1, in running fashion
+	  for(int k = (n_basis_funcs-1); k >= 0; k--) {
+	    if(k == 0){
+	      new_solution[k+start_index] = (solution_low + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	    else if(k == n_basis_funcs - 1){
+	      new_solution[k+start_index] = (solution_high + new_solution[k+start_index] + new_solution[k-1+start_index])/3.0;
+	    }
+	    else{
+	      new_solution[k+start_index] = (new_solution[k-1+start_index] + new_solution[k+start_index] + new_solution[k+1+start_index])/3.0;
+	    }
+	  }
+	}
+	
+	//delete [] update;
+	//delete [] update_new;
+	
+      }
+    }
+  }
+  
+}
+
+// Finish IBI by finding new CG parameters
+void calculate_new_ibi_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  update_these_ibi_parameters(beta, mat_cg->iteration_step_size, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+}
+
+void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref)
+{
+  double beta = 1.0 / (mat_cg->temperature * mat_cg->boltzmann);
+  double chi = mat_cg->iteration_step_size;
+  std::vector<double> back_previous_solution(mat_ref->fm_matrix_columns);
+  write_reference_matrix(mat_ref->dense_fm_normal_matrix);
+  // copy previous_rem_solution to bootstrapping copies
+  for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    back_previous_solution[l] = mat_ref->previous_rem_solution[l];
+  }
+  
+  // update for master
+  update_these_ibi_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->dense_fm_normal_matrix, mat_ref->previous_rem_solution, mat_cg->previous_rem_solution, mat_cg->fm_solution, mat_cg->max_update_size_factor);
+
+  // update for bootstrap copies
+  for (int k = 0; k < mat_cg->bootstrapping_num_estimates; k++) {
+  	// Restore original previous_rem_solution
+  	for (unsigned l = 0; l < mat_ref->previous_rem_solution.size(); l++) {
+    	mat_ref->previous_rem_solution[l] = back_previous_solution[l];
+  	}
+    // Note: this assumes that the previous_rem_solution vectors are not needed later (since the get rewritten each iteration)    
+    update_these_ibi_parameters(beta, chi, mat_ref->dense_fm_normal_matrix, mat_cg->bootstrapping_dense_fm_normal_matrices[k], mat_ref->previous_rem_solution, mat_cg->previous_rem_solution, mat_cg->bootstrap_solutions[k], mat_cg->max_update_size_factor);
+  }
+}
+
+void update_these_ibi_parameters(const double beta, const double chi, const dense_matrix* ref_normal_matrix, const dense_matrix* cg_normal_matrix, std::vector<double> &ref_previous_solution, std::vector<double> &previous_solution, std::vector<double> &new_solution, const double limit)
+{  
+  assert(ref_normal_matrix->n_rows == cg_normal_matrix->n_rows);
+  assert(ref_normal_matrix->n_cols == cg_normal_matrix->n_cols);
+  double KT = 1.0/beta;
+  double *update = new double[cg_normal_matrix->n_cols]();
+
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
+  	printf("bin_value ref %lf,\t cg %lf\n", ref_normal_matrix->get_scalar(0,k), cg_normal_matrix->get_scalar(0,k));
+  	fflush(stdout);
+  }
+  
+  // Determine the potential energy values of the IBI update
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
+  
+      // This is the actual IBI update (in potential energy units)
+      // The normalized number of counts is fed in for both models. 
+      // The corrections to get to an RDF cancel the ref and cg values.
+      update[k] = - (chi * KT) * log( (double)(cg_normal_matrix->get_scalar(0,k)/ref_normal_matrix->get_scalar(0,k)) );
+      
+	  // ensure that the solution does not change too much.
+      if(update[k] > (limit * KT)) {
+		update[k] = (limit * KT);
+      } else if(update[k] < -(limit * KT)) {
+		update[k] = -(limit * KT);
+	  }
+  }
+    
+  // Turn the update (in potential energy units) into a set of spline coefficients to add to previous_solution.
+/*
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction, 
+    // if that interaction has a parameter distribution
+    if ( (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
+    
+    // These interactions do not generate parameter distributions
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
+  
+  	// swap out icci so that matrix does not go out of bounds
+  	int icci = (*icomp_iterator)->interaction_class_column_index;
+  	(*icomp_iterator)->interaction_class_column_index = 0;
+  	
+  	// Do BI for this interaction
+  	char** name = select_name((*icomp_iterator)->ispec, cg->name);
+    initialize_next_BI_matrix(mat, (*icomp_iterator));
+    
+      double junk, r, potential;
+  	  int index_among_defined_intrxns;
+  	  int counter;
+
+	  int num_entries = (2 * (int)((icomp->ispec->upper_cutoffs[index_among_defined_intrxns] - icomp->ispec->lower_cutoffs[index_among_defined_intrxns])/icomp->ispec->get_fm_binwidth() + 0.5));  
+	  std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[num_entries - 1];
+
+	  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+	  mat->accumulate_matching_forces(icomp, first_nonzero_basis_index, icomp->fm_basis_fn_vals, counter, junk, derivatives, mat);
+	  mat->accumulate_target_force_element(mat, counter, &potential);
+
+	  delete [] derivatives;
+    
+    solve_this_BI_equation(mat, solution_counter);
+    
+    // restore icci
+    (*icomp_iterator)->interaction_class_column_index = icci;
+  }
+*/
+  
+  // Add the update to the previous_solution spline coefficients.
+  for (int k = 0; k < cg_normal_matrix->n_cols; k++) {
+	  // I think that the previous solution is a set of spline coefficients (as opposed to potentials)
+	  new_solution[k] = previous_solution[k] - update[k];
+  }
+
+  // clean-up
+  delete [] update;
+
+}
+	
 // All the individual frame-block matrices have now been accumulated into a single matrix
 // with the condition number of the full-trajectory sparse matrix, as have the
 // individual target vectors, so the equations are in a final, solvable form. 
@@ -3720,6 +4554,189 @@ void read_regularization_vector(MATRIX_DATA* const mat)
     check_and_open_in_stream(lambda_in, "lambda.in");
     for (int i = 0; i < mat->fm_matrix_columns; i++) lambda_in >> mat->regularization_vector[i];
     lambda_in.close();
+}
+
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, const char* filename)
+{
+	mat->dense_fm_normal_matrix->read_dense_matrix(filename);
+}
+
+void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat)
+{
+  FILE* spline_input_file = open_file("b-spline-previous.out","r");
+
+  std::string type_name;
+  char stringjunk[100];
+  int counter = 0;
+
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    // For every defined interaction,
+    for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
+        // If that interaction is being matched,
+        if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
+	      int index_among_matched = (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i];
+          int n_basis_funcs = (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched] - (*icomp_iterator)->ispec->interaction_column_indices[index_among_matched - 1];
+	      fgets(stringjunk, 100, spline_input_file); // skip header line
+	      for (int k = 0; k < n_basis_funcs; k++) {  // read associated coefficients
+		    fscanf(spline_input_file, "%lf ", &mat->previous_rem_solution[counter]);
+		    counter ++;
+	      }
+	      fscanf(spline_input_file, "\n");
+        }
+	}
+  }
+  fclose(spline_input_file);
+}
+
+void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, const double volume)
+{
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+
+    // Reference distributions for these interactions are not supported.
+    if( (*icomp_iterator)->ispec->class_type == kOneBody|| (*icomp_iterator)->ispec->class_type == kThreeBodyNonbonded ) continue;
+
+    // Only for interactions that are to be determined...
+    if ( (*icomp_iterator)->ispec->n_to_force_match == 0) continue;
+    
+    // Set the correct name array for this interaction
+    char** name = select_name((*icomp_iterator)->ispec, cg->name);
+  
+  	// Read and build matrix section for this interaction
+    read_rdf_file_and_build_rem_matrix(mat, (*icomp_iterator), volume, &cg->topo_data, name);
+  }
+}
+
+void read_rdf_file_and_build_rem_matrix(MATRIX_DATA* mat, InteractionClassComputer* const icomp, double volume, TopologyData* topo_data, char ** const name)
+{ 
+  int counter = 0;
+  int* sitecounter;
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    sitecounter = new int[topo_data->n_cg_types]();
+    for(unsigned j = 0; j < topo_data->n_cg_sites; j++){
+      int type = topo_data->cg_site_types[j];
+      sitecounter[type-1]++;
+    }
+  }
+
+  icomp->fm_basis_fn_vals = std::vector<double>(icomp->fm_s_comp->get_n_coef());
+  for (int i = 0; i < icomp->ispec->n_defined; i++) {
+  	icomp->index_among_defined_intrxns = i;
+  	icomp->set_indices();
+  	
+  	if (icomp->index_among_matched_interactions == 0) continue;
+  	
+	if( icomp->ispec->class_type == kPairNonbonded ) {
+	  std::vector <int> type_vector = icomp->ispec->get_interaction_types(i);
+	  double num_pairs = sitecounter[type_vector[0]-1] * sitecounter[type_vector[1]-1];
+	  if( type_vector[0] == type_vector[1]){
+	    num_pairs -= sitecounter[type_vector[0]-1];
+	  }
+	  read_pair_distribution(icomp, name, mat, i, counter, num_pairs, volume);
+	} else if ( icomp->ispec->class_type == kPairBonded ) {
+	  read_pair_distribution(icomp, name, mat, i, counter, 2.0, 1.0);
+	} else {
+	  read_other_distribution(icomp, name, mat, i, counter,1.0);
+	}
+  }  
+  if (icomp->ispec->class_type == kPairNonbonded) {
+    delete [] sitecounter;
+  }
+}
+
+void read_pair_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs, double volume)
+{
+  const double PI = 3.1415926;
+  double r = 0.0;
+  double rprev = 0.0;
+  double rdf_value, normalized_counts;  
+  int first_nonzero_basis_index = 0;
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+  std::ifstream rdf_file;
+  std::string line;
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
+  
+  check_and_open_in_stream(rdf_file, rdf_name.c_str());
+  
+  check_and_read_next_line(rdf_file, line); // read header line
+  
+  // read next 2 lines to set rprev an appropriate distance back, then reset the file reader
+  int offset = rdf_file.tellg();
+  if(!std::getline(rdf_file, line))  exit(EXIT_FAILURE);
+  sscanf(line.c_str(),"%lf %lf\n",&r,&normalized_counts);
+  if(!std::getline(rdf_file, line))  exit(EXIT_FAILURE);
+  sscanf(line.c_str(),"%lf %lf\n",&rdf_value,&normalized_counts);
+  rprev = 2.0 * r - rdf_value;
+  rdf_file.seekg(offset);
+  
+  while ( r <= icomp->ispec->upper_cutoffs[index_among_defined_intrxns] ) {
+  	  // Read actual content
+      // Leave the loop only if we go beyond the upper cutoff or we reach the end of the file
+  	  if(!std::getline(rdf_file, line))  break;
+  	  sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
+      
+      if (rdf_value > 0.0) {
+  	  	  normalized_counts = rdf_value * 4.0 * PI * ( r*r*r - (rprev)*(rprev)*(rprev) ) / (3.0 * 2.0);
+		  normalized_counts *= (num_of_pairs / volume);
+		  // Get values for matrix elements
+		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
+		  	mat->dense_fm_normal_matrix->add_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  }
+	  }
+	  rprev = r;
+  }
+  
+  rdf_file.close();
+}
+
+void read_other_distribution(InteractionClassComputer* const icomp, char** const name, MATRIX_DATA* mat, const int index_among_defined_intrxns, int &counter, double num_of_pairs)
+{
+  double rdf_value, normalized_counts;
+  double r = 0;
+  int first_nonzero_basis_index = 0;
+  int ref_column = icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->index_among_matched_interactions - 1] + first_nonzero_basis_index; 
+  std::ifstream rdf_file;
+  std::string line;
+  std::string rdf_name = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_") + ".rdf";
+  check_and_open_in_stream(rdf_file, rdf_name.c_str());
+  
+  check_and_read_next_line(rdf_file, line); // read header line
+ 
+  while (r <= icomp->ispec->upper_cutoffs[index_among_defined_intrxns]) {
+  	  // Read actual content
+      // Leave the loop only if we go beyond the upper cutoff or we reach the end of the file
+  	  if(!std::getline(rdf_file, line))  break;
+      sscanf(line.c_str(),"%lf %lf\n",&r,&rdf_value);
+      
+      if (rdf_value > 0.0) {
+	  
+		  // Convert from rdf_value to distribution value
+		  normalized_counts =  rdf_value * num_of_pairs * 0.5;
+	  
+		  // Get values for matrix elements
+		  icomp->fm_s_comp->calculate_basis_fn_vals(index_among_defined_intrxns, r, first_nonzero_basis_index, icomp->fm_basis_fn_vals);
+		  for (int i = 0; i < icomp->ispec->get_bspline_k(); i++) {
+		  	mat->dense_fm_normal_matrix->add_scalar(0,ref_column + first_nonzero_basis_index + i, normalized_counts * icomp->fm_basis_fn_vals[i]);
+		  }
+  	  }
+  }
+  rdf_file.close();
+}
+
+void write_reference_matrix(dense_matrix* const ref_normal_matrix)
+{
+	FILE* fh = fopen("reference_matrix.out", "w");
+	ref_normal_matrix->print_matrix(fh);
+	fclose(fh);
+}
+
+void write_cg_matrix(dense_matrix* const cg_normal_matrix)
+{
+  FILE* fh = fopen("cg_matrix.out","w");
+  cg_normal_matrix->print_matrix(fh);
+  fclose(fh);
 }
 
 void write_iteration(const double* alpha_vec, const double beta, std::vector<double> fm_solution, const double residual, const int iteration, FILE* alpha_fp, FILE* beta_fp, FILE* sol_fp, FILE* res_fp)

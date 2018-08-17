@@ -1,0 +1,9 @@
+FM code
+2) Tabulated input for existing (MS-CG VI) 3B interactions
+3) Orthogonal basis sets
+6) Wavelet basis sets (?)
+7) Volume dependent basis sets (for one-body) and MS-CODE
+
+LAMMPS release
+1) Create python install script (Zack)
+2) Create/release python mapping script (Alek/Zack/Glen)

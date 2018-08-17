@@ -162,13 +162,15 @@ int pad_values_front_with_fix(std::vector<double>& axis_vals, std::vector<double
       i--;
     }
   // And then adding new ones
-  while(axis_vals[0] - spacing > spacing)
+  //while(axis_vals[0] - spacing > spacing)
+  while(axis_vals[0] - spacing > VERYSMALL_F )
     {
       axis_it = axis_vals.begin();
       force_it = force_vals.begin();
 
       axis_vals.insert(axis_it, axis_vals[0] - spacing);
-      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
+      //      force_vals.insert(force_it, 2*force_vals[0] - force_vals[1]);
+      force_vals.insert(force_it, force_vals[0] + (force_vals[0] - force_vals[1])/spacing);
     }
   return flag;
 }
@@ -233,6 +235,7 @@ int pad_values_back_with_fix(const double high, std::vector<double>& axis_vals, 
       i++;
     }
   // And then adding new ones
+  //while (axis_vals[last] + spacing < high)
   while (axis_vals[last] + spacing < high)
     {
       axis_vals.push_back(axis_vals[last] + spacing);

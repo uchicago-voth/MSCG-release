@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 
     printf("Reading first frame.\n");
     printf("Finding first frame ...\n");
-    fs.get_first_frame(&fs, cg.n_cg_sites, cg.topo_data.cg_site_types);
+    fs.get_first_frame(&fs, cg.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 
     printf("Reading interaction ranges.\n");
     initialize_range_finding_temps(&cg);
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 
     //This is part of the BI routine
     //Only calculate if at least one parameter distribution exists
-	if (any_active_parameter_distributions(&cg) == true) {
+	if (any_active_parameter_distributions(&cg) == true && control_input.output_style != 3) {
 		printf("Calculating Boltzmann inversion using parameter distributions\n");
 		fflush(stdout);
 		

@@ -11,6 +11,6 @@ pair_nonbonded_basis_set_resolution 0.7
 pair_nonbonded_output_binwidth 0.1
 matrix_type 0
 lanyuan_iterative_method_flag 0
-dynamic_state_sampling 1
-dynamic_state_samples_per_frame 10
+dynamic_state_sampling 1		   # Use dynamic_state_sampling to choose type based on state probability specified in trajectory
+dynamic_state_samples_per_frame 10 # Number of times to resample types for each frame
 dynamic_types 0

@@ -35,10 +35,12 @@ struct TopologyData {
     unsigned n_cg_types;                    // Total number of CG site types
     char** name;                            // Human-readable names for each CG site type
     int* cg_site_types;                     // List of the CG types for each site
+	int* molecule_ids;						// List of the molecule id for each site
     
     unsigned max_pair_bonds_per_site;            // Max pair bonds defined by connection to a single site
     unsigned max_angles_per_site;                // Max angles defined by connection to a single site
     unsigned max_dihedrals_per_site;             // Max dihedrals defined by connection to a single site
+	unsigned max_quints_per_site;
 	
 	// Pointers to TopoLists containing the sites connected to a given site through a given topological feature.
     TopoList* bond_list;
@@ -46,15 +48,24 @@ struct TopologyData {
     								// The first partner in this list for each angle is the "center" followed by the remaining site.
     TopoList* dihedral_list;		// This list only has "partners" for the end sites of the dihedral (not the central "bond" atoms).
     								// The first two partners in this list for each dihedral are the "center bond sites" followed by the remaining site.
+    TopoList* quint_list;			// This list only has "partners" for the end sites of the dihedral (not the central "angle" atoms).
+    								// The first three partners in this list for each dihedral are the "center bond sites" followed by the remaining site.
     TopoList* exclusion_list;
+    TopoList* molecule_list;
     
     int* bond_type_activation_flags;        // 0 if a given type of pair bonded interaction is active in the model; 1 otherwise
     int* angle_type_activation_flags;       // 0 if a given type of angular bonded interaction is active in the model; 1 otherwise
     int* dihedral_type_activation_flags;    // 0 if a given type of dihedral bonded interaction is active in the model; 1 otherwise
+	int* quint_type_activation_flags;		// 0 if a given type of R15 bonded interaction is active in the model; 1 otherwise
 	
 	int excluded_style;					// 0 no exclusions; 2 exclude 1-2 bonded; 3 exclude 1-2 and 1-3 bonded; 4 exclude 1-2, 1-3 and 1-4 bonded interactions
 	int angle_format;
 	int dihedral_format;
+	
+	// Radius of gyration specific variables
+	int n_molecule_groups;
+	bool* molecule_groups;
+	char** molecule_group_names;
 	
 	// Density basis specific variables
 	int n_density_groups;
@@ -74,7 +85,9 @@ struct TopologyData {
 		max_dihedrals_per_site(max_dihedrals) {
 		bond_list = angle_list = dihedral_list  = NULL;
 		exclusion_list = density_exclusion_list = NULL;
+		molecule_list = NULL;
 		cg_site_types = NULL;
+  		molecule_ids = NULL;
 		bond_type_activation_flags = angle_type_activation_flags = dihedral_type_activation_flags = NULL;
 		};
 	
@@ -92,4 +105,8 @@ void initialize_topology_data(TopologyData* const topo_data);
 
 // Determine appropriate non-bonded exclusions based on bonded topology and exclusion_style setting (used for LAMMPS fix).
 void setup_excluded_list(TopologyData const* topo_data,  TopoList* &exclusion_list, const int excluded_style);
+
+// Determine molecule lists based on molecule id information.
+void setup_molecule_list(TopologyData const* topo_data, TopoList* &molecule_list, const int n_molecules, const int max_size_per_molecule);
+void update_molecule_list(TopologyData const* topo_data, TopoList* &molecule_list);
 #endif

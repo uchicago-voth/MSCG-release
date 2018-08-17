@@ -10,8 +10,9 @@
 
 #include <vector>
 #include "gsl/gsl_bspline.h"
+#include "math.h"
 
-enum BasisType {kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2, kNone = 3};
+enum BasisType {kDelta = -1, kBSpline = 0, kLinearSpline = 1, kBSplineAndDeriv = 2, kNone = 3, kPower = 4, kLJ = 5};
 
 struct InteractionClassSpec;
 
@@ -25,12 +26,12 @@ protected:
 
     InteractionClassSpec *ispec_;
     std::vector<unsigned> interaction_column_indices_;
-    double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     
 public:
     SplineComputer(InteractionClassSpec* ispec);
     inline virtual ~SplineComputer() { }
     void get_bin(void);
+    double get_param_less_lower_cutoff(const int index_among_defined, const double param_val) const;
     inline int get_n_coef(void) { return n_coef; };
     virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals) = 0;
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis) = 0;
@@ -81,6 +82,16 @@ public:
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
 };
 
+class DeltaSplineComputer : public SplineComputer {
+
+public:
+    DeltaSplineComputer(InteractionClassSpec* ispec);
+    virtual ~DeltaSplineComputer() {}
+
+    virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
+    virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+};
+
 class NoneSplineComputer : public SplineComputer {
 
 public:
@@ -100,5 +111,60 @@ public:
     virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
     virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
 };
+
+
+class PowerComputer : public SplineComputer {
+
+ public:
+  PowerComputer(InteractionClassSpec* ispec);
+  virtual ~PowerComputer() {}
+
+  virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_vals, int &first_nonzero_basis_index, std::vector<double> &vals);
+  void calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
+  virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+  double evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis); 
+  virtual void power_eval(const double param_val, std::vector<double> &vals);
+  virtual void inverse_power_eval(const double param_val, std::vector<double> &vals);
+  virtual void deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual void inverse_deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual void fourier_eval(const double param_val, std::vector<double> &vals);
+  virtual void fourier_deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double inverse_power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double inverse_deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double fourier_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double fourier_deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+};
+
+class LJComputer : public SplineComputer {
+
+ public:
+  LJComputer(InteractionClassSpec* ispec);
+  virtual ~LJComputer() {}
+
+  virtual void calculate_basis_fn_vals(const int index_among_defined, const double param_vals, int &first_nonzero_basis_index, std::vector<double> &vals);
+  void calculate_bspline_deriv_vals(const int index_among_defined, const double param_val, int &first_nonzero_basis_index, std::vector<double> &vals);
+  virtual double evaluate_spline(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+  double evaluate_spline_deriv(const int index_among_defined, const int first_nonzero_basis_index, const std::vector<double> &spline_coeffs, const double axis);
+  
+  virtual void power_eval(const double param_val, std::vector<double> &vals);
+  virtual void deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+
+  virtual void inverse_power_eval(const double param_val, std::vector<double> &vals);
+  virtual void inverse_deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double inverse_power_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double inverse_deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+
+  virtual void fourier_eval(const double param_val, std::vector<double> &vals);
+  virtual void fourier_deriv_eval(const double param_val, std::vector<double> &vals);
+  virtual double fourier_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+  virtual double fourier_deriv_axis(const int index_among_definedd, const std::vector<double> &spline_coeffs, const double axis_val, int ici_value, int first_nonzero_basis_index);
+
+
+};
+  
 
 #endif

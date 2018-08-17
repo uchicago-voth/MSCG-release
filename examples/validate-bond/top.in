@@ -6,8 +6,8 @@ mol 2 3
 sitetypes
 1
 1
-bonds 1
-1 2
+bonds 1 # Number of bonds in molecule
+1 2	# List sets of sites that are bonds based on ordering in siteypes (see format above)
 system 1
 1 1
 

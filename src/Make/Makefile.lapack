@@ -28,23 +28,38 @@ COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h inter
 libmscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS) range_finding.o
 	ar rvs libmscg.a *.o
 
-newfm.x: newfm.o $(COMMON_OBJECTS)
+newfm: newfm.o $(COMMON_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
 
-newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
-	$(CC) $(NO_GRO_LDFLAGS) -o $@ newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+newfm_no_gro: newfm.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
-rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+newrem: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newrem.o $(COMMON_OBJECTS) $(LIBS)
 
-rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS)
+newrem_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newrem.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+newibi: newibi.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newibi.o $(COMMON_OBJECTS) $(LIBS)
+
+newibi_no_gro: newibi.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newibi.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+recode: recode.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+
+recode_no_gro: recode.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+rangefinder: rangefinder.o range_finding.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+
+rangefinder_no_gro: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS)
 	
-rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
-	$(CC) $(NO_GRO_LDFLAGS) -o $@ rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
-
-combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
+combinefm: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
 
 # Target objects
 
@@ -53,6 +68,15 @@ mscg.o: mscg.cpp $(COMMON_SOURCE) range_finding.o
 
 newfm.o: newfm.cpp $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c newfm.cpp
+
+newibi.o: newibi.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newibi.cpp
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
+recode.o: recode.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c recode.cpp
 
 rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c rangefinder.cpp
@@ -107,4 +131,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm.x rangefinder.x combinefm.x
+all: libmscg.a newfm rangefinder combinefm newrem recode newibi

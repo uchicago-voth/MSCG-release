@@ -17,6 +17,8 @@
 #include "trajectory_input.h"
 #include "splines.h"
 
+//#include "range_finding.cpp"
+
 //--------------------------------------------------------------------
 // Prototypes for internal implementation-specific functions
 //--------------------------------------------------------------------
@@ -30,8 +32,11 @@ bool check_density_excluded_list(const TopologyData* const topo_data, const int 
 // differing by the way that potentially interacting particles are found in 
 // each frame and possibly found not to interact after.
 
+void order_one_body_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const & x, const real *simulation_box_half_lengths);
 void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
+void order_radius_of_gyration_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);    
+void order_helical_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void order_three_body_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void density_fm_matrix_element_calculation(InteractionClassComputer* const iclass, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 
@@ -40,13 +45,18 @@ void density_fm_matrix_element_calculation(InteractionClassComputer* const iclas
 void process_completed_density(DensityClassComputer* const info, calc_pair_matrix_elements process_density, const int n_cg_types, int* const cg_site_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 inline void decode_density_interaction_and_calculate(DensityClassComputer* info, unsigned long interaction_flags, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths);
 void process_normal_interaction_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
+void process_one_body_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk, const double junk2);
 void process_density_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double density_value, const int virial_flag, const double density_derivative, const double distance);
+void process_ibi_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
 
 // Functions for calculating individual 3-component matrix elements.
 
+void calc_one_body_fm_matrix_element(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_isotropic_two_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
+void calc_radius_of_gyration_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
+void calc_helical_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_density_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
 void calc_nonbonded_2_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat);
@@ -106,6 +116,13 @@ void InteractionClassComputer::set_up_computer(InteractionClassSpec* const ispec
     class_set_up_computer();
 }
 
+void OneBodyClassComputer::class_set_up_computer(void) 
+{
+    cutoff2 = 1.0;
+    calculate_fm_matrix_elements = calc_one_body_fm_matrix_element;
+    process_interaction_matrix_elements = process_one_body_matrix_elements;
+}
+
 void PairNonbondedClassComputer::class_set_up_computer(void) 
 {
 	calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
@@ -126,6 +143,31 @@ void DihedralClassComputer::class_set_up_computer(void)
 {
     if (ispec->class_subtype == 1) calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
     else calculate_fm_matrix_elements = calc_dihedral_four_body_fm_matrix_elements;
+}
+
+void R13ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R14ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void R15ClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_isotropic_two_body_fm_matrix_elements;
+}
+
+void HelicalClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_helical_fm_matrix_elements;
+}
+
+void RadiusofGyrationClassComputer::class_set_up_computer(void) 
+{
+    calculate_fm_matrix_elements = calc_radius_of_gyration_fm_matrix_elements;
 }
 
 void DensityClassComputer::class_set_up_computer(void) 
@@ -254,6 +296,13 @@ void ThreeBodyNonbondedClassComputer::special_set_up_computer(InteractionClassSp
     fm_s_comp = new BSplineAndDerivComputer(ispec);
 }
 
+void set_ibi_process_pointer(CG_MODEL_DATA* const cg) {
+  std::list<InteractionClassComputer*>::iterator icomp_iterator;
+  for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+ 	(*icomp_iterator)->process_interaction_matrix_elements = process_ibi_matrix_elements; 
+  }
+}
+
 //--------------------------------------------------------------------
 // Main routine calling all other matrix element calculation routines
 //--------------------------------------------------------------------
@@ -277,11 +326,26 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
     if (cg->three_body_nonbonded_interactions.class_subtype > 0) {
         three_body_cell_list.populateList(frame_config->current_n_sites, frame_config->x);
     }
+   
+    // Check if molecule_list should be updated.
+    if (cg->molecule_flag == 1) {
+    	update_molecule_list(&cg->topo_data, cg->topo_data.molecule_list);
+    }
+    
+    // Check if molecule list should be updated.
+  	if (cg->helical_interactions.class_subtype == 1) {
+    	cg->helical_interactions.rebuild_helical_list(cg->topo_data.molecule_list, cg->topo_data.dihedral_list);
+    }
     
     // Calculate matrix elements by looking through interaction (cell and topology) lists to find active (and non-excluded) interactions.
     std::list<InteractionClassComputer*>::iterator icomp_iterator;
-	for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
+    for(icomp_iterator=cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
         (*icomp_iterator)->calculate_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, pair_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
+
+	//debug here --> this point already has the bad cutoff values
+	//FILE* fh = fopen("test.out","a");
+	//mat->dense_fm_normal_matrix->print_matrix(fh);
+	//fclose(fh);
     }
     cg->three_body_nonbonded_computer.calculate_3B_interactions(mat, trajectory_block_frame_index, current_frame_starting_row, cg->n_cg_types, cg->topo_data, three_body_cell_list, frame_config->x, frame_config->simulation_box_half_lengths);
 }
@@ -293,12 +357,22 @@ void calculate_frame_fm_matrix(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, 
 
 // Find all neighbors of all particles and call nonbonded matrix element computations for any pairs that interact. 
 
+void OneBodyClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+  if (ispec->class_subtype == 0) return;
+  trajectory_block_frame_index = traj_block_frame_index;
+  current_frame_starting_row = curr_frame_starting_row;
+  for (k = 0; k < (int)(topo_data.n_cg_sites); k++) {
+    order_one_body_fm_matrix_element_calculation(this, calculate_fm_matrix_elements, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+  }
+}
+
 void PairNonbondedClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
 {
-    if (ispec->n_defined == 0) return;
-    trajectory_block_frame_index = traj_block_frame_index;
-    current_frame_starting_row = curr_frame_starting_row;
-    walk_neighbor_list(mat, calculate_fm_matrix_elements, n_cg_types, topo_data, pair_cell_list, x, simulation_box_half_lengths);
+  if (ispec->n_defined == 0) return;
+  trajectory_block_frame_index = traj_block_frame_index;
+  current_frame_starting_row = curr_frame_starting_row;
+  walk_neighbor_list(mat, calculate_fm_matrix_elements, n_cg_types, topo_data, pair_cell_list, x, simulation_box_half_lengths);
 }
 
 inline void InteractionClassComputer::walk_neighbor_list(MATRIX_DATA* const mat, calc_pair_matrix_elements calc_matrix_elements, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
@@ -416,6 +490,102 @@ void DihedralClassComputer::calculate_interactions(MATRIX_DATA* const mat, int t
             j = topo_data.dihedral_list->partners_[k][3 * kk + 1];
             if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
         }
+    }
+}
+
+void R13ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.angle_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from angle list (organization of angle_list described in topology files).
+        	// j is the "center" index while l and k are the "ends" of the angle.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.angle_list->partners_[k][2 * kk + 1];
+            j = topo_data.angle_list->partners_[k][2 * kk];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R14ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.dihedral_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.dihedral_list->partners_[k][3 * kk + 2];
+            j = topo_data.dihedral_list->partners_[k][3 * kk];
+            i = topo_data.dihedral_list->partners_[k][3 * kk + 1];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void R15ClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    
+    if (DIMENSION != 3) {
+    	printf("Dihedral calculations are currently only implemented for 3-dimensional systems.\n");
+    	exit(EXIT_FAILURE);
+    }
+
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    for (k = 0; k < int(topo_data.n_cg_sites); k++) {
+        for (unsigned kk = 0; kk < topo_data.quint_list->partner_numbers_[k]; kk++) {
+        	// Grab partners from dihedral list (organization of dihedral_list described in topology files).
+        	// i and j are the indices for the "central bond" index while l and k are the "ends" of the dihedral.
+        	// To avoid double counting, the interaction is only counted if the ends are
+        	// ordered such that k < l.
+            l = topo_data.quint_list->partners_[k][4 * kk + 3];
+            h = topo_data.quint_list->partners_[k][4 * kk];
+            i = topo_data.quint_list->partners_[k][4 * kk + 1];
+            j = topo_data.quint_list->partners_[k][4 * kk + 2];
+            if (k < l) order_bonded_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+        }
+    }
+}
+
+void HelicalClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0 || ispec->class_subtype == 0) return;
+    
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(ispec);
+    
+    // Look through each molecule that could have active interactions
+    for (k = 0; k < (int)(h_spec->topo_data_->molecule_list->n_sites_); k++) {
+    	order_helical_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
+    }
+}
+
+void RadiusofGyrationClassComputer::calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths) 
+{
+    if (ispec->n_defined == 0) return;
+    trajectory_block_frame_index = traj_block_frame_index;
+    current_frame_starting_row = curr_frame_starting_row;
+    RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(ispec);
+    
+    // Look through each molecule that could have active interactions
+    for (k = 0; k < (int)(rg_spec->topo_data_->molecule_list->n_sites_); k++) {
+    	order_radius_of_gyration_fm_matrix_element_calculation(this, topo_data.cg_site_types, n_cg_types, mat, x, simulation_box_half_lengths);
     }
 }
 
@@ -553,13 +723,30 @@ inline bool check_density_excluded_list(const TopologyData* const topo_data, con
 // each frame and possibly found not to interact after.
 //--------------------------------------------------------------------
 
+void order_one_body_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
+{
+    // Calculate the appropriate matrix elements.
+    info->index_among_defined_intrxns = cg_site_types[info->k] - 1;
+    info->index_among_matched_interactions = info->ispec->defined_to_matched_intrxn_index_map[info->index_among_defined_intrxns];
+    info->index_among_tabulated_interactions = info->ispec->defined_to_tabulated_intrxn_index_map[info->index_among_defined_intrxns];
+    if ((info->index_among_matched_interactions == 0) && (info->index_among_tabulated_interactions == 0)) return; // if the index is zero, it is not present in the model and should be ignored.
+    calc_matrix_elements(info, x, simulation_box_half_lengths, mat);
+}
+
 void order_pair_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, calc_pair_matrix_elements calc_matrix_elements, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
 {
     // Calculate the appropriate matrix elements.
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(calc_two_body_interaction_hash(cg_site_types[info->k], cg_site_types[info->l], n_cg_types));
     info->set_indices();
 
+    //if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
     calc_matrix_elements(info, x, simulation_box_half_lengths, mat);
+    
+    //debug here --> this point already has the bad cutoff values
+    //FILE* fh = fopen("test.out","a");
+    //mat->dense_fm_normal_matrix->print_matrix(fh);
+    //fclose(fh);
+
 }
 
 void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
@@ -568,7 +755,47 @@ void order_bonded_fm_matrix_element_calculation(InteractionClassComputer* const 
     info->index_among_defined_intrxns = info->ispec->get_index_from_hash(info->calculate_hash_number(cg_site_types, n_cg_types));
     info->set_indices();
 
+    //if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+
     (*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
+}
+
+void order_radius_of_gyration_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
+{
+	RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(info->ispec);
+	int n_cg_molecules = rg_spec->topo_data_->molecule_list->n_sites_;
+	// See what interaction types are active for this molecule (info->k)
+	// Set the appropriate indices if it is active.
+	for (int i = 0; i < rg_spec->n_molecule_groups; i++) {
+		if (rg_spec->molecule_groups[i*(n_cg_molecules) + info->k] == true) {
+		
+			// Calculate the appropriate matrix elements.    
+			info->index_among_defined_intrxns = i;
+			info->set_indices();
+
+			if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+			(*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
+		}
+	}
+}
+
+void order_helical_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
+{
+	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(info->ispec);
+	int n_cg_molecules = h_spec->topo_data_->molecule_list->n_sites_;
+	// See what interaction types are active for this molecule (info->k)
+	// Set the appropriate indices if it is active.
+	for (int i = 0; i < h_spec->n_molecule_groups; i++) {
+		if (h_spec->molecule_groups[i*(n_cg_molecules) + info->k] == true) {
+		
+			// Calculate the appropriate matrix elements.    
+			info->index_among_defined_intrxns = i;
+			info->set_indices();
+
+			if (info->index_among_matched_interactions == 0) return; // if the index is zero, it is not present in the model and should be ignored.
+			(*info->calculate_fm_matrix_elements)(info, x, simulation_box_half_lengths, mat);
+		}
+	}
 }
 
 void order_three_body_nonbonded_fm_matrix_element_calculation(InteractionClassComputer* const info, int* const cg_site_types, const int n_cg_types, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths)
@@ -675,57 +902,106 @@ void accumulate_matching_order_parameter_forces(InteractionClassComputer* const 
 
 inline void process_normal_interaction_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
 {
-	int index_among_defined = info->index_among_defined_intrxns;
-	int index_among_matched = info->index_among_matched_interactions;
+  int index_among_defined = info->index_among_defined_intrxns;
+  int index_among_matched = info->index_among_matched_interactions;
+  int index_among_tabulated = info->index_among_tabulated_interactions;
+  int index_among_symmetric = info->index_among_symmetric_interactions;
+  int index_among_symtab = info->index_among_symtab_interactions;
+  int first_nonzero_basis_index;
+  int temp_column_index;
+  double basis_sum;
+  
+  if (index_among_tabulated > 0) {
+    // Pull the interaction from a table. 	   
+    info->table_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->table_basis_fn_vals);
+    if (n_body == 1) {
+      basis_sum = info->table_basis_fn_vals[0];
+    } else {
+      basis_sum  = info->table_basis_fn_vals[0] + info->table_basis_fn_vals[1];
+    }
+    
+    // Add to force target.
+    if (index_among_symtab == 0) {
+      // This is an antisymmetric (i.e. force) interaction table.
+      mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    } else {
+      // This is a symmetric (i.e. MS-CODE) interaction table.
+      mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    }
+    
+    // Add to target virial if virial_flag is non-zero.
+    switch (virial_flag) {
+    case 1:
+      if (mat->virial_constraint_rows > 0) mat->accumulate_target_constraint_element(mat, info->trajectory_block_frame_index, -basis_sum * param_value);
+      break;
+      
+    case 0: default:
+      // These interactions do not contribute to the scalar virial.
+      // Such interactions include angles and dihedrals.
+      break;
+    }
+  }
+  
+  if (index_among_matched > 0) {
+    // Compute the strength of each basis function.
+    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
+    
+    // Add to the force matching.       
+    if (index_among_symmetric == 0) {
+      // This interaction is antisymmetric (i.e. force).
+      mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    } else {
+      // This interaction is symmetric (i.e. MS-CODE).
+      mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    }
+    
+    // Add to virial matching if virial_flag is non-zero.
+    switch (virial_flag) {
+    case 1:
+      temp_column_index = info->interaction_class_column_index + info->ispec->interaction_column_indices[index_among_matched - 1] + first_nonzero_basis_index;
+      for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
+	int basis_column = temp_column_index + i;
+	if (mat->virial_constraint_rows > 0)(*mat->accumulate_virial_constraint_matrix_element)(info->trajectory_block_frame_index, basis_column, info->fm_basis_fn_vals[i] * param_value, mat);
+      }
+      break;
+      
+    case 0: default:
+      // These interactions do not contribute to the scalar virial.
+      // Such interactions include angles and dihedrals.
+      break;
+    }
+  }    
+}
+
+inline void process_one_body_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
+{
+    int index_among_defined = info->index_among_defined_intrxns;
+    int index_among_matched = info->index_among_matched_interactions;
     int index_among_tabulated = info->index_among_tabulated_interactions;
     int first_nonzero_basis_index;
-    int temp_column_index;
     double basis_sum;
-    
-    if (index_among_tabulated > 0) {
-		// Pull the interaction from a table. 	   
-    	info->table_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->table_basis_fn_vals);
-    	basis_sum  = info->table_basis_fn_vals[0] + info->table_basis_fn_vals[1];
-    	
-    	// Add to force target.
-		mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
-    	
-    	// Add to target virial if virial_flag is non-zero.
-    	switch (virial_flag) {
-    		case 1:
-	    	    if (mat->virial_constraint_rows > 0) mat->accumulate_target_constraint_element(mat, info->trajectory_block_frame_index, -basis_sum * param_value);
-        		break;
-        	
-        	case 0: default:
-    			// These interactions do not contribute to the scalar virial.
-    			// Such interactions include angles and dihedrals.
-        		break;
-    	}
-	}
 
+    if (index_among_tabulated > 0) {
+    	// Pull the interaction from a table.
+        info->table_s_comp->calculate_basis_fn_vals(index_among_defined, 1.0, first_nonzero_basis_index, info->table_basis_fn_vals);
+		basis_sum = info->table_basis_fn_vals[0];
+        // Add to force target.
+        mat->accumulate_one_body_tabulated_force(info, basis_sum, 1, particle_ids, derivatives, mat);
+        // Add to virial target.
+        if (mat->virial_constraint_rows > 0) mat->accumulate_target_constraint_element(mat, info->trajectory_block_frame_index, -basis_sum);
+    }
+        
     if (index_among_matched > 0) {
-	    // Compute the strength of each basis function.
-	    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
-    	
-    	// Add to the force matching.       
-    	mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
- 			
-    	// Add to virial matching if virial_flag is non-zero.
-    	switch (virial_flag) {
-    		case 1:
-	    	    temp_column_index = info->interaction_class_column_index + info->ispec->interaction_column_indices[index_among_matched - 1] + first_nonzero_basis_index;
-	    		for (unsigned i = 0; i < info->fm_basis_fn_vals.size(); i++) {
-        			int basis_column = temp_column_index + i;
-        			if (mat->virial_constraint_rows > 0)(*mat->accumulate_virial_constraint_matrix_element)(info->trajectory_block_frame_index, basis_column, info->fm_basis_fn_vals[i] * param_value, mat);
-        		}
-        		break;
-        	
-        	case 0: default:
-    			// These interactions do not contribute to the scalar virial.
-    			// Such interactions include angles and dihedrals.
-        		break;
-    	}
-	}    
+    	// Compute the strength of each basis function.
+        info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, 1.0, first_nonzero_basis_index, info->fm_basis_fn_vals);
+        basis_sum = info->fm_basis_fn_vals[0];
+        // Add to the force matching.
+        mat->accumulate_one_body_force(info, first_nonzero_basis_index, info->fm_basis_fn_vals, 1, particle_ids, derivatives, mat);
+        // Add to virial matching.
+        int temp_column_index = info->interaction_class_column_index + info->ispec->interaction_column_indices[index_among_matched - 1] + first_nonzero_basis_index;
+        int basis_column = temp_column_index;
+        if (mat->virial_constraint_rows > 0)(*mat->accumulate_virial_constraint_matrix_element)(info->trajectory_block_frame_index, basis_column, basis_sum, mat);
+    }
 }
 
 inline void process_density_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double density_value, const int virial_flag, const double density_derivative, const double distance)
@@ -761,6 +1037,61 @@ inline void process_density_matrix_elements(InteractionClassComputer* const info
     }
 }	
 
+inline void process_ibi_matrix_elements(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double junk = 0.0, const double junk2 = 0.0)
+{
+	int index_among_defined = info->index_among_defined_intrxns;
+	int index_among_matched = info->index_among_matched_interactions;
+    int index_among_tabulated = info->index_among_tabulated_interactions;
+    int index_among_symmetric = info->index_among_symmetric_interactions;
+    int index_among_symtab = info->index_among_symtab_interactions;
+    int first_nonzero_basis_index;
+    
+    if (index_among_tabulated > 0) {
+    	// No tabulated interactions for IBI
+		// This calls accumulate_tabulated_error
+		double basis_sum = 0;
+		if (index_among_symtab == 0) {
+			// This is an antisymmetric (i.e. force) interaction table.
+    	    mat->accumulate_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    	} else {
+		    // This is a symmetric (i.e. MS-CODE) interaction table.
+    	    mat->accumulate_symmetric_tabulated_forces(info, basis_sum, n_body, particle_ids, derivatives, mat);
+    	}
+
+		// No virial for IBI    	
+	}
+
+    if (index_among_matched > 0) {
+	    // Compute the bin for this interaction
+	    double param_less_lower_cutoff = info->fm_s_comp->get_param_less_lower_cutoff(index_among_defined, param_value);
+	    first_nonzero_basis_index = (int)(param_less_lower_cutoff / info->ispec->get_fm_binwidth() + 0.5);
+	    	    
+	    // set only the first index to 0 unless this goes past the last bin.
+	    for (int i = 0; i < info->ispec->get_bspline_k(); i++) {
+	    	info->fm_basis_fn_vals[i] = 0.0;
+	    }
+	    if ( (first_nonzero_basis_index + info->ispec->get_bspline_k()) > (int)(info->ispec->interaction_column_indices[index_among_matched + 1] - info->ispec->interaction_column_indices[index_among_matched] - 1) ) {
+	    	int diff = (first_nonzero_basis_index + info->ispec->get_bspline_k()) - (int)(info->ispec->interaction_column_indices[index_among_matched + 1] - info->ispec->interaction_column_indices[index_among_matched] - 1);
+	    	first_nonzero_basis_index -= diff;
+	    	info->fm_basis_fn_vals[diff] = 1.0;
+	    } else {
+	    	info->fm_basis_fn_vals[0] = 1.0;
+	    }
+	    
+	    info->fm_s_comp->calculate_basis_fn_vals(index_among_defined, param_value, first_nonzero_basis_index, info->fm_basis_fn_vals);
+    	
+    	// Add to the force matching.       
+    	if (index_among_symmetric == 0) {
+    	    // This interaction is antisymmetric (i.e. force).
+		    mat->accumulate_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+    	} else {
+        	// This interaction is symmetric (i.e. MS-CODE).
+     		mat->accumulate_symmetric_matching_forces(info, first_nonzero_basis_index, info->fm_basis_fn_vals, n_body, particle_ids, derivatives, mat);
+ 		}
+ 			
+    	// No virial for IBI
+	}    
+}
 //--------------------------------------------------------------------
 // Functions for calculating sets of 3-component matrix elements for each
 // individual interacting set of particles
@@ -768,22 +1099,33 @@ inline void process_density_matrix_elements(InteractionClassComputer* const info
 
 // Each of these functions follows the idiom of calc_isotropic_two_body_fm_matrix_elements.
 
+void calc_one_body_fm_matrix_element(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+{
+  int particle_ids[1] = {info->k};
+  std::array<double, DIMENSION>* derivatives =  new std::array<double, DIMENSION>[1];
+  for (int i = 0; i < DIMENSION; i++) derivatives[0][i] = 1.0/(double)(DIMENSION);
+  info->process_interaction_matrix_elements(info, mat, 1, particle_ids, derivatives, 1.0, 1, 0.0, 0.0);
+  delete [] derivatives;
+}
+
 void calc_isotropic_two_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
     int particle_ids[2] = {info->k, info->l};
     std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[1];
-	double distance;
-	if ( conditionally_calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives) ) {
-        int index_among_defined = info->index_among_defined_intrxns;
-    	if (distance < info->ispec->lower_cutoffs[index_among_defined] ||
-        	distance > info->ispec->upper_cutoffs[index_among_defined]) {
-        	delete [] derivatives;
-        	return;
-        }
-    	info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
+    double distance;
+    calc_distance_and_derivatives(particle_ids, x, simulation_box_half_lengths, info->cutoff2, distance, derivatives);
+    int index_among_defined = info->index_among_defined_intrxns;
+
+    //    if (distance > (info->ispec->lower_cutoffs[index_among_defined] - 0.5*info->ispec->get_fm_binwidth() - VERYSMALL_F ) &&
+    //	(distance < info->ispec->upper_cutoffs[index_among_defined] + 0.5*info->ispec->get_fm_binwidth() + VERYSMALL_F)) {
+    if (distance >= (info->ispec->lower_cutoffs[index_among_defined] - VERYSMALL_F) &&
+	(distance <= info->ispec->upper_cutoffs[index_among_defined] + VERYSMALL_F)) {
+      info->process_interaction_matrix_elements(info, mat, 2, particle_ids, derivatives, distance, 1, 0.0 , 0.0);
     }
-    delete [] derivatives;
+
+    delete [] derivatives;	
 }
+
 
 void calc_angular_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
 {
@@ -824,6 +1166,54 @@ void calc_dihedral_four_body_fm_matrix_elements(InteractionClassComputer* const 
 		info->process_interaction_matrix_elements(info, mat, 4, particle_ids, derivatives, dihedral, 0, 0.0, 0.0);
     }
 	delete [] derivatives;
+}
+
+void calc_radius_of_gyration_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+{
+	RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(info->ispec);
+	
+	int index_among_defined = info->index_among_defined_intrxns;
+	int n_ids = rg_spec->topo_data_->molecule_list->partner_numbers_[info->k];
+	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[n_ids - 1];
+	int* particle_ids = new int[n_ids];
+	for (int i = 0; i < n_ids; i++) particle_ids[i] = (int)(rg_spec->topo_data_->molecule_list->partners_[info->k][i]);
+	
+	double radius_of_gyration;
+	calc_radius_of_gyration_and_derivatives(particle_ids, x, simulation_box_half_lengths, n_ids, radius_of_gyration, derivatives);
+
+	if (radius_of_gyration >= rg_spec->lower_cutoffs[index_among_defined] &&
+	    radius_of_gyration <= rg_spec->upper_cutoffs[index_among_defined]) {
+		info->process_interaction_matrix_elements(info, mat, n_ids, particle_ids, derivatives, radius_of_gyration, 0, 0.0, 0.0);
+	}
+	delete [] derivatives;
+	delete [] particle_ids;
+}
+
+void calc_helical_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)
+{
+	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(info->ispec);
+	// k is currently the molecule id.
+	int index_among_defined = info->index_among_defined_intrxns;
+	
+	int n_ids = h_spec->topo_data_->molecule_list->partner_numbers_[info->k];
+	std::array<double, DIMENSION>* derivatives = new std::array<double, DIMENSION>[n_ids - 1];
+	int* particle_ids = new int[n_ids];
+	for (int i = 0; i < n_ids; i++) particle_ids[i] = (int)(h_spec->topo_data_->molecule_list->partners_[info->k][i]);
+	
+	int n_helical_ids = 2 * h_spec->helical_list->partner_numbers_[info->k];
+	int* helical_ids = new int[n_helical_ids];
+	for (int i = 0; i < n_helical_ids; i++) helical_ids[i] = h_spec->helical_list->partners_[info->k][i]; 
+	
+	double fraction_helical;
+	calc_fraction_helical_and_derivatives(particle_ids, x, simulation_box_half_lengths, n_ids, fraction_helical, derivatives, helical_ids, n_helical_ids/2, h_spec->r0[index_among_defined], h_spec->sigma2[index_among_defined]);
+
+	if (fraction_helical >= h_spec->lower_cutoffs[index_among_defined] &&
+	    fraction_helical <= h_spec->upper_cutoffs[index_among_defined]) {
+		info->process_interaction_matrix_elements(info, mat, n_ids, particle_ids, derivatives, fraction_helical, 0, 0.0, 0.0);
+	}
+	delete [] derivatives;
+	delete [] particle_ids;
+	delete [] helical_ids;
 }
 
 void calc_nonbonded_1_three_body_fm_matrix_elements(InteractionClassComputer* const info, std::array<double, DIMENSION>* const &x, const real *simulation_box_half_lengths, MATRIX_DATA* const mat)

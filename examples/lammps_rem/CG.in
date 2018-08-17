@@ -1,0 +1,87 @@
+# processors  2 2 2
+ units real
+ atom_style full
+ boundary p p p
+ read_data CG.data
+ pair_style table linear 1500
+ pair_modify mix geometric
+
+ pair_coeff 1 1 fmec.table 1_1
+
+velocity all create 325 4928459 rot yes dist gaussian
+
+# groups
+
+#group           real type 1 2 3 4 5 
+#group           electrolyte type 1 2 3 4 5 
+
+#kspace_style    pppm 1.0e-5
+#kspace_modify   slab 3.0
+
+# neighboring
+
+neighbor        4.0 bin
+
+# computes
+
+
+
+
+#atom_modify sort 10 5.0
+
+#compute         real_temp electrolyte temp
+#thermo_modify   temp real_temp
+#compute         real_press all pressure real_temp
+#thermo_modify   press real_press
+
+#thermo_style    custom  step temp c_real_temp evdwl ebond eangle edihed ecoul pe ke etotal
+#thermo          1
+
+#thermo_style	one
+#thermo		10		
+
+#minimize        .00001e-4 .00001e-5 4000 10000
+
+
+
+#write_restart   restart.last 
+
+# fixes
+
+fix              1 all nvt temp 300 300 50.0
+#fix              1 real nve temp 298.15 298.15 100.0
+
+# output
+
+thermo_style    custom  step temp evdwl ebond eangle edihed ecoul pe ke etotal
+thermo          100
+
+#run		20000
+run		100000
+
+
+dump            1 all custom 500 dump.lammpstrj.cg id type x y z fx fy fz
+#dump            1 all dcd 500 traj.dcd
+thermo_style    custom  step evdwl ebond eangle edihed ecoul pe ke etotal
+#c_anode c_cathode
+thermo          100
+
+# run it
+
+timestep        1.0
+
+restart         1000000 cg_unbias.*.restart
+
+
+
+#fix licv all colvars lif_lioc_mean.colvar output colvar unwrap no
+#fix licv all colvars alb_4_control.colvar output colvar unwrap no
+
+
+
+
+run             10000
+
+#run             500000
+
+write_restart   restart1.last 

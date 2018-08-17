@@ -40,7 +40,7 @@ void check_input_values(CG_MODEL_DATA* cg);
 // Enumerated type definitions
 //-------------------------------------------------------------
 
-enum InteractionClassType {kPairNonbonded = 2, kPairBonded = -2, kAngularBonded = -3, kDihedralBonded = -4, kThreeBodyNonbonded = 3, kDensity = 4};
+enum InteractionClassType {kOneBody = 1, kPairNonbonded = 2, kPairBonded = -2, kAngularBonded = -3, kDihedralBonded = -4, kR13Bonded = 3, kR14Bonded = 4, kR15Bonded = 5, kHelical = 6, kThreeBodyNonbonded = 7, kRadiusofGyration = -5, kDensity = 8};
 // function pointer "type" used for polymorphism of matrix element calculation (for pair nonbonded types)
 typedef void (*calc_pair_matrix_elements)(InteractionClassComputer* const, std::array<double, DIMENSION>* const &, const real*, MATRIX_DATA* const);
 typedef void (*calc_interaction_matrix_elements)(InteractionClassComputer* const info, MATRIX_DATA* const mat, const int n_body, int* particle_ids, std::array<double, DIMENSION>* derivatives, const double param_value, const int virial_flag, const double param_deriv, const double distance);
@@ -66,6 +66,7 @@ struct InteractionClassSpec {
     int output_spline_coeffs_flag;
     double output_binwidth;
 	int output_parameter_distribution;
+	int rangefinder_thresholding_style;
 	FILE** output_range_file_handles;
 
 	// n_defined is the number of unique type combinations for n_cg_sites and the interaction type.
@@ -73,29 +74,40 @@ struct InteractionClassSpec {
 	// // to an index that runs along the interaction combinations that actually exist in the model
 	// // (this is all interactions that could "possibly" be force matched in the system).
 	// defined_to_matched_intrxn_index_map indicates (for non-bonded-type interactions) which interactions
-	// // will actually be determined (through force matching).
+	// // will actually be determined (either through traditional force matching or symmetric MS-CODE).
 	// // n_to_force_match is the total number of interactions to be fit
+	// defined_to_symmetric_intrxn_index_map only includes the interactions that will be determined
+	// // using symmetric basis sets (i.e. MS-CODE).
 	// // n_force is the total number of antisymmetric (i.e. FM) interactions to be determined.
+	// // n_symmetric is the total number of symmetric (i.e. MS-CODE) interactions to be determined.
 	// defined_to_tabulated_intrxn_inex_map indicates which interactions are tabulated
-	// // (force interactions).
-	// // n_from_table is the total number of external tables (i.e. force) to be read.
-	// // n_force is the total number of antisymmetric tables (i.e. forces).
-	int n_cg_types;    
+	// // (both traditional force interactions and symmetric MS-CODE interactions).
+	// // n_from_table is the total number of external tables (i.e. both force and symmetric) to be read.
+	// defined_to_symtab_intrxn_index_map only includes the tabulated interactions that are symmetric (i.e. MS-CODE).
+	// // n_force is the total number of antisymmetric tables (i.e. traditional forces).
+	// // n_symmetric is the total number of symmetric tables (i.e. MS-CODE interactions).
+    int n_cg_types;    
     int n_defined;
     std::vector<unsigned> defined_to_possible_intrxn_index_map;
     std::vector<unsigned> defined_to_matched_intrxn_index_map;
+    std::vector<unsigned> defined_to_symmetric_intrxn_index_map;
     std::vector<unsigned> defined_to_tabulated_intrxn_index_map;
+    std::vector<unsigned> defined_to_symtab_intrxn_index_map;
     std::vector<unsigned> defined_to_periodic_intrxn_index_map;
     std::vector<unsigned> interaction_column_indices;
     int n_to_force_match;
     int n_force;
+    int n_symmetric;
     int n_from_table;
     int n_tabulated;
+    int n_tabsym;
     int format; //Used to determine output name ordering.
     
     double *lower_cutoffs;
     double *upper_cutoffs;
     double cutoff;
+  int LJ_term1;
+  int LJ_term2;
     
     double external_table_spline_binwidth;
     double **external_table_spline_coefficients;
@@ -117,7 +129,6 @@ struct InteractionClassSpec {
 	
 	// Helper and implementation functions.
 	std::string get_basename(char **type_names, const int intrxn_index_among_defined, const std::string& delimiter);
-	void adjust_cutoffs_for_type(int i);
 	void adjust_cutoffs_for_basis(int i);
     void setup_for_defined_interactions(TopologyData* topo_data); 
 	void dummy_setup_for_defined_interactions(TopologyData* topo_data);
@@ -130,6 +141,12 @@ struct InteractionClassSpec {
 	
 	inline int get_index_from_hash(const int hash_val) const {if (defined_to_possible_intrxn_index_map.size() == 0) return hash_val; else return SearchIntTable(defined_to_possible_intrxn_index_map, hash_val);}
     inline int get_hash_from_index(const int index) const {if (defined_to_possible_intrxn_index_map.size() > 0) return defined_to_possible_intrxn_index_map[index]; else return index;}
+ 
+ 	inline void set_parameters(double in_fm_binwidth, int in_bspline_k, double in_output_binwidth) {
+		fm_binwidth = in_fm_binwidth;
+		bspline_k = in_bspline_k;
+		output_binwidth = in_output_binwidth;
+	}
 
 	// Functions meant to be eliminated.	
 	// set_n_defined is only used in topology for three body interactions it should be eliminated eventually
@@ -160,9 +177,10 @@ struct InteractionClassSpec {
 	};
 
 	InteractionClassSpec() {
-		n_tabulated = n_to_force_match = n_from_table = 0;
+		n_tabulated = n_to_force_match = n_symmetric = n_from_table = n_tabsym = 0;
 		n_defined = 0;
 		class_subtype = 0;
+		rangefinder_thresholding_style = 0;
 	};
 	
 	~InteractionClassSpec() {
@@ -197,16 +215,20 @@ struct InteractionClassComputer {
     // pair interactions: k-l; 
     // three-body interactions: k-j-l; 
     // four-body interactions: k-i-j-l.
+    // five-body interactions: k-h-i-j-l.
     int k;
     int l;
     int i;
     int j;
-   
+    int h;
+    
     // Temps for determining which interaction the particles interact with.
     int index_among_defined_intrxns;
     int index_among_matched_interactions;
     int index_among_tabulated_interactions;
-    
+    int index_among_symmetric_interactions;
+    int index_among_symtab_interactions;
+
     // Calculation intermediates for the interaction
     double intrxn_param;                       // The interaction parameter for any single-parameter interaction (ie distance, angle, dihedral angle)
     double intrxn_param_less_lower_cutoff;     // Pair distance from the pair_nonbonded_interaction_lower_cutoffs_XOR_lower_cutoffs
@@ -229,6 +251,7 @@ struct InteractionClassComputer {
 	void set_up_computer(InteractionClassSpec* const ispec_pt, int *curr_iclass_col_index);	
 
 	void calc_external_spline_interaction(void);
+	void calc_one_force_val(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &pot_vals);
 	void calc_grid_of_table_force_vals(const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals);
 	void calc_grid_of_force_and_deriv_vals(const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double binwidth, std::vector<double> &axis_vals, std::vector<double> &force_vals, std::vector<double> &deriv_vals);
@@ -238,7 +261,9 @@ struct InteractionClassComputer {
 
 	void set_indices(void) {
 		index_among_matched_interactions   = ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
+		index_among_symmetric_interactions = ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns];
 		index_among_tabulated_interactions = ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
+		index_among_symtab_interactions    = ispec->defined_to_symtab_intrxn_index_map[index_among_defined_intrxns];
 	};
 	
     // Spline computation objects for force matched and
@@ -260,6 +285,33 @@ struct InteractionClassComputer {
 	void calculate_linear_spline_matrix_elements(void);
 };
 
+struct OneBodyClassSpec: InteractionClassSpec {
+	inline OneBodyClassSpec(ControlInputs* control_input) {
+		class_type = kOneBody;
+		basis_type = kDelta;
+		class_subtype = control_input->one_body_flag;
+		cutoff = 1.0;
+		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+		fm_binwidth = 1.0;
+		bspline_k = 3;
+		output_binwidth = 1.0;
+		output_parameter_distribution = 0;
+	}
+	
+	void determine_defined_intrxns(TopologyData *topo_data) {
+        if (class_subtype == 0) n_defined = 0;
+        else n_defined = topo_data->n_cg_types;
+        format = 0;
+	}
+	
+	inline int get_n_body () const { return 1;}
+	void read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode);
+    inline std::string get_full_name(void) const {return "one body";}
+    inline std::string get_short_name(void) const {return "one";}
+    inline std::string get_table_name(void) const {return "one_body";}
+    inline char get_char_id(void) const {return '1';}
+};
+
 struct PairNonbondedClassSpec: InteractionClassSpec {
 	inline PairNonbondedClassSpec(ControlInputs* control_input) {
 		class_type = kPairNonbonded;
@@ -270,7 +322,10 @@ struct PairNonbondedClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->pair_nonbonded_fm_binwidth;
 		bspline_k = control_input->nonbonded_bspline_k;
 		output_binwidth = control_input->pair_nonbonded_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_pair_nonbonded_parameter_distribution;
+		LJ_term1 = control_input->lesser_LJ_parameter;
+		LJ_term2 = control_input->greater_LJ_parameter;
 	}
 		
 	void determine_defined_intrxns(TopologyData *topo_data) {
@@ -295,6 +350,7 @@ struct PairBondedClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->pair_bond_fm_binwidth;
 		bspline_k = control_input->pair_bond_bspline_k;
 		output_binwidth = control_input->pair_bond_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_pair_bond_parameter_distribution;
 	}
 	
@@ -324,8 +380,15 @@ struct AngularClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->angle_fm_binwidth;
     	bspline_k = control_input->angle_bspline_k;
     	output_binwidth = control_input->angle_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_angle_parameter_distribution;
 		cutoff = VERYLARGE;
+		
+		if (class_subtype == 1) {
+			printf("The use of distance based angles (angle_type = 1) is now deprecated.\n");
+			printf("Consider using r13_distance_flag and associated options for this feature.\n");
+			fflush(stdout);
+		}
     }
 	
 	inline ~AngularClassSpec() {}
@@ -354,8 +417,15 @@ struct DihedralClassSpec: InteractionClassSpec {
     	fm_binwidth = control_input->dihedral_fm_binwidth;
 		bspline_k = control_input->dihedral_bspline_k;
 		output_binwidth = control_input->dihedral_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_dihedral_parameter_distribution;
 		cutoff = VERYLARGE;
+		
+		if (class_subtype == 1) {
+			printf("The use of distance based dihedrals (dihedral_type = 1) is now deprecated.\n");
+			printf("Consider using r14_distance_flag and associated options for this feature.\n");
+			fflush(stdout);
+		}
 	}
 	
 	inline ~DihedralClassSpec() {}
@@ -375,6 +445,219 @@ struct DihedralClassSpec: InteractionClassSpec {
     inline char get_char_id(void) const {return 'd';}
 };
 
+struct R13ClassSpec: InteractionClassSpec {
+	inline R13ClassSpec(ControlInputs* control_input) {
+		class_type = kR13Bonded;
+    	basis_type = (BasisType) control_input->basis_set_type;
+    	cutoff = VERYLARGE;
+    	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+    	class_subtype = control_input->r13_distance_flag;
+    	fm_binwidth = control_input->r13_fm_binwidth;
+    	bspline_k = control_input->r13_bspline_k;
+    	output_binwidth = control_input->r13_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
+		output_parameter_distribution = control_input->output_r13_parameter_distribution;
+    }
+	
+	inline ~R13ClassSpec() {}
+	
+	void determine_defined_intrxns(TopologyData *topo_data) {
+		int n_possible_interactions = calc_n_distinct_triples(topo_data->n_cg_types);
+        n_defined = calc_n_active_interactions(topo_data->angle_type_activation_flags, n_possible_interactions);
+        defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
+        set_up_interaction_type_hash_array(topo_data->angle_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = topo_data->angle_format;
+	}
+	
+	int get_n_body () const { return 3;}
+    inline std::string get_full_name(void) const {return "r13 distance";}
+    inline std::string get_short_name(void) const {return "r13";}
+    inline std::string get_table_name(void) const {return "r13";}
+    inline char get_char_id(void) const {return 'r';}
+};
+
+struct R14ClassSpec: InteractionClassSpec {
+	inline R14ClassSpec(ControlInputs* control_input) {
+		class_type = kR14Bonded;
+    	basis_type = (BasisType) control_input->basis_set_type;
+    	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+    	cutoff = VERYLARGE;
+    	class_subtype = control_input->r14_distance_flag;
+    	fm_binwidth = control_input->r14_fm_binwidth;
+    	bspline_k = control_input->r14_bspline_k;
+    	output_binwidth = control_input->r14_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
+		output_parameter_distribution = control_input->output_r14_parameter_distribution;
+    }
+	
+	inline ~R14ClassSpec() {}
+	
+	void determine_defined_intrxns(TopologyData *topo_data) {
+		int n_possible_interactions = calc_n_distinct_quadruples(topo_data->n_cg_types);
+        n_defined = calc_n_active_interactions(topo_data->dihedral_type_activation_flags, n_possible_interactions);
+        defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
+        set_up_interaction_type_hash_array(topo_data->dihedral_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = topo_data->dihedral_format;
+	}
+	
+	int get_n_body () const { return 4;}
+    inline std::string get_full_name(void) const {return "r14 distance";}
+    inline std::string get_short_name(void) const {return "r14";}
+    inline std::string get_table_name(void) const {return "r14";}
+    inline char get_char_id(void) const {return '4';}
+};
+
+struct R15ClassSpec: InteractionClassSpec {
+	inline R15ClassSpec(ControlInputs* control_input) {
+		class_type = kR15Bonded;
+		cutoff = VERYLARGE;
+    	basis_type = (BasisType) control_input->basis_set_type;
+    	output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+    	class_subtype = control_input->r15_distance_flag;
+    	fm_binwidth = control_input->r15_fm_binwidth;
+    	bspline_k = control_input->r15_bspline_k;
+    	output_binwidth = control_input->r15_output_binwidth;
+    	rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
+		output_parameter_distribution = control_input->output_r15_parameter_distribution;
+    }
+	
+	inline ~R15ClassSpec() {}
+	
+/**/	void determine_defined_intrxns(TopologyData *topo_data) {
+		int n_possible_interactions = calc_n_distinct_quints(topo_data->n_cg_types);
+        n_defined = calc_n_active_interactions(topo_data->quint_type_activation_flags, n_possible_interactions);
+        defined_to_possible_intrxn_index_map = std::vector<unsigned>(n_defined, 0);
+        set_up_interaction_type_hash_array(topo_data->angle_type_activation_flags, n_possible_interactions, defined_to_possible_intrxn_index_map);
+		format = 0;
+	}
+	
+	int get_n_body () const { return 2;}
+    inline std::string get_full_name(void) const {return "r15 distance";}
+    inline std::string get_short_name(void) const {return "r15";}
+    inline std::string get_table_name(void) const {return "r15";}
+    inline char get_char_id(void) const {return '5';}
+};
+
+struct HelicalClassSpec: InteractionClassSpec {
+
+	int rg_state;				// Used to avoid double free of molecule information
+	TopologyData* topo_data_;
+	int n_molecule_groups;		 // The number of molecule groups defined in top.in
+	char** molecule_group_names; //The names of each molecule group (used for output).
+	bool* molecule_groups;		 // Which CG site types belong to each density group.
+
+	int allocated;
+	TopoList* helical_list;		// The pairs of atoms in a molecule to look at in calculating the dihedral
+	double* r0;
+	double* sigma2;
+
+	inline HelicalClassSpec(ControlInputs* control_input) {
+		class_type = kHelical;
+		class_subtype = control_input->helical_flag;
+		cutoff = VERYLARGE;
+		basis_type = (BasisType) control_input->basis_set_type;
+		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+		fm_binwidth = control_input->helical_fm_binwidth;
+		bspline_k = control_input->helical_bspline_k;
+		output_binwidth = control_input->helical_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
+		output_parameter_distribution = control_input->output_helical_parameter_distribution;
+		rg_state = control_input->radius_of_gyration_flag;
+		allocated = 0;
+		n_defined = 0;
+        r0 = NULL;
+        sigma2 = NULL;
+	}
+
+	inline ~HelicalClassSpec() {
+		if ((class_subtype > 0) && (rg_state == 0)) { // avoid double free with RG
+		
+			for (int i = 0; i < n_molecule_groups; i++) {
+        		delete [] molecule_group_names[i];
+    		}
+			delete [] molecule_group_names;
+			delete [] molecule_groups;
+		}
+		if (allocated == 1) {
+			delete helical_list;
+		}
+		if (n_defined > 0) {
+			delete [] r0;
+			delete [] sigma2;
+		}
+	}
+		
+	void determine_defined_intrxns(TopologyData *topo_data) {
+		topo_data_ = topo_data;
+        n_molecule_groups = topo_data->n_molecule_groups;
+        molecule_group_names = topo_data->molecule_group_names;
+        molecule_groups = topo_data->molecule_groups;
+        n_defined = n_molecule_groups;
+        format = 0;
+        if(n_defined > 0) {
+			r0 = new double[n_defined];
+			for(int i=0; i<n_defined; i++) { r0[i] = 5.0;}
+			sigma2 = new double[n_defined];
+			for(int i=0; i<n_defined; i++) { sigma2[i] = 2.0;}
+		}
+	}
+	
+	void rebuild_helical_list(TopoList* molecule_list, TopoList* dihedral_list);
+	inline int get_n_body () const { return 1;}
+	void read_rmin_class(std::string* &elements, const int position, const int index_among_defined, char* mode);
+    inline std::string get_full_name(void) const {return "helical";}
+    inline std::string get_short_name(void) const {return "hel";}
+    inline std::string get_table_name(void) const {return "helical";}
+    inline char get_char_id(void) const {return 'h';}
+};
+
+struct RadiusofGyrationClassSpec: InteractionClassSpec {
+
+	TopologyData* topo_data_;
+	int n_molecule_groups;		 // The number of molecule groups defined in top.in
+	char** molecule_group_names; //The names of each molecule group (used for output).
+	bool* molecule_groups;		 // Which CG site types belong to each density group.
+	
+
+	inline RadiusofGyrationClassSpec(ControlInputs* control_input) {
+		class_type = kRadiusofGyration;
+		class_subtype = control_input->radius_of_gyration_flag;
+		cutoff = VERYLARGE;
+		basis_type = (BasisType) control_input->basis_set_type;
+		output_spline_coeffs_flag = control_input->output_spline_coeffs_flag;
+		fm_binwidth = control_input->radius_of_gyration_fm_binwidth;
+		bspline_k = control_input->radius_of_gyration_bspline_k;
+		output_binwidth = control_input->radius_of_gyration_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
+		output_parameter_distribution = control_input->output_radius_of_gyration_parameter_distribution;
+	}
+	
+	inline ~RadiusofGyrationClassSpec() {
+		if (class_subtype > 0) {
+			for (int i = 0; i < n_molecule_groups; i++) {
+        		delete [] molecule_group_names[i];
+    		}
+			delete [] molecule_group_names;
+			delete [] molecule_groups;
+		}
+	}
+		
+	void determine_defined_intrxns(TopologyData *topo_data) {
+		topo_data_ = topo_data;
+        n_molecule_groups = topo_data->n_molecule_groups;
+        molecule_group_names = topo_data->molecule_group_names;
+        molecule_groups = topo_data->molecule_groups;
+        n_defined = n_molecule_groups;
+        format = 0;
+	}
+	
+	inline int get_n_body () const { return 1;}
+    inline std::string get_full_name(void) const {return "radius of gyration";}
+    inline std::string get_short_name(void) const {return "rg";}
+    inline std::string get_table_name(void) const {return "radius_of_gyration";}
+    inline char get_char_id(void) const {return 'g';}
+};
+
 struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
 
 	double three_body_gamma;
@@ -382,7 +665,8 @@ struct ThreeBodyNonbondedClassSpec: InteractionClassSpec {
     double* stillinger_weber_angle_parameters_by_type;
     double stillinger_weber_angle_parameter;
  	
-    // Three body topology temporaries.
+    // Three body "dummy topology" hack for carrying info from top.in into 
+    // the range input reading function (where it is freed).
     int* tb_n;
     int** tb_list;
 
@@ -492,6 +776,7 @@ struct DensityClassSpec: InteractionClassSpec {
 		fm_binwidth = control_input->density_fm_binwidth;
 		bspline_k = control_input->density_bspline_k;
 		output_binwidth = control_input->density_output_binwidth;
+		rangefinder_thresholding_style = control_input->rangefinder_thresholding_style;
 		output_parameter_distribution = control_input->output_density_parameter_distribution;
 		
 		// Initialize some pointers to NULL and numbers to 0.
@@ -535,6 +820,16 @@ struct DensityClassSpec: InteractionClassSpec {
 	};
 };
 
+struct OneBodyClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	//void class_set_up_range(void);
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+	    return cg_site_types[k];
+	}
+};
+
 struct PairNonbondedClassComputer : InteractionClassComputer {
 	void class_set_up_computer(void);
 	//void class_set_up_range(void);
@@ -572,6 +867,57 @@ struct DihedralClassComputer : InteractionClassComputer {
 
     int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
 		return calc_four_body_interaction_hash(cg_site_types[i], cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
+	}
+};
+
+struct R13ClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+	    return calc_three_body_interaction_hash(cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
+	}
+};
+
+struct R14ClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+		return calc_four_body_interaction_hash(cg_site_types[i], cg_site_types[j], cg_site_types[k], cg_site_types[l], n_cg_types);
+	}
+};
+
+struct R15ClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+		return calc_two_body_interaction_hash(cg_site_types[k], cg_site_types[l], n_cg_types);
+	}
+};
+
+struct HelicalClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+    	HelicalClassSpec* h_spec = static_cast<HelicalClassSpec*>(ispec);
+    	return h_spec->topo_data_->molecule_ids[k];
+	}
+};
+
+struct RadiusofGyrationClassComputer : InteractionClassComputer {
+	void class_set_up_computer(void);
+	//void class_set_up_range(void);
+	void calculate_interactions(MATRIX_DATA* const mat, int traj_block_frame_index, int curr_frame_starting_row, const int n_cg_types, const TopologyData& topo_data, const PairCellList& pair_cell_list, std::array<double, DIMENSION>* const &x, const real* simulation_box_half_lengths);
+
+    int calculate_hash_number(int* const cg_site_types, const int n_cg_types) {
+    	RadiusofGyrationClassSpec* rg_spec = static_cast<RadiusofGyrationClassSpec*>(ispec);
+    	return rg_spec->topo_data_->molecule_ids[k];
 	}
 };
 
@@ -662,21 +1008,34 @@ struct CG_MODEL_DATA {
     // CG site number and type specifications.
     int n_cg_types;
     int n_cg_sites;
+    int molecule_flag;
     char **name;
 
     // Interaction class specification structs.
+    OneBodyClassSpec one_body_interactions;
     PairNonbondedClassSpec pair_nonbonded_interactions;
     PairBondedClassSpec pair_bonded_interactions;
     AngularClassSpec angular_interactions;
     DihedralClassSpec dihedral_interactions;
+    R13ClassSpec r13_interactions;
+    R14ClassSpec r14_interactions;
+    R15ClassSpec r15_interactions;
+    HelicalClassSpec helical_interactions;
+    RadiusofGyrationClassSpec radius_of_gyration_interactions;
     ThreeBodyNonbondedClassSpec three_body_nonbonded_interactions;
 	DensityClassSpec density_interactions;
 	
     // Interaction class computation structs.
+    OneBodyClassComputer one_body_computer;
     PairNonbondedClassComputer pair_nonbonded_computer;
     PairBondedClassComputer pair_bonded_computer;
     AngularClassComputer angular_computer;
     DihedralClassComputer dihedral_computer;
+    R13ClassComputer r13_computer;
+    R14ClassComputer r14_computer;
+    R15ClassComputer r15_computer;
+    HelicalClassComputer helical_computer;
+    RadiusofGyrationClassComputer radius_of_gyration_computer;
     ThreeBodyNonbondedClassComputer three_body_nonbonded_computer;
 	DensityClassComputer density_computer;
 	
@@ -690,8 +1049,11 @@ struct CG_MODEL_DATA {
 	inline CG_MODEL_DATA(ControlInputs* control_input) :
 		pair_nonbonded_cutoff(control_input->pair_nonbonded_cutoff),
 		topo_data(control_input->max_pair_bonds_per_site, control_input->max_angles_per_site, control_input->max_dihedrals_per_site),
+		one_body_interactions(control_input), 
 		pair_nonbonded_interactions(control_input), pair_bonded_interactions(control_input),
 		angular_interactions(control_input), dihedral_interactions(control_input),
+		r13_interactions(control_input), r14_interactions(control_input), r15_interactions(control_input),
+		helical_interactions(control_input), radius_of_gyration_interactions(control_input),
 		three_body_nonbonded_interactions(control_input),
 		density_interactions(control_input),
 		output_spline_coeffs_flag(control_input->output_spline_coeffs_flag)
@@ -699,17 +1061,30 @@ struct CG_MODEL_DATA {
     	topo_data.excluded_style = control_input->excluded_style;
 		topo_data.density_excluded_style = control_input->density_excluded_style;
 		pair_nonbonded_cutoff2 = pair_nonbonded_cutoff * pair_nonbonded_cutoff;
+		molecule_flag = control_input->molecule_flag;
 		
+		iclass_list.push_back(&one_body_interactions);
 		iclass_list.push_back(&pair_nonbonded_interactions);
 		iclass_list.push_back(&pair_bonded_interactions);
 		iclass_list.push_back(&angular_interactions);
 		iclass_list.push_back(&dihedral_interactions);
+		iclass_list.push_back(&r13_interactions);
+		iclass_list.push_back(&r14_interactions);
+		iclass_list.push_back(&r15_interactions);
+		iclass_list.push_back(&helical_interactions);
+		iclass_list.push_back(&radius_of_gyration_interactions);
 		iclass_list.push_back(&density_interactions);
 		
+		icomp_list.push_back(&one_body_computer);
 		icomp_list.push_back(&pair_nonbonded_computer);
 		icomp_list.push_back(&pair_bonded_computer);
 		icomp_list.push_back(&angular_computer);
 		icomp_list.push_back(&dihedral_computer);
+		icomp_list.push_back(&r13_computer);
+		icomp_list.push_back(&r14_computer);
+		icomp_list.push_back(&r15_computer);
+		icomp_list.push_back(&helical_computer);
+		icomp_list.push_back(&radius_of_gyration_computer);
 		icomp_list.push_back(&density_computer);
 		
 		check_input_values(this);
@@ -757,5 +1132,8 @@ void reset_interaction_cutoff_arrays(CG_MODEL_DATA* const cg);
 
 // Select the correct type name array for the interaction.
 char** select_name(InteractionClassSpec* const ispec, char ** const cg_name);
+
+// Convert selected basis types to kBSplineAndDeriv (for REM)
+void screen_interaction_basis(CG_MODEL_DATA* const cg);
 
 #endif

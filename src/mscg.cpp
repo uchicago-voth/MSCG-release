@@ -29,14 +29,35 @@
 // rangefinder_process_frame for each frame
 // rangefinder_solve_and output.
 
+// The order in which functions are intended to be called for relative entropy is the following:
+// rem_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// rem_startup_part2
+// rem_process_frame for each CG frame
+// rem_solve_and output.
+
+// The order in which functions are intended to be called for relative entropy 
+// compatible observable decomposition (RE-CODE) is the following:
+// recode_startup_part1
+// setup_topology_and_frame
+// setup_bond_topology, setup_angle_topology, and setup_dihedral_topology
+// either setup_exclusion_topology or generate_exclusion_topology
+// recode_startup_part2
+// recode_process_frame for each CG frame
+// recode_solve_and output.
+
 #include "mscg.h"
 
 // Prototype function definition for functions called internal to this file
 void finish_fix_reading(FrameSource *const frame_source);
 inline void dynamic_state_sampling_error(void);
+inline void r15_error(void);
 
 // Data structure holding all MSCG information.
 // It is passed to the driver function (LAMMPS fix) as an opaque pointer.
+
 struct MSCG_struct {
 	int curr_frame;
 	int nblocks;
@@ -47,11 +68,14 @@ struct MSCG_struct {
     CG_MODEL_DATA *cg;  			// CG model parameters and data
     ControlInputs *control_input;	// Input settings read from control.in
     MATRIX_DATA *mat;				// Matrix storage structure
+
+	MATRIX_DATA *ref_mat;			// Only used by REM
 };
 
 // This function starts the MSCG process by allocating memory for the mscg_struct
 // and reading information from the control.in file.
 // It should be called first.
+
 void* mscg_startup_part1(void* void_in) 
 {	
     // Begin to compute the total run time
@@ -78,6 +102,7 @@ void* mscg_startup_part1(void* void_in)
     mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   // CG model parameters and data; put here to initialize without default constructor
     copy_control_inputs_to_frd(p_control_input, p_frame_source);
 	    
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
 	if (mscg_struct->control_input->dynamic_state_sampling != 0) dynamic_state_sampling_error();
 
 	return (void*)(mscg_struct);
@@ -87,6 +112,7 @@ void* mscg_startup_part1(void* void_in)
 // This function starts the range finding utility.
 // Since this is almost identical to MSCG setup,
 // it is a thin wrapper of mscg_setup_part1
+
 void* rangefinder_startup_part1(void* void_in)
 {
 	void_in = mscg_startup_part1(void_in);
@@ -102,6 +128,56 @@ void* rangefinder_startup_part1(void* void_in)
     return void_in;
 }
 
+// This function starts the REM process by allocating memory for the mscg_struct
+// and reading information from the control.in file.
+// It should be called first.
+
+void* rem_startup_part1(void* void_in)
+{
+    // Begin to compute the total run time
+    MSCG_struct* mscg_struct = new MSCG_struct;
+    mscg_struct->start_cputime = clock();	
+	
+	mscg_struct->frame_source = new FrameSource;
+    FrameSource *p_frame_source = mscg_struct->frame_source;
+	
+    //----------------------------------------------------------------
+    // Set up the entropy minimizing procedure
+    //----------------------------------------------------------------
+
+    // It is assumed that the trajectory run through LAMMPS is the "CG" trajectory.
+    // Information about the reference trajectory must be input as a pre-processed
+    // matrix or rdf using either option 1 or 2 for reference_input_style in control.in.
+    // Note: Rangefinder will generate *.rdf files when the output_*_parameter_distribution
+    // options are enabled.
+        	
+	printf("Reading high level control parameters.\n");
+    mscg_struct->control_input = new ControlInputs;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    
+    // CG model parameters and data; put here to initialize without default constructor
+    // This is only copied to the CG frame source since reference information will not
+    // be read from a trajectory.
+    mscg_struct->cg = new CG_MODEL_DATA(p_control_input);   
+    copy_control_inputs_to_frd(p_control_input, p_frame_source);
+	 
+    if (mscg_struct->cg->r15_interactions.class_subtype == 1) r15_error();
+    if (mscg_struct->control_input->dynamic_state_sampling != 0) dynamic_state_sampling_error();
+
+	return (void*)(mscg_struct); 
+}
+
+// This function starts the RE-CODE process by allocating memory for the mscg_struct
+// and reading information from the control.in file.
+// It should be called first.
+
+void* recode_startup_part1(void* void_in)
+{
+	// This part of the set-up is exactly the same as REM
+	void_in = rem_startup_part1(void_in);
+	return void_in;
+}
+
 // This function continues the setup for MSCG
 // after the mscg_startup_part1, setup_topology_and_frame, and setup_*_topology
 // functions have already been called.
@@ -110,6 +186,7 @@ void* rangefinder_startup_part1(void* void_in)
 // and virial constraint information from p_con.in.
 // Also, the sets up the "ForceComputers" and initializes the matrix.
 // In addition, it sets up bootstrapping samples, if needed. 
+
 void* mscg_startup_part2(void* void_in)
 {
 	int total_frame_samples = 0;
@@ -135,6 +212,11 @@ void* mscg_startup_part2(void* void_in)
         p_cg->pair_bonded_interactions.n_tabulated > 0 ||
         p_cg->angular_interactions.n_tabulated > 0 ||
         p_cg->dihedral_interactions.n_tabulated > 0 ||
+        p_cg->r13_interactions.n_tabulated > 0 ||
+        p_cg->r14_interactions.n_tabulated > 0 ||
+        p_cg->r15_interactions.n_tabulated > 0 ||
+        p_cg->helical_interactions.n_tabulated > 0 || 
+        p_cg->radius_of_gyration_interactions.n_tabulated > 0 ||
 		p_cg->density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(p_cg, p_cg->topo_data.n_cg_types);
@@ -165,7 +247,7 @@ void* mscg_startup_part2(void* void_in)
     // Use the trajectory type inferred from trajectory file 
     // extensions to specify how the trajectory files should be 
     // read.
-    if (p_frame_source->bootstrapping_flag == 1) {
+    if (p_frame_source->bootstrapping_flag == 1 || p_frame_source->dynamic_state_sampling == 1) {
 		p_frame_source->mt_rand_gen = std::mt19937(p_frame_source->random_num_seed);
 	}
 	if (p_frame_source->dynamic_state_sampling == 1) p_frame_source->sampleTypesFromProbs();
@@ -289,6 +371,235 @@ void* rangefinder_startup_part2(void* void_in)
     mscg_struct->mat->accumulation_row_shift = 0;
 	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
 
+	return(void*)(mscg_struct);
+}
+
+// This function continues the setup for REM
+// after the rem_startup_part1, setup_topology_and_frame, and setup_*_topology
+// functions have already been called.
+// It reads interaction range information from the rmin*.in files,
+// any frame weights from frame_weights.in.
+// Tabulated interactions and virial constraints do not make sense for relative entropy.
+// Also, the sets up the "ForceComputers" and initializes the matrix.
+// In addition, it will eventually set-up bootstrapping samples, if needed. 
+
+void* rem_startup_part2(void* void_in)
+{
+
+	int total_frame_samples = 0;
+	int n_blocks = 0;
+
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+    // Read the range files rmin.in and rmax.in to determine the
+    // ranges over which the FM basis functions should be defined.
+    // These ranges are also used to record which interactions
+    // should be fit, which should be tabulated, and which are not 
+    // present in the model.
+    printf("Reading interaction ranges.\n");
+    screen_interaction_basis(p_cg);
+    read_all_interaction_ranges(p_cg);
+    
+    // Read statistical weights for each frame if the 
+    // 'use_statistical_reweighting' flag is set in control.in.
+    // Note: This applies to "CG" trajectory (not reference trajectory)
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        printf("Reading per-frame statistical reweighting factors for CG trajectory.\n");
+        fflush(stdout);
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "cg"); 
+    }
+    
+    // No reweighting for reference since it is assumed that it is already pre-processed
+    // into a matrix or RDFs.
+
+    // Generate bootstrapping weights if the
+    // 'bootstrapping_flag' is set in control.in.
+    
+    // REM bootstrapping only acts on CG here.
+	if (p_frame_source->bootstrapping_flag == 1) {
+    	printf("Generating bootstrapping frame weights.\n");
+    	fflush(stdout);
+    	generate_bootstrapping_weights(p_frame_source, p_control_input->n_frames);
+    }
+    
+    // Use the trajectory type inferred from trajectory file 
+    // extensions to specify how the trajectory files should be 
+    // read.
+    if (p_frame_source->bootstrapping_flag == 1 || p_frame_source->dynamic_state_sampling == 1) {
+		p_frame_source->mt_rand_gen = std::mt19937(p_frame_source->random_num_seed);
+	}
+	
+	if (p_frame_source->dynamic_state_sampling == 1) p_frame_source->sampleTypesFromProbs();
+	
+    // Assign a host of function pointers in 'cg' new definitions
+    // based on matrix implementation, basis set type, etc.
+    set_up_force_computers(p_cg);
+
+    // Initialize the entropy minimizing matrices.
+    printf("Initializing up REM\n");
+    p_control_input->matrix_type = kREM;
+    mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
+    mscg_struct->ref_mat = new MATRIX_DATA(p_control_input, p_cg);
+
+
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
+    }
+
+    if (p_frame_source->bootstrapping_flag == 1) {
+    	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
+    	// net frame weights and normalizations.
+    	if(p_frame_source->use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(p_frame_source);
+    	}
+    	set_bootstrapping_normalization(mscg_struct->mat, p_frame_source->bootstrapping_weights, p_frame_source->n_frames);
+    }  
+ 
+    // Set up the loop index limits for the inner and outer loops.
+	if (p_frame_source->dynamic_state_sampling == 1) {
+		total_frame_samples = p_frame_source->n_frames * p_frame_source->dynamic_state_samples_per_frame;
+	}
+
+	if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+    	printf("Total number of frames samples %d is not divisible by block size %d.\n",total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+    	exit(EXIT_FAILURE);
+  	}
+  	n_blocks = total_frame_samples / mscg_struct->mat->frames_per_traj_block;
+
+	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);  
+  	  	
+  	//Initialize other data
+	p_frame_source->cleanup = finish_fix_reading;
+	p_frame_source->current_frame_n = 1;
+    
+	mscg_struct->nblocks = n_blocks;
+	mscg_struct->curr_frame = 0;
+	mscg_struct->mat->accumulation_row_shift = 0;
+	mscg_struct->mat->trajectory_block_index = 0;
+    mscg_struct->trajectory_block_frame_index = 0;
+	mscg_struct->traj_frame_num = 0;
+    
+	return(void*)(mscg_struct);
+}
+
+// This function continues the setup for RE-CODE
+// after the recode_startup_part1, setup_topology_and_frame, and setup_*_topology
+// functions have already been called.
+// It reads interaction range information from the rmin*.in files,
+// any frame weights from frame_weights.in.
+// Tabulated interactions and virial constraints do not make sense for relative entropy.
+// Also, the sets up the "ForceComputers" and initializes the matrix.
+// In addition, it will eventually set-up bootstrapping samples, if needed. 
+
+// Note: The primary differences between recode_startup_part2 and rem_startup_part2 are
+// that (1) the matrix type is kRECODE, (2) there is no ref_mat,
+// and (3) reading observables.ref and optionally observables.cg
+
+void* recode_startup_part2(void* void_in)
+{
+
+	int total_frame_samples = 0;
+	int n_blocks = 0;
+
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+    // Read the range files rmin.in and rmax.in to determine the
+    // ranges over which the FM basis functions should be defined.
+    // These ranges are also used to record which interactions
+    // should be fit, which should be tabulated, and which are not 
+    // present in the model.
+    printf("Reading interaction ranges.\n");
+    screen_interaction_basis(p_cg);
+    read_all_interaction_ranges(p_cg);
+    
+    // Read statistical weights for each frame if the 
+    // 'use_statistical_reweighting' flag is set in control.in.
+    // Note: This applies to "CG" trajectory (not reference trajectory)
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        printf("Reading per-frame statistical reweighting factors for CG trajectory.\n");
+        fflush(stdout);
+        read_frame_weights(p_frame_source, p_control_input->starting_frame, p_control_input->n_frames, "cg"); 
+    }
+    
+    // Generate bootstrapping weights if the
+    // 'bootstrapping_flag' is set in control.in.
+    
+    // REM bootstrapping only acts on CG here.
+	if (p_frame_source->bootstrapping_flag == 1) {
+    	printf("Generating bootstrapping frame weights.\n");
+    	fflush(stdout);
+    	generate_bootstrapping_weights(p_frame_source, p_control_input->n_frames);
+    }
+    
+    // Use the trajectory type inferred from trajectory file 
+    // extensions to specify how the trajectory files should be 
+    // read.
+    if (p_frame_source->bootstrapping_flag == 1 || p_frame_source->dynamic_state_sampling == 1) {
+		p_frame_source->mt_rand_gen = std::mt19937(p_frame_source->random_num_seed);
+	}
+	
+	if (p_frame_source->dynamic_state_sampling == 1) p_frame_source->sampleTypesFromProbs();
+	
+    // Assign a host of function pointers in 'cg' new definitions
+    // based on matrix implementation, basis set type, etc.
+    set_up_force_computers(p_cg);
+
+    // Initialize the entropy minimizing matrices.
+    printf("Initializing RE-CODE matrices\n");
+    p_control_input->matrix_type = kRecode;
+    mscg_struct->mat = new MATRIX_DATA(p_control_input, p_cg);
+
+    if (p_frame_source->use_statistical_reweighting == 1) {
+        set_normalization(mscg_struct->mat, 1.0 / p_frame_source->total_frame_weights);
+    }
+
+    if (p_frame_source->bootstrapping_flag == 1) {
+    	// Multiply the reweighting frame weights by the bootstrapping weights to determine the appropriate
+    	// net frame weights and normalizations.
+    	if(p_frame_source->use_statistical_reweighting == 1) {
+    		combine_reweighting_and_boostrapping_weights(p_frame_source);
+    	}
+    	set_bootstrapping_normalization(mscg_struct->mat, p_frame_source->bootstrapping_weights, p_frame_source->n_frames);
+    }  
+ 
+    // Read in reference and CG observable values (1 value per frame).
+    read_frame_values("observables.ref", p_control_input->starting_frame, p_control_input->n_frames, p_frame_source->ref_observables);
+    if (p_control_input->cg_observable_flag == 1) {
+    	read_frame_values("observables.cg", p_control_input->starting_frame, p_control_input->n_frames, p_frame_source->cg_observables);
+    } else {
+    	p_frame_source->cg_observables = new double[p_control_input->n_frames]();
+    }
+
+    // Set up the loop index limits for the inner and outer loops.
+	if (p_frame_source->dynamic_state_sampling == 1) {
+		total_frame_samples = p_frame_source->n_frames * p_frame_source->dynamic_state_samples_per_frame;
+	}
+
+	if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+    	printf("Total number of frames samples %d is not divisible by block size %d.\n",total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+    	exit(EXIT_FAILURE);
+  	}
+  	n_blocks = total_frame_samples / mscg_struct->mat->frames_per_traj_block;
+
+	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);  
+  	  	
+  	//Initialize other data
+	p_frame_source->cleanup = finish_fix_reading;
+	p_frame_source->current_frame_n = 1;
+    
+	mscg_struct->nblocks = n_blocks;
+	mscg_struct->curr_frame = 0;
+	mscg_struct->mat->accumulation_row_shift = 0;
+	mscg_struct->mat->trajectory_block_index = 0;
+    mscg_struct->trajectory_block_frame_index = 0;
+	mscg_struct->traj_frame_num = 0;
+    
 	return(void*)(mscg_struct);
 }
 
@@ -455,10 +766,228 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 
     } else {
     
-     	// Apply virial constraint, if appropriate.
-        add_target_virials_from_trajectory(mscg_struct->mat, mscg_struct->frame_source->pressure_constraint_rhs_vector);
+    	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
+    	do {    
+			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
+	    	calculate_frame_fm_matrix(p_cg, mscg_struct->mat, p_frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
+    		times_sampled++;
+    		traj_frame_num++;
+    		trajectory_block_frame_index++;
+    		
+     		if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    			// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        		printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        		fflush(stdout);
+        		(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        		(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        		trajectory_block_frame_index=0;
+        		mscg_struct->mat->trajectory_block_index++;
+        	}
+		} while ( (p_frame_source->dynamic_state_sampling != 0) && (times_sampled < p_frame_source->dynamic_state_samples_per_frame) );
+    }
+	p_frame_source->current_frame_n++;
+	mscg_struct->traj_frame_num = traj_frame_num;
+	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
+    
+	return (void*)(mscg_struct);
+}
 
-	   	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
+// Process each frame of the trajectory to build the REM "matrix".
+// This function should be called after rem_setup_part2, but before
+// rem_solve_and_output.
+// This is used to build the CG matrix.
+
+void* rem_process_frame(void* void_in, double* const x, double* const f)
+{       		
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+	// Convert 1D x and f arrays into rvec array
+	FrameConfig* p_frame_config = p_frame_source->frame_config;
+	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
+		for(int j = 0; j < 3; j++) {
+			p_frame_config->x[i][j] = x[i*3 + j];
+			p_frame_config->f[i][j] = f[i*3 + j];
+		}
+	}	
+	
+	// Read reference matrix if this is the first frame processed
+	if (mscg_struct->curr_frame == 0) {
+	  	// Read in the reference data from file based on the reference_input_style setting.
+	  	if (mscg_struct->control_input->reference_input_style == 0) {
+    		printf("When using LAMMPS, reference information cannot be read from frames.\n");
+    		printf("Please change your reference_input_style and try again!\n");
+    		fflush(stdout);
+    		exit(EXIT_FAILURE);
+		} else if (mscg_struct->control_input->reference_input_style == 1) {
+			printf("Reading reference matrix from file.\n");
+    		construct_rem_matrix_from_input_matrix(mscg_struct->ref_mat, "reference_matrix.out");
+    	} else if (mscg_struct->control_input->reference_input_style == 2) {
+    		printf("Reading reference distribution functions.\n");
+    		// The CG box size is used for volume since there is no box size specified for the reference system.
+	    	construct_rem_matrix_from_rdfs(p_cg, mscg_struct->ref_mat, calculate_volume(p_frame_source->simulation_box_limits));
+		} else {
+   			printf("Unrecognized reference_input_style (%d)!\n", mscg_struct->control_input->reference_input_style);
+   			fflush(stdout);
+   			exit(EXIT_FAILURE);
+    	}
+    	// CG input must be via trajectory here 
+		if (mscg_struct->control_input->cg_input_style != 0) {
+			printf("REM does not support non-zero cg_input_styles!\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	// Initialize the cell linked lists for finding neighbors in the provided frames;
+    // NVT trajectories are assumed, so this only needs to be done once.
+    PairCellList pair_cell_list = PairCellList();
+    ThreeBCellList three_body_cell_list = ThreeBCellList();
+    pair_cell_list.init(p_cg->pair_nonbonded_interactions.cutoff, p_frame_source);
+    if (p_cg->three_body_nonbonded_interactions.class_subtype > 0) {
+        double max_cutoff = 0.0;
+        for (int i = 0; i < p_cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+            max_cutoff = fmax(max_cutoff, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        }
+        three_body_cell_list.init(max_cutoff, p_frame_source);
+    }
+
+    // The trajectory_block_frame_index is incremented for each frame-sample processed.
+    // When this index reaches the block size (frames_per_traj_block),
+    // The end-of-frame-block routines are called.
+    // Then, the trajectory_block_index is incremented.
+    mscg_struct->curr_frame++;
+ 	int traj_frame_num = mscg_struct->traj_frame_num;
+	int trajectory_block_frame_index = mscg_struct->trajectory_block_frame_index;
+	int times_sampled = 1;
+    
+    // If reweighting is being used, scale the block of the FM matrix for this frame
+    // by the appropriate weighting factor
+    if (p_frame_source->use_statistical_reweighting == 1) {
+       printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
+       mscg_struct->mat->current_frame_weight = p_frame_source->frame_weights[traj_frame_num];
+	}
+            
+    //Skip processing frame if frame weight is 0.
+    if (p_frame_source->use_statistical_reweighting && mscg_struct->mat->current_frame_weight == 0.0) {
+    	traj_frame_num++;
+    	if (p_frame_source->dynamic_state_sampling != 0) times_sampled = p_frame_source->dynamic_state_samples_per_frame;
+    	mscg_struct->trajectory_block_frame_index += times_sampled;
+    	
+    	if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    		// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        	printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        	fflush(stdout);
+        	(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        	trajectory_block_frame_index=0;
+        	mscg_struct->mat->trajectory_block_index++;
+        }
+
+    } else {
+    
+    	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
+    	do {    
+			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
+	    	calculate_frame_fm_matrix(p_cg, mscg_struct->mat, p_frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
+    		times_sampled++;
+    		traj_frame_num++;
+    		trajectory_block_frame_index++;
+    		
+     		if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    			// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        		printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        		fflush(stdout);
+        		(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        		(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        		trajectory_block_frame_index=0;
+        		mscg_struct->mat->trajectory_block_index++;
+        	}
+		} while ( (p_frame_source->dynamic_state_sampling != 0) && (times_sampled < p_frame_source->dynamic_state_samples_per_frame) );
+    }
+	p_frame_source->current_frame_n++;
+	mscg_struct->traj_frame_num = traj_frame_num;
+	mscg_struct->trajectory_block_frame_index = trajectory_block_frame_index;
+    
+	return (void*)(mscg_struct);
+}
+
+// Process each frame of the trajectory to build the RE-CODE matrix.
+// This function should be called after recode_setup_part2, but before
+// recode_solve_and_output.
+// This is used to build the CG matrix.
+
+// Note: The primary differences between recode_process_frame and rem_process frame
+// are (1) the rhs accumulation of observable difference values and
+// (2) there is no reference matrix
+
+void* recode_process_frame(void* void_in, double* const x, double* const f)
+{       		
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+	CG_MODEL_DATA *p_cg = mscg_struct->cg;
+
+	// Convert 1D x and f arrays into rvec array
+	FrameConfig* p_frame_config = p_frame_source->frame_config;
+	for(int i = 0; i < p_frame_config->current_n_sites; i++) {
+		for(int j = 0; j < 3; j++) {
+			p_frame_config->x[i][j] = x[i*3 + j];
+			p_frame_config->f[i][j] = f[i*3 + j];
+		}
+	}	
+	
+	// Initialize the cell linked lists for finding neighbors in the provided frames;
+    // NVT trajectories are assumed, so this only needs to be done once.
+    PairCellList pair_cell_list = PairCellList();
+    ThreeBCellList three_body_cell_list = ThreeBCellList();
+    pair_cell_list.init(p_cg->pair_nonbonded_interactions.cutoff, p_frame_source);
+    if (p_cg->three_body_nonbonded_interactions.class_subtype > 0) {
+        double max_cutoff = 0.0;
+        for (int i = 0; i < p_cg->three_body_nonbonded_interactions.get_n_defined(); i++) {
+            max_cutoff = fmax(max_cutoff, p_cg->three_body_nonbonded_interactions.three_body_nonbonded_cutoffs[i]);
+        }
+        three_body_cell_list.init(max_cutoff, p_frame_source);
+    }
+
+    // The trajectory_block_frame_index is incremented for each frame-sample processed.
+    // When this index reaches the block size (frames_per_traj_block),
+    // The end-of-frame-block routines are called.
+    // Then, the trajectory_block_index is incremented.
+    mscg_struct->curr_frame++;
+ 	int traj_frame_num = mscg_struct->traj_frame_num;
+	int trajectory_block_frame_index = mscg_struct->trajectory_block_frame_index;
+	int times_sampled = 1;
+    
+    // Accumulate the difference in observable values to the RHS vector
+	double observable_difference = p_frame_source->ref_observables[mscg_struct->traj_frame_num] - p_frame_source->cg_observables[mscg_struct->traj_frame_num];
+	mscg_struct->mat->accumulate_target_force_element(mscg_struct->mat, trajectory_block_frame_index, &observable_difference);
+
+    // If reweighting is being used, scale the block of the FM matrix for this frame
+    // by the appropriate weighting factor
+    if (p_frame_source->use_statistical_reweighting == 1) {
+       printf("Reweighting entries for trajectory frame %d. ", traj_frame_num);
+       mscg_struct->mat->current_frame_weight = p_frame_source->frame_weights[traj_frame_num];
+	}
+            
+    //Skip processing frame if frame weight is 0.
+    if (p_frame_source->use_statistical_reweighting && mscg_struct->mat->current_frame_weight == 0.0) {
+    	traj_frame_num++;
+    	if (p_frame_source->dynamic_state_sampling != 0) times_sampled = p_frame_source->dynamic_state_samples_per_frame;
+    	mscg_struct->trajectory_block_frame_index += times_sampled;
+    	
+    	if(trajectory_block_frame_index >= mscg_struct->mat->frames_per_traj_block) {
+    		// Print status and do end-of-block computations before wiping the blockwise matrix and beginning anew.
+        	printf("\r%d (%d) frames have been sampled. ", p_frame_source->current_frame_n, (mscg_struct->mat->trajectory_block_index + 1) * mscg_struct->mat->frames_per_traj_block);
+        	fflush(stdout);
+        	(*mscg_struct->mat->do_end_of_frameblock_matrix_manipulations)(mscg_struct->mat);
+        	(*mscg_struct->mat->set_fm_matrix_to_zero)(mscg_struct->mat);
+        	trajectory_block_frame_index=0;
+        	mscg_struct->mat->trajectory_block_index++;
+        }
+
+    } else {
+    
+    	// Otherwise, process this frame once unless dynamic_state_sampling is used, in which case it is resampled in this do-while loop.
     	do {    
 			if (p_frame_source->dynamic_state_sampling != 0) p_frame_source->sampleTypesFromProbs();
 	    	calculate_frame_fm_matrix(p_cg, mscg_struct->mat, p_frame_config, pair_cell_list, three_body_cell_list, trajectory_block_frame_index);
@@ -488,6 +1017,7 @@ void* rangefinder_process_frame(void* void_in, double* const x, double* const f)
 // and output those interactions.
 // This function should be called last, after all frames
 // have been processed using mscg_process_frame.
+
 void* mscg_solve_and_output(void* void_in) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -557,6 +1087,7 @@ void* mscg_solve_and_output(void* void_in)
 // Finalize interaction ranges and generate output.
 // This function should be called last, after all frames
 // have been processed using rangefinder_process_frame.
+
 void* rangefinder_solve_and_output(void* void_in) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -602,6 +1133,175 @@ void* rangefinder_solve_and_output(void* void_in)
 	return (void*)(mscg_struct);
 }
 
+// Solve the REM matrix to generate interactions
+// and output those interactions.
+// This function should be called last, after all frames
+// have been processed using rem_process_frame.
+
+void* rem_solve_and_output(void* void_in) 
+{
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    MATRIX_DATA *mat = mscg_struct->mat;
+    CG_MODEL_DATA *p_cg = mscg_struct->cg;
+    
+    // Free the space used to build the force-matching matrix that is
+    // not necessary for finding a solution to the final matrix
+    // equations.
+
+    // Close the trajectory and free the relevant temp variables.
+    p_frame_source->cleanup(p_frame_source);
+
+	//Read in spline coefficents used in the previous iteration.
+    printf("Reading in previous iteration's solution.\n");
+    read_previous_solution(p_cg, mat);
+
+	printf("Finished constructing REM equations.\n");
+    if (p_frame_source->bootstrapping_flag == 1) {
+		free_bootstrapping_weights(p_frame_source);
+	}
+	
+	// Check that the actual number of frames read matches
+	// the number specified in control.in
+	if (mscg_struct->curr_frame != p_control_input->n_frames) {
+		printf("Warning: The number of frames processed does not match the number of frames specified in the control.in file!\n");
+		printf("Please set the number of frames in the control.in file (%d) to match the actual number of frames read (%d).\n", mscg_struct->curr_frame, p_control_input->n_frames);
+		fflush(stdout);
+		
+		// See if this caused some frames not to be converted to normal form.
+		int total_frame_samples = mscg_struct->curr_frame;
+		if (p_frame_source->dynamic_state_sampling == 1) {
+			total_frame_samples *= p_frame_source->dynamic_state_samples_per_frame;
+		}
+		if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+			printf("Warning: Total number of actual frame samples %d is not divisible by block size %d.\n", total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+			printf("This can cause some frames to be excluded from the calculation of interactions.\n"); 
+			fflush(stdout);
+		}
+
+	}
+	
+    // Find the solution to the force-matching equations set up in
+    // previous steps. The solution routines may also print out
+    // singular values, residuals, raw matrix equations, etc. as
+    // necessary.
+    printf("Calculating new REM parameters\n");
+    if (p_frame_source->bootstrapping_flag == 1) {
+      calculate_new_rem_parameters_and_bootstrap(p_cg, mscg_struct->mat, mscg_struct->ref_mat);
+		free_bootstrapping_weights(p_frame_source);
+	} else {
+      calculate_new_rem_parameters(p_cg, mscg_struct->mat, mscg_struct->ref_mat);
+	} 
+	
+    // Write tabulated interaction files resulting from the basis set
+    // coefficients found in the solution step.
+    printf("Writing final output.\n"); fflush(stdout);
+    write_fm_interaction_output_files(p_cg, mat);
+	
+	if (p_frame_source->bootstrapping_flag == 1) {
+		delete [] mat->bootstrap_solutions;
+    	delete [] mat->bootstrapping_normalization;
+    }
+	
+    delete mscg_struct->mat;
+    delete mscg_struct->ref_mat;
+    delete mscg_struct->frame_source;
+    
+    // Record the time and print total elapsed time for profiling purposes.
+    double end_cputime = clock();
+    double elapsed_cputime = ((double)(end_cputime - mscg_struct->start_cputime)) / CLOCKS_PER_SEC;
+    printf("%lf seconds used.\n", elapsed_cputime);
+	return (void*)(mscg_struct);
+}
+
+// Solve the RE-CODE matrix to generate interactions
+// and output those interactions.
+// This function should be called last, after all frames
+// have been processed using rem_process_frame.
+
+// Note: The primary differences between rem_solve_and_output and recode_solve_and_output
+// are (1) there is not ref_mat, (2) solving is done by ** instead of calculate_new_rem_parameters
+
+void* recode_solve_and_output(void* void_in) 
+{
+	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
+	FrameSource *p_frame_source = mscg_struct->frame_source;
+    ControlInputs *p_control_input = mscg_struct->control_input;
+    MATRIX_DATA *mat = mscg_struct->mat;
+    CG_MODEL_DATA *p_cg = mscg_struct->cg;
+    
+    // Free the space used to build the force-matching matrix that is
+    // not necessary for finding a solution to the final matrix
+    // equations.
+
+    // Close the trajectory and free the relevant temp variables.
+    p_frame_source->cleanup(p_frame_source);
+
+	//Read in spline coefficents used in the previous iteration.
+    printf("Reading in previous iteration's solution.\n");
+    read_previous_solution(p_cg, mat);
+
+	printf("Finished constructing RE-CODE equations.\n");
+    if (p_frame_source->bootstrapping_flag == 1) {
+		free_bootstrapping_weights(p_frame_source);
+	}
+	
+	// Check that the actual number of frames read matches
+	// the number specified in control.in
+	if (mscg_struct->curr_frame != p_control_input->n_frames) {
+		printf("Warning: The number of frames processed does not match the number of frames specified in the control.in file!\n");
+		printf("Please set the number of frames in the control.in file (%d) to match the actual number of frames read (%d).\n", mscg_struct->curr_frame, p_control_input->n_frames);
+		fflush(stdout);
+		
+		// See if this caused some frames not to be converted to normal form.
+		int total_frame_samples = mscg_struct->curr_frame;
+		if (p_frame_source->dynamic_state_sampling == 1) {
+			total_frame_samples *= p_frame_source->dynamic_state_samples_per_frame;
+		}
+		if (total_frame_samples % mscg_struct->mat->frames_per_traj_block != 0) {
+			printf("Warning: Total number of actual frame samples %d is not divisible by block size %d.\n", total_frame_samples, mscg_struct->mat->frames_per_traj_block);
+			printf("This can cause some frames to be excluded from the calculation of interactions.\n"); 
+			fflush(stdout);
+		}
+
+	}
+	
+    // Find the solution to the force-matching equations set up in
+    // previous steps. The solution routines may also print out
+    // singular values, residuals, raw matrix equations, etc. as
+    // necessary.
+    
+    printf("Calculating RE observable expression\n");
+    mat->finish_fm(mat);
+    if (p_frame_source->bootstrapping_flag == 1) {
+		free_bootstrapping_weights(mscg_struct->frame_source);
+	}  
+	
+    // Write tabulated interaction files resulting from the basis set
+    // coefficients found in the solution step.
+    printf("Writing final output.\n"); fflush(stdout);
+    write_fm_interaction_output_files(p_cg, mat);
+	
+	if (p_frame_source->bootstrapping_flag == 1) {
+		delete [] mat->bootstrap_solutions;
+    	delete [] mat->bootstrapping_normalization;
+    }
+	
+    // Clean-up special data
+    delete [] mscg_struct->frame_source->ref_observables;
+    delete [] mscg_struct->frame_source->cg_observables;
+
+	delete mscg_struct->mat;
+    delete mscg_struct->frame_source;
+    
+    // Record the time and print total elapsed time for profiling purposes.
+    double end_cputime = clock();
+    double elapsed_cputime = ((double)(end_cputime - mscg_struct->start_cputime)) / CLOCKS_PER_SEC;
+    printf("%lf seconds used.\n", elapsed_cputime);
+	return (void*)(mscg_struct);
+}
+
 //-------------------------------------------------------------
 // Supporting functions for FrameConfig and FrameSource structs 
 // (adapted from trajectory_input.cpp).
@@ -611,6 +1311,7 @@ void* rangefinder_solve_and_output(void* void_in)
 // This function is not intended to be called externally.
 // It should only be called by setup_topology_and_frame.
 // Otherwise the alias between the two cg_site_types arrays could be disrupted.
+
 void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths)
 {
 	assert(n_cg_sites > 0);	
@@ -640,6 +1341,7 @@ void* setup_frame_config(void* void_in, const int n_cg_sites, int * cg_site_type
 // Use of this function with the rest of the library is unsupported since the code was 
 // not designed to handle a change in the number of particles.
 // Use at your own risk.
+
 void* update_frame_config(void* void_in, const int n_cg_sites, int * cg_site_types, double* box_half_lengths)
 {
 	assert(n_cg_sites > 0);	
@@ -689,6 +1391,7 @@ void finish_fix_reading(FrameSource *const frame_source)
 // This function initializes the TopologyData struct.
 // This function is intended to be called between 
 // part1 and part2 of the mscg_startup functions.
+
 void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_cg_types, char ** type_names, int* cg_site_types, double* box_half_lengths)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -789,6 +1492,7 @@ void* setup_topology_and_frame(void* void_in, int const n_cg_sites, int const n_
 // This function sets topology information for bonds.
 // This function is intended to be called between 
 // the setup_topology and the mscg_startup_part2 functions.
+
 void* set_bond_topology(void* void_in, unsigned** bond_partners, unsigned* bond_partner_numbers) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -836,6 +1540,7 @@ void* set_bond_topology(void* void_in, unsigned** bond_partners, unsigned* bond_
 // This function sets topology information for angles.
 // This function is intended to be called between 
 // the setup_topology and the mscg_startup_part2 functions.
+
 void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* angle_partner_numbers) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -891,6 +1596,7 @@ void* set_angle_topology(void* void_in, unsigned** angle_partners, unsigned* ang
 // This function sets topology information for dihedrals.
 // This function is intended to be called between 
 // the setup_topology and the mscg_startup_part2 functions.
+
 void* set_dihedral_topology(void* void_in, unsigned** dihedral_partners, unsigned* dihedral_partner_numbers) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -950,6 +1656,7 @@ void* set_dihedral_topology(void* void_in, unsigned** dihedral_partners, unsigne
 // setting, generate_exclusion_topology_should be called instead.
 // This function is intended to be called between 
 // the setup_topology and the mscg_startup_part2 functions.
+
 void* set_exclusion_topology(void* void_in, unsigned** exclusion_partners, unsigned* exclusion_partner_numbers) 
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -981,6 +1688,7 @@ void* set_exclusion_topology(void* void_in, unsigned** exclusion_partners, unsig
 // This function is intended to be called between 
 // the setup_topology (after bond, angle, and/or dihedrals are set)
 // and the mscg_startup_part2 functions.
+
 void* generate_exclusion_topology(void* void_in)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -995,6 +1703,7 @@ void* generate_exclusion_topology(void* void_in)
 // The bond topology must already be set before calling this function.
 // This function is intended to be called between 
 // the setup_topology (setup_bond_topology) and the mscg_startup_part2 functions.
+
 void* generate_angle_dihedral_and_exclusion_topology(void* void_in)
 {
 	MSCG_struct* mscg_struct = (MSCG_struct*)(void_in);
@@ -1092,5 +1801,11 @@ int get_block_size(void* void_in)
 inline void dynamic_state_sampling_error(void)
 {
 	printf("Dynamic state sampling is not currently supported via fix_mscg!\n");
+	exit(EXIT_FAILURE);
+}
+
+inline void r15_error(void)
+{
+    printf("Error: R15 interactions are not currently supported when using the LAMMPS fix!\n");
 	exit(EXIT_FAILURE);
 }

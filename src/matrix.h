@@ -29,7 +29,7 @@ void solve_this_BI_equation(MATRIX_DATA* const mat, int &solution_counter);
 // Matrix-equation-related type definitions
 //-------------------------------------------------------------
 
-enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kDummy = -1};
+enum MatrixType {kDense = 0, kSparse = 1, kAccumulation = 2, kSparseNormal = 3, kSparseSparse = 4, kREM = 5, kIBI = 6, kRecode = 7, kDummy = -1};
 
 // Linked-list-based sparse row matrix element struct. x,y,z components are stored together.
 
@@ -176,10 +176,8 @@ struct dense_matrix {
 		//Allocate this CSR
 		int nnz = get_nnz();
 		int counter = 0;
-		int *column_indices;
-		int *row_sizes;
-		column_indices = new int[nnz]();
-		row_sizes = new int[n_rows + 1]();
+		int column_indices[nnz];
+		int row_sizes[n_rows + 1];
 		row_sizes[0] = 0;
 		
 		fprintf(fh, "%d %d %d\n", n_rows, n_cols, nnz);
@@ -207,8 +205,6 @@ struct dense_matrix {
 			fprintf(fh,"%d ", row_sizes[i]);
 		}
 		fprintf(fh,"\n");
-		delete [] column_indices;
-		delete [] row_sizes;
 	}
 	
 	inline int get_nnz() const {
@@ -267,10 +263,14 @@ struct MATRIX_DATA {
     void (*set_fm_matrix_to_zero)(MATRIX_DATA*);            // A matrix-implementation-dependent function to reset the current force matching matrix to zero between blocks.
     void (*finish_fm)(MATRIX_DATA*);
 
-	// Poor-man's polymorphism for vector matrix operations.
+	// Poor-man's polymorphism for scalar vs vector matrix operations.
 	accumulate_forces accumulate_matching_forces;
+	accumulate_forces accumulate_symmetric_matching_forces;
+	accumulate_forces accumulate_one_body_force;
 	accumulate_table_forces accumulate_tabulated_forces;
-	
+	accumulate_table_forces accumulate_symmetric_tabulated_forces;
+	accumulate_table_forces accumulate_one_body_tabulated_force;
+
     // Basic layout implementation details
     int fm_matrix_rows;                             // Number of rows for FM matrix
     int fm_matrix_columns;                          // Number of columns for FM matrix
@@ -278,6 +278,7 @@ struct MATRIX_DATA {
     int virial_constraint_rows;                     // Rows specifically for virial constraints
     int frames_per_traj_block;              		// Number of frames to read in a single block of FM matrix construction
     int position_dimension;							// The number of elements needed to specify each particle's position.
+    int size_per_vector;							// Either 1 or DIMENSION based on scalar_matching_flag(1 or 0, respectively);
 
     // For dense-matrix-based calculations
     dense_matrix* dense_fm_matrix;
@@ -288,10 +289,12 @@ struct MATRIX_DATA {
     double* fm_solution_normalization_factors;      // Weighted number of times each unknown has been found nonzero in the solution vectors of all blocks
     std::vector<double> fm_solution;                // Final answers averaged over all blocks
 	
-	// BI variables
-    double temperature;
+	// REM variables
+	std::vector<double> previous_rem_solution;        // Previous spline coeffs to be used in REM iteration
     double iteration_step_size;
+    double max_update_size_factor;
     double boltzmann;
+    double temperature;
     
     // Optional extras for any matrix_type
     int use_statistical_reweighting;        // 1 to use per-frame statistical reweighting; 0 otherwise
@@ -351,6 +354,10 @@ struct MATRIX_DATA {
     int output_style;                       // 0 to output only tables; 2 to output tables and binary block equations; 3 to output only binary block equations
     int output_normal_equations_rhs_flag;   // 1 to output the final right hand side vector of the MS-CG normal equations as well as force tables; 0 otherwise
     int output_solution_flag;               // 0 to not output the solution vector; 1 to output the solution vector in x.out
+    int output_raw_splines;					// 1 to output spline contributions for each interaction processed; 0 otherwise  (default)
+   	int output_raw_frame_blocks;			// 1 to output the pre-normal form fm_matrix  at the end of each frame block; 0 otherwise (default)
+   	FILE* frame_block_fh;
+   	
 
 	// Constructors and destructors
 	MATRIX_DATA(ControlInputs* const control_input, CG_MODEL_DATA *const cg);
@@ -387,7 +394,27 @@ struct MATRIX_DATA {
 		} else if (matrix_type == kDummy) {
 		    delete [] dense_fm_rhs_vector;
 			delete [] dense_fm_normal_rhs_vector;
-		}
+		} else if (matrix_type == kREM) {
+	    	delete dense_fm_matrix;
+	    	delete dense_fm_normal_matrix;
+	 	} else if (matrix_type == kRecode) {
+	 		// This is a copy of kDense
+	 		delete [] dense_fm_rhs_vector;
+			delete [] dense_fm_normal_rhs_vector;
+	 	}
+
+	 	if  (output_raw_frame_blocks == 1) {
+ 			fclose(frame_block_fh);
+ 		}
+ 		
+ 		if (bootstrapping_flag == 1 && matrix_type == kREM) {
+			for (int k = 0; k < bootstrapping_num_estimates; k++) {
+				delete bootstrapping_dense_fm_normal_matrices[k];
+				delete [] bootstrapping_dense_fm_normal_rhs_vectors[k];
+			}
+			delete [] bootstrapping_dense_fm_normal_rhs_vectors;
+			delete [] bootstrapping_dense_fm_normal_matrices;
+ 		}
 	}
    
     // Modification function for matrix.
@@ -440,21 +467,31 @@ struct MATRIX_DATA {
 };
 
 // Set FM and bootstrapping normalization constants.
-
 inline void set_normalization(MATRIX_DATA* mat, const double new_normalization_constant) {
     mat->normalization = new_normalization_constant;
 }
-
 void set_bootstrapping_normalization(MATRIX_DATA* mat, double** const bootstrapping_weights, int const n_frames);
 void allocate_bootstrapping(MATRIX_DATA* mat, ControlInputs* const control_input, const int rows, const int cols);
 
 // Target (RHS) vector calculation routines
-
 void add_target_virials_from_trajectory(MATRIX_DATA* const mat, double *pressure_constraint_rhs_vector);
 void add_target_force_from_trajectory(int shift_i, int site_i, MATRIX_DATA* const mat, std::array<double, DIMENSION>* const &f);
 
 // Read serialized, partially-completed post-frameblock matrix calculation intermediates
-
 void read_binary_matrix(MATRIX_DATA* const mat);
 
+// Methods of constructing reference data for relative entropy.
+void construct_rem_matrix_from_input_matrix(MATRIX_DATA* const mat, const char * filename);
+void construct_rem_matrix_from_rdfs(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat, const double volume);
+
+// Read text file of previous iteration b-spline coefficients for relative entropy and iterative Boltzmann inversion.
+void read_previous_solution(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat);
+
+// "Finish FM" for REM
+void calculate_new_rem_parameters(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+void calculate_new_rem_parameters_and_bootstrap(CG_MODEL_DATA* const cg, MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+
+// "Finish FM" for IBI
+void calculate_new_ibi_parameters(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
+void calculate_new_ibi_parameters_and_bootstrap(MATRIX_DATA* const mat_cg, MATRIX_DATA* const mat_ref);
 #endif

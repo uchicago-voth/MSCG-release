@@ -1,87 +1,37 @@
 Release Notes
 =============
 
-Version 1.7.3 (May 17, 2018)
-	* Changed variable array declaritions that interfaced with lammps to comply with C++11 standard
-
-Version 1.7.2 (November 13, 2017)
-	* Fixed bug relating to dihedral outputs
-
-Version 1.7.1 (October 31, 2017)
-	* Fixed bug relating to "tab" interactions
-
-Version 1.7.0 (July 20, 2017)
-	* Added density interactions
-		** Updated manual
-		** Added density supplement to manual
-		** Added density_fm example
-		** Separate exclusion list for density
-	* Added arbitrary dimension interactions
-		** Rewrite neighbor cell/list code
-		** Change internal position and force data structure
-	* Speed-up finding of first frame
-	
-Version 1.6.11 (July 19, 2017)
-	* Added Boltzmann inversion via rangefinder.x and libmscg.a 
-		(through output_*_parameter_distribution)
-		** Added lammps-bi example
-		** Updated manual
-		** Added temperature and boltzmann control.in options
-	* Renamed iterative_update_rate_coeff to iteration_step_size
-	* Changed default binwdith value
-	* Histograms are now generated with half the fm_binwidth
-	* Concise (1) and verbose (2) options for output_*_parameter_distribution
-	* Increased usage of select_name helper function
-	* Update more of I/O to use C++ streams
-	* Refactor bootstrapping memory allocation
-	
-Version 1.6.10 (July 12, 2017)
-	* Added (and updated) fix mscg text for LAMMPS Manual
-	
-Version 1.6.9 (July 11, 2017)
-	* Update license to GNU General Public License version 3 (GPLv3)
-	
-Version 1.6.8 (July 10, 2017)
-	* Adjustment and padding of output interactions
-	* Support for periodic and wrapping dihedral ranges
-	* Refactor spline computer constructor
-	* Refactor interaction input processing
-	* Refactor interaction output processing
-	* Update object dependency in makefiles
-	* Add validate-dihedral-0 example
-	
-Version 1.6.7 (July 2, 2017)
-	* Update manual for three-body interactions
-	
-Version 1.6.6 (May 24,2017)
-	* Fix units on angular interactions
-	* Fix internal rounding issues
-	* Update bayesian_fm example
-
-Version 1.6.5 (May 19,2017)
-	* Rewrite three-body calculations
-	* Add threebody_fm example
-	
-Version 1.6.4 (April 24, 2017)
-	* Rewrite dihedral calculations
-	
-Version 1.6.3 (April 23, 2017)
+Version 1.7.3 (April 23, 2017)
 	* Simplify and update makefiles (g++ and intel compiliers)
 	* Update README_lammps.txt
 	* Rearrange code in mscg.cpp for fix mscg
 	* Create fix_lammps_fm example for use of the fix mscg feaure in LAMMPS
 	
-Version 1.6.2 (April 20, 2017)
+Version 1.7.2 (April 20, 2017)
 	* Added a simple makefile for library and no Gromacs (only GSL and LAPACK dependencies)
-	* Update "all" option for makefiles
+	* Simplify makefiles to choose from
 	* Changes for GNU compiler compatability
 	* Switch some linear algebra to CBLAS
 
-Version 1.6.1 (April 9, 2017)
+Version 1.7.1 (April 9, 2017)
 	* Added version of Gromacs XTC files used when that part of the code was designed.
 	* Fixed typos in Manual.
 	* Corrected formatting error in rangefinder output files.
 	* Updated Gromacs information in Install file.
+	
+Version 1.7.0 (March 10, 2017)
+	* Added arbitrary dimension force matching (through position_dimension) (for order parameters)
+	* Added density basis set (for order parameters)
+		** Added density_fm example
+		** Added density_supplement to Manual
+	* Added radius-of-gyration basis set (for order parameters)
+	* Added one-body type-specific basis set (for multiscale compatible observable decomposition (MS-CODE))
+	* Added symmetric versions of all basis sets (sym and tabsym are now valid rmin* "modes") (for MS-CODE)
+	* Added scalar observable matching (for MS-CODE)
+	* Added Bayesian FM examples
+	* Added legacy code copy for internal reference
+	* Added wish list for internal development goals
+	* Updated Manual 
 	
 Version 1.6.0 (January 23, 2017)
 	* Fix compilation issue (include statement) for mscg library

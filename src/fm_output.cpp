@@ -82,14 +82,14 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 	for(icomp_iterator = cg->icomp_list.begin(); icomp_iterator != cg->icomp_list.end(); icomp_iterator++) {
         // For every defined interaction,
         for (unsigned i = 0; i < (*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map.size(); i++) {
-            // If that interaction is being matched
+            // If that interaction is being matched (includes forces and symmetric/MS-CODE),
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0) {
             	    
             	// Select the correct type name array for the interaction.
 				char** name = select_name((*icomp_iterator)->ispec, cg->name);
 
 				// Write output based on energy splines
-	        	if(mat->matrix_type == kDummy){
+	        	if(mat->matrix_type == kREM || mat->matrix_type == kDummy){
 	      	 		if(mat->matrix_type == kDummy && (*icomp_iterator)->ispec->output_parameter_distribution == 0) continue;
 		         	
 		         	if (mat->bootstrapping_flag == 1) {
@@ -97,9 +97,12 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
  	   	            	write_bootstrapping_one_param_table_files_energy(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag, cg->pair_nonbonded_cutoff);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
-	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline) {
+	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
     	            	    write_bootstrapping_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
         	        	} else {
             	    	    printf("Unrecognized basis type.\n");
@@ -111,9 +114,12 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 					
 						// Write special output files for the specific spline types.	      
 						if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-							(*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+						    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+						    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+						    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
 							write_one_param_bspline_file(*icomp_iterator, name, mat, i);
-						} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline) {
+						} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+						   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
 							write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
 						} else {
 							printf("Unrecognized basis type.\n");
@@ -121,16 +127,19 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 						}
 					}
 	      		} else {	
-	      			// This is for force matching
+	      			// This is for force matching, MS-CODE (sym), and relative entropy of framewise observables (kObs)
 	      			// Write output based on force splines		
    					if (mat->bootstrapping_flag == 1) {
 	                	// Write tabular output, regardless of spline type.
  	   	            	write_bootstrapping_one_param_table_files(*icomp_iterator, name, mat->fm_solution, mat->bootstrap_solutions, i, mat->bootstrapping_num_estimates, mat->bootstrapping_full_output_flag);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_bootstrapping_one_param_bspline_file(*icomp_iterator, name, mat, i);
-	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline) {
+	                	} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
     	            	    write_bootstrapping_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
         	        	} else {
             	    	    printf("Unrecognized basis type.\n");
@@ -141,9 +150,12 @@ void write_interaction_data_to_file(CG_MODEL_DATA* const cg, MATRIX_DATA* const 
 				  		write_one_param_table_files(*icomp_iterator, name, mat->fm_solution, i, cg->pair_nonbonded_cutoff);
         	        	// Write special output files for the specific spline types.
             	    	if ((*icomp_iterator)->ispec->get_basis_type() == kBSpline ||
-            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ) {
+            	    	    (*icomp_iterator)->ispec->get_basis_type() == kBSplineAndDeriv ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kPower ||
+			    (*icomp_iterator)->ispec->get_basis_type() == kLJ ) {
                 		    write_one_param_bspline_file(*icomp_iterator, name, mat, i);
-		    			} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline) {
+		    			} else if ((*icomp_iterator)->ispec->get_basis_type() == kLinearSpline ||
+	                			   (*icomp_iterator)->ispec->get_basis_type() == kDelta) {
     	                	write_one_param_linear_spline_file(*icomp_iterator, name, mat, i);
     	            	} else {
             	        	printf("Unrecognized basis type.\n");
@@ -228,7 +240,7 @@ void write_LAMMPS_table_output_file(const char i_type, const std::string& intera
 		fprintf(curr_table_output_file, "N %lu FP 0.0 0.0 EQ %lf\n", axis_vals.size(), axis_vals[min_index]);
 	} else if (i_type == 'd') { // dihedral
 		fprintf(curr_table_output_file, "N %lu DEGREES\n", axis_vals.size());
-	} else { // pair non-bonded, density
+	} else { // pair non-bonded, density, RG
 		fprintf(curr_table_output_file, "N %lu R %lf %lf\n", axis_vals.size(), axis_vals[0], axis_vals[axis_vals.size() - 1]);
 	}
 
@@ -248,15 +260,27 @@ void write_one_param_table_files_energy(InteractionClassComputer* const icomp, c
   // Compute forces and potentials over a grid of parameter values.
   // Correct name is selected in calling function write_interaction_data_to_file
   std::vector<double> axis_vals, force_vals, potential_vals;
-  icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
-  make_negative(force_vals);
-  
-  // Determine base for output filenames.
-  std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+  if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL)
+    {
+      icomp->calc_one_force_val(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals, potential_vals);
+    } 
+  else
+    {
+      icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals, force_vals);
+      make_negative(force_vals);
+    }
+    // Determine base for output filenames.
+    std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
 
-  // Print out tabulated output files in MSCGFM style and LAMMPS style.
-  write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
-  pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+   if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
+     {
+        basename += "_sym";	
+     }
+	
+	// Print out tabulated output files in MSCGFM style and LAMMPS style.
+    write_MSCGFM_table_output_file(basename, axis_vals, potential_vals);
+	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
 }
 				 
 void write_one_param_table_files(InteractionClassComputer* const icomp, char ** const name, const std::vector<double> &spline_coeffs, const int index_among_defined_intrxns, const double cutoff) 
@@ -265,12 +289,23 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
 	// Correct name is selected in calling function write_interaction_data_to_file
     std::vector<double> axis_vals, force_vals, potential_vals;
     int index_among_tabulated = icomp->ispec->defined_to_tabulated_intrxn_index_map[index_among_defined_intrxns];
-	icomp->calc_grid_of_force_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals);
-	// Integrate force starting from cutoff = 0.0 potential.
-	integrate_force(axis_vals, force_vals, potential_vals);
+    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
+    	icomp->calc_one_force_val(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals, potential_vals);
+    } else {
+    	icomp->calc_grid_of_force_vals(spline_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals);
+    	// Integrate force starting from cutoff = 0.0 potential.
+    	integrate_force(axis_vals, force_vals, potential_vals);
+    }
     
     // Determine base for output filenames.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+
+
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+   if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0)
+     {
+        basename += "_sym";	
+     }
 	
 	// Print out tabulated output files in MSCGFM style and LAMMPS style.
     write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
@@ -278,16 +313,17 @@ void write_one_param_table_files(InteractionClassComputer* const icomp, char ** 
     	pad_and_print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals, cutoff);
     } else {
     	print_table_files(icomp->ispec->get_char_id(), basename, axis_vals, force_vals, potential_vals);
-	
-		std::vector<double> tab_axis_vals, tab_force_vals;
-		icomp->calc_grid_of_table_force_vals(index_among_defined_intrxns, icomp->ispec->output_binwidth, tab_axis_vals, tab_force_vals);
-		// sum the forces between the fm and tab.
-		add_force_vals(axis_vals, force_vals, tab_axis_vals, tab_force_vals);
-		// Integrate force starting from cutoff
-		integrate_force(axis_vals, force_vals, potential_vals);
-		
-		write_MSCGFM_table_output_file(basename + "_sum", axis_vals, force_vals);
-		pad_and_print_table_files(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, force_vals, potential_vals, cutoff);
+    	if (icomp->ispec->class_type != kOneBody) {
+		    std::vector<double> tab_axis_vals, tab_force_vals;
+		    icomp->calc_grid_of_table_force_vals(index_among_defined_intrxns, icomp->ispec->output_binwidth, tab_axis_vals, tab_force_vals);
+    		// sum the forces between the fm and tab.
+    		add_force_vals(axis_vals, force_vals, tab_axis_vals, tab_force_vals);
+    		// Integrate force starting from cutoff
+    		integrate_force(axis_vals, force_vals, potential_vals);
+    		
+    		write_MSCGFM_table_output_file(basename + "_sum", axis_vals, force_vals);
+			pad_and_print_table_files(icomp->ispec->get_char_id(), basename + "_sum", axis_vals, force_vals, potential_vals, cutoff);
+    	}
     }
 }
 
@@ -299,7 +335,16 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 		pad_and_print_single_table(char_id, basename, axis_vals, force_vals, cutoff);
 	} else if (char_id == 'a') {
     	pad_and_print_single_table(char_id, basename, axis_vals, force_vals, 180.0);
-	} else if (char_id == 'd') {
+    } else if (char_id == 'g') {
+    	int size = axis_vals.size();
+    	std::vector<double> rg_potential_vals;
+    	std::vector<double> sqrt_axis_vals(size);
+    	for (int i = 0; i < size; i++) {
+    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
+	    }
+    	integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
+	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
+    } else if (char_id == 'd') {
    	 	double first_axis_wrapped = wrap_periodic_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	trim_excess_axis(-180.0, 180.0, axis_vals, force_vals);
    	 	std::vector<double> corrected_potential_vals;
@@ -307,7 +352,7 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
    	 	shift_potential_for_periodicity(axis_vals, force_vals, corrected_potential_vals, first_axis_wrapped, -180.0, 180.0);
    	 	for (unsigned i = 0; i < corrected_potential_vals.size(); i++) {
    	 		corrected_potential_vals[i] /= DEGREES_PER_RADIAN;
-			force_vals[i]  /= DEGREES_PER_RADIAN;
+			force_vals[i] /= DEGREES_PER_RADIAN;
    	 	}
    	 	// rewrite force file with wrapped forces
    	 	write_MSCGFM_table_output_file(basename, axis_vals, force_vals);
@@ -319,8 +364,19 @@ void pad_and_print_table_files(const char char_id, const std::string& basename, 
 }
 
 void print_table_files(const char char_id, std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, std::vector<double>& potential_vals)
-{		
-	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);
+{	
+	if (char_id == 'g') {
+    	int size = axis_vals.size();
+    	std::vector<double> rg_potential_vals;
+    	std::vector<double> sqrt_axis_vals(size);
+    	for (int i = 0; i < size; i++) {
+    		sqrt_axis_vals[i] = sqrt(axis_vals[i]);
+	    }
+	    integrate_force(sqrt_axis_vals, force_vals, rg_potential_vals);
+	    write_LAMMPS_table_output_file(char_id, basename, axis_vals, rg_potential_vals, force_vals);
+    } else {		
+    	write_LAMMPS_table_output_file(char_id, basename, axis_vals, potential_vals, force_vals);   
+    }
 }
 
 void pad_and_print_single_table(const char char_id, const std::string& basename, std::vector<double>& axis_vals, std::vector<double>& force_vals, const double cutoff)
@@ -383,6 +439,10 @@ void write_one_param_linear_spline_file(InteractionClassComputer* const icomp, c
 		}
 
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
+    	// Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
+			basename += "_sym";	
+		}
 
         // Output the linear spline bin points and coefficients.
         sprintf(name_tmp1, "%s.b", basename.c_str());
@@ -411,7 +471,7 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
     std::string type_names;
     if (icomp->ispec->class_type == kDensity) {
    		DensityClassSpec* dspec = static_cast<DensityClassSpec*>(icomp->ispec);
-   	    type_names = dspec->get_interaction_name(name, index_among_defined, " ");
+   	    type_names = dspec->get_interaction_name(name, index_among_defined, " "); // this needs to call the assymmetric hash version
 	} else {
    	    type_names = icomp->ispec->get_interaction_name(name, index_among_defined, " ");
 	}
@@ -431,11 +491,25 @@ void write_one_param_bspline_file(InteractionClassComputer* const icomp, char **
 
     // Print the spline coefficients.
     for (int k = 0; k < n_basis_funcs; k++) {
-        fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->ispec->interaction_column_indices[index_among_matched - 1] + k]);
+      fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined] - 1] + k]);
+      // Complete the line.
     }
-    // Complete the line.
     fprintf(spline_output_filep, "\n");
-	fclose(spline_output_filep);
+    
+    fclose(spline_output_filep);
+}
+
+void write_output_solution(MATRIX_DATA* const mat)
+{
+	FILE* xout = open_file("x.out", "wb");
+	if (mat->bootstrapping_flag == 1) {
+		for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
+			fwrite(&(mat->bootstrap_solutions[i][0]), sizeof(double), mat->fm_matrix_columns, xout);
+		}
+	} else {
+		fwrite(&(mat->fm_solution[0]), sizeof(double), mat->fm_matrix_columns, xout);
+	}
+	fclose(xout);
 }
 
 void write_output_solution(MATRIX_DATA* const mat)
@@ -509,18 +583,32 @@ void write_bootstrapping_one_param_table_files(InteractionClassComputer* const i
     int i;
     
     // Master
-	icomp->calc_grid_of_force_vals(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_force_vals);
-    integrate_force(axis_vals, master_force_vals, master_potential_vals);
+    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
+    	icomp->calc_one_force_val(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_force_vals, master_potential_vals);
+ 	} else {
+   		icomp->calc_grid_of_force_vals(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_force_vals);
+    	integrate_force(axis_vals, master_force_vals, master_potential_vals);
+    }
     
     // Bootstrap estimates
     for (i = 0; i < bootstrapping_num_estimates; i++) {
-	    icomp->calc_grid_of_force_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i]);
-		// Integrate force starting from cutoff = 0.0 potential.
-    	integrate_force(axis_vals, force_vals[i], potential_vals[i]);		
+	    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
+    		icomp->calc_one_force_val(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i], potential_vals[i]);
+ 		} else {
+ 			icomp->calc_grid_of_force_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i]);
+			// Integrate force starting from cutoff = 0.0 potential.
+    		integrate_force(axis_vals, force_vals[i], potential_vals[i]);
+		}
+		
 	}
     
     // Print out tabulated output files in MSCGFM style and LAMMPS style.
     std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
+
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
+		basename += "_sym";	
+	}
 
   	if (bootstrapping_full_output_flag == 1) {
   		// Write master followed by all estimates.
@@ -546,13 +634,21 @@ void write_bootstrapping_one_param_table_files_energy(InteractionClassComputer* 
     int i;
     
     // Master
-	icomp->calc_grid_of_force_and_deriv_vals(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_potential_vals, master_force_vals);
-	make_negative(master_force_vals);
+    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
+    	icomp->calc_one_force_val(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_force_vals, master_potential_vals);
+ 	} else {
+        icomp->calc_grid_of_force_and_deriv_vals(master_coeffs, index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, master_potential_vals, master_force_vals);
+        make_negative(master_force_vals);
+    }
     
     // Bootstrap estimates
     for (i = 0; i < bootstrapping_num_estimates; i++) {
-	    icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals[i], force_vals[i]);
-		make_negative(force_vals[i]);
+	    if (dynamic_cast<OneBodyClassComputer*>(icomp) != NULL) {
+    		icomp->calc_one_force_val(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, force_vals[i], potential_vals[i]);
+ 		} else {
+ 			icomp->calc_grid_of_force_and_deriv_vals(spline_coeffs[i], index_among_defined_intrxns, icomp->ispec->output_binwidth, axis_vals, potential_vals[i], force_vals[i]);
+			make_negative(force_vals[i]);
+		}
 	}
 
     // Determine base for output filenames.
@@ -566,6 +662,11 @@ void write_bootstrapping_one_param_table_files_energy(InteractionClassComputer* 
       {
         basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
       }
+
+    // Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+	if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
+		basename += "_sym";	
+	}
 
   	if (bootstrapping_full_output_flag == 1) {
   		// Write master followed by all estimates.
@@ -598,7 +699,7 @@ void write_bootstrapping_one_param_bspline_file(InteractionClassComputer* const 
     for (int i = 0; i < mat->bootstrapping_num_estimates; i++) {
     	// Print the spline coefficients.
     	for (unsigned k = 0; k < interaction_column_indices; k++) {
-        	fprintf(spline_output_filep, "%.15le ", mat->bootstrap_solutions[i][icomp->ispec->interaction_column_indices[index_among_matched_interactions - 1] + k]);
+	  fprintf(spline_output_filep, "%.15le ", mat->fm_solution[icomp->interaction_class_column_index + icomp->ispec->interaction_column_indices[icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns] - 1] + k]);
     	}
     
 	    // Complete the line and flush.
@@ -617,6 +718,10 @@ void write_bootstrapping_one_param_linear_spline_file(InteractionClassComputer* 
         std::string basename = icomp->ispec->get_basename(name, index_among_defined_intrxns, "_");
         
         int index_among_matched_interactions = icomp->ispec->defined_to_matched_intrxn_index_map[index_among_defined_intrxns];
+    	// Select symmetric basename modifier if appropriate (i.e. MS-CODE interactions)
+		if(icomp->ispec->defined_to_symmetric_intrxn_index_map[index_among_defined_intrxns] != 0) {
+			basename += "_sym";	
+		}
 
         // Output the linear spline bin points and coefficients.
         sprintf(name_tmp1, "%s.b", basename.c_str());
@@ -658,7 +763,7 @@ void reinsert_periodic_solution_coefficients(CG_MODEL_DATA* const cg, MATRIX_DAT
         
         // For every defined interaction,
         for (int i = 0; i < size; i++) {
-            // If that interaction is being matched
+            // If that interaction is being matched (includes forces and symmetric/MS-CODE)
             // and it is periodic,
             if ((*icomp_iterator)->ispec->defined_to_matched_intrxn_index_map[i] != 0 &&
             	(*icomp_iterator)->ispec->defined_to_periodic_intrxn_index_map[i] == 1) {

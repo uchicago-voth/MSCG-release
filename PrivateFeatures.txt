@@ -1,0 +1,7 @@
+#) Item (Related paper/feature)
+1) Relative entropy via newrem.x and lammps_rem example
+2) Relative entropy in LAMMPS driver via fix_mscg directory
+3) Symmetric interactions (MS-CODE)
+4) Scalar matching (MS-CODE)
+5) RE-CODE via recode.x (RE-CODE)
+6) RG, Helical, 1-3, 1-4, 1-5 interactions (polyalanine)

@@ -2,6 +2,7 @@
 //  newfm.cpp
 //
 //  The driver implements force matching for interaction forces.
+//  It also implements observable determination for frame-wise and per-particle values.
 //  It uses least squares fitting.
 //
 //  Copyright (c) 2016 The Voth Group at The University of Chicago. All rights reserved.
@@ -66,10 +67,16 @@ int main(int argc, char* argv[])
     // The range files have specified which interactions should be
     // read from file; read the tabulated potentials from table.in
     // now if any were found.
-    if (cg.pair_nonbonded_interactions.n_tabulated > 0 ||
+    if (cg.one_body_interactions.n_tabulated > 0 ||
+    	cg.pair_nonbonded_interactions.n_tabulated > 0 ||
         cg.pair_bonded_interactions.n_tabulated > 0 ||
         cg.angular_interactions.n_tabulated > 0 ||
         cg.dihedral_interactions.n_tabulated > 0 ||
+        cg.r13_interactions.n_tabulated > 0 ||
+        cg.r14_interactions.n_tabulated > 0 ||
+        cg.r15_interactions.n_tabulated > 0 ||
+        cg.helical_interactions.n_tabulated > 0 || 
+        cg.radius_of_gyration_interactions.n_tabulated > 0 ||
 		cg.density_interactions.n_tabulated > 0) {
         printf("Reading tabulated reference potentials.\n");
         read_tabulated_interaction_file(&cg, cg.topo_data.n_cg_types);
@@ -102,7 +109,7 @@ int main(int argc, char* argv[])
     // read.
     printf("Beginning to read frames.\n");
     printf("Finding first frame...\n");
-    frame_source.get_first_frame(&frame_source, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types);
+    frame_source.get_first_frame(&frame_source, cg.topo_data.n_cg_sites, cg.topo_data.cg_site_types, cg.topo_data.molecule_ids);
 	if (frame_source.dynamic_state_sampling == 1) frame_source.sampleTypesFromProbs();
 	
     // Assign a host of function pointers in 'cg' new definitions

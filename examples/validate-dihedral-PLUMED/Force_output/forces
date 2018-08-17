@@ -1,0 +1,1146 @@
+Parsing command line arguments.
+Reading high level control parameters.
+Reading topology file.
+Reading definition of molecule type 0.
+Read pair bond topology; 11 bonds of 1 bond types.
+Reading angle interactions for A-B and B-C as B A C.
+Read manually specified angle topology; 10 angles of 1 angle types.
+Reading angle interactions for A-B, B-C, and C-D as B C A D.
+Read manually specified dihedral topology; 9 dihedrals of 1 dihedral types.
+Setting up exclusion list for excluded_style 3.
+Setting up exclusion list for excluded_style 0.
+Freeing topology information.
+Reading interaction ranges.
+Reading interaction ranges for 1 pair nonbonded interactions.
+Will force match 1 pair nonbonded interactions and 0 are interactions tabulated.
+Reading interaction ranges for 1 pair bonded interactions.
+Will force match 1 pair bonded interactions and 0 are interactions tabulated.
+Reading interaction ranges for 1 angular bonded interactions.
+Will force match 1 angular bonded interactions and 0 are interactions tabulated.
+Reading interaction ranges for 1 dihedral bonded interactions.
+Will force match 1 dihedral bonded interactions and 0 are interactions tabulated.
+Beginning to read frames.
+Finding first frame...
+Number of CG sites defined in top.in (12) is consistent with trajectory.
+Allocating b-spline temporaries for 1 interactions.
+Allocating b-spline temporaries for 1 interactions.
+Allocating b-spline temporaries for 1 interactions.
+Allocating b-spline temporaries for 1 interactions.
+Initializing FM matrix.
+Number of basis functions by interaction class:
+One body: 0
+Pair nonbonded: 19
+Pair bonded: 23
+Angular bonded: 34
+Dihedral bonded: 75
+R13 distance: 0
+R14 distance: 0
+R15 distance: 0
+Helical: 0
+Radius of gyration: 0
+Density: 0
+Number of rows for dense matrix algorithm: 36 
+Number of columns for dense matrix algorithm: 151 
+Size of per-frame matrix: 43488 bytes 
+Size of normal matrix: 182408 bytes 
+Initialized a dense FM matrix.
+Finished initializing FM matrix.
+Constructing FM equations.
+Entering primary matrix-building loop.
+Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -97.422465
+Derivative 1: 0.055605, 0.023195, -0.296083
+Derivative 2: -0.263310, -0.023257, -0.088001
+Derivative 3: 0.365292, 0.040745, -0.023861
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 36.866494
+Derivative 1: 0.263818, 0.023302, 0.088170
+Derivative 2: -0.229685, 0.128691, -0.014631
+Derivative 3: 0.302740, -0.120300, 0.039855
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 59.588504
+Derivative 1: 0.232352, -0.130186, 0.014801
+Derivative 2: -0.057449, 0.147632, -0.211678
+Derivative 3: 0.061688, -0.164465, 0.238001
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 123.048045
+Derivative 1: 0.057741, -0.148382, 0.212754
+Derivative 2: -0.047648, -0.346261, 0.009604
+Derivative 3: 0.084908, 0.546609, 0.010705
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 172.935384
+Derivative 1: 0.046733, 0.339613, -0.009420
+Derivative 2: 0.023292, 0.306519, 0.024572
+Derivative 3: -0.004556, -0.240805, -0.043369
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -163.779474
+Derivative 1: -0.023473, -0.308906, -0.024763
+Derivative 2: 0.017028, -0.261203, 0.043866
+Derivative 3: -0.028648, 0.101391, -0.055755
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 98.599210
+Derivative 1: -0.017029, 0.261222, -0.043869
+Derivative 2: -0.264113, 0.051519, 0.136382
+Derivative 3: 0.398627, -0.081427, -0.205093
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -85.399964
+Derivative 1: 0.268344, -0.052345, -0.138567
+Derivative 2: 0.101439, -0.104443, 0.294116
+Derivative 3: -0.030132, 0.141315, -0.538784
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -164.839503
+Derivative 1: -0.101097, 0.104091, -0.293125
+Derivative 2: -0.030576, 0.152900, -0.285637
+Derivative 3: -0.012980, -0.177534, 0.272068
+
+2 (1) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -113.042048
+Derivative 1: -0.010137, 0.052404, -0.295576
+Derivative 2: -0.235607, -0.062403, -0.109211
+Derivative 3: 0.264050, 0.095618, -0.013203
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 43.289907
+Derivative 1: 0.240080, 0.063588, 0.111285
+Derivative 2: -0.236612, 0.114286, -0.024651
+Derivative 3: 0.277585, -0.109733, 0.040617
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 47.506294
+Derivative 1: 0.237298, -0.114617, 0.024723
+Derivative 2: -0.101493, 0.163956, -0.181663
+Derivative 3: 0.122218, -0.187925, 0.204601
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 108.934052
+Derivative 1: 0.101795, -0.164444, 0.182203
+Derivative 2: -0.029755, -0.344886, -0.121107
+Derivative 3: 0.062684, 0.564266, 0.227111
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 179.755241
+Derivative 1: 0.029685, 0.344080, 0.120824
+Derivative 2: 0.040338, 0.475572, 0.169149
+Derivative 3: -0.053641, -0.636525, -0.227480
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -144.725787
+Derivative 1: -0.039954, -0.471045, -0.167539
+Derivative 2: 0.012968, -0.252812, 0.067443
+Derivative 3: -0.047379, -0.149958, -0.211836
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 123.240420
+Derivative 1: -0.013173, 0.256821, -0.068512
+Derivative 2: -0.251097, 0.159756, 0.012856
+Derivative 3: 0.359958, -0.227276, -0.018914
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -109.846823
+Derivative 1: 0.246235, -0.156663, -0.012607
+Derivative 2: 0.076182, -0.085731, 0.267036
+Derivative 3: 0.001074, 0.053133, -0.391367
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -156.779053
+Derivative 1: -0.077778, 0.087526, -0.272629
+Derivative 2: 0.032186, 0.179734, -0.319768
+Derivative 3: -0.087005, -0.263411, 0.418807
+
+3 (2) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -103.732811
+Derivative 1: 0.006172, 0.027527, -0.311728
+Derivative 2: -0.244685, -0.071103, -0.074396
+Derivative 3: 0.289632, 0.098235, -0.083403
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 35.673590
+Derivative 1: 0.248797, 0.072298, 0.075646
+Derivative 2: -0.251710, 0.083575, -0.023857
+Derivative 3: 0.310292, -0.077570, 0.037966
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 50.706714
+Derivative 1: 0.248013, -0.082348, 0.023507
+Derivative 2: -0.116431, 0.130800, -0.201747
+Derivative 3: 0.138759, -0.141670, 0.211018
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 108.295857
+Derivative 1: 0.115846, -0.130143, 0.200734
+Derivative 2: -0.022887, -0.325360, -0.059887
+Derivative 3: 0.041058, 0.516348, 0.103555
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -154.827883
+Derivative 1: 0.023008, 0.327088, 0.060205
+Derivative 2: 0.086884, 0.346568, -0.080554
+Derivative 3: -0.131212, -0.383187, 0.170235
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -172.659676
+Derivative 1: -0.085652, -0.341657, 0.079413
+Derivative 2: -0.046965, -0.242251, 0.086966
+Derivative 3: -0.015139, -0.009255, -0.026398
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 90.404986
+Derivative 1: 0.048460, 0.249960, -0.089734
+Derivative 2: -0.269611, 0.090143, 0.099099
+Derivative 3: 0.387046, -0.146615, -0.137614
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -100.542975
+Derivative 1: 0.263044, -0.087948, -0.096685
+Derivative 2: 0.143826, -0.087147, 0.286098
+Derivative 3: -0.107216, 0.098524, -0.504517
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -154.357190
+Derivative 1: -0.144951, 0.087829, -0.288337
+Derivative 2: -0.023417, 0.214404, -0.378189
+Derivative 3: -0.044112, -0.333913, 0.509568
+
+4 (3) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -109.256115
+Derivative 1: 0.030087, 0.015715, -0.290110
+Derivative 2: -0.219861, -0.106327, -0.118728
+Derivative 3: 0.264689, 0.128493, 0.015000
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 49.328154
+Derivative 1: 0.219162, 0.105989, 0.118351
+Derivative 2: -0.237643, 0.105186, -0.048092
+Derivative 3: 0.277572, -0.092881, 0.067101
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 45.380000
+Derivative 1: 0.241627, -0.106950, 0.048898
+Derivative 2: -0.104226, 0.139663, -0.198172
+Derivative 3: 0.113672, -0.145645, 0.203495
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 114.312511
+Derivative 1: 0.104351, -0.139830, 0.198410
+Derivative 2: -0.025921, -0.315612, -0.034169
+Derivative 3: 0.042227, 0.487035, 0.056832
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -170.864883
+Derivative 1: 0.025798, 0.314114, 0.034007
+Derivative 2: 0.062923, 0.400530, -0.013735
+Derivative 3: -0.096076, -0.528082, 0.043048
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -155.286249
+Derivative 1: -0.062842, -0.400015, 0.013717
+Derivative 2: -0.011480, -0.237161, 0.115467
+Derivative 3: -0.034944, -0.041794, -0.116730
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 101.347180
+Derivative 1: 0.011600, 0.239635, -0.116671
+Derivative 2: -0.260587, 0.107512, 0.064785
+Derivative 3: 0.372518, -0.129538, -0.103857
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -101.313615
+Derivative 1: 0.261324, -0.107816, -0.064968
+Derivative 2: 0.125651, -0.022745, 0.276443
+Derivative 3: -0.074067, -0.012174, -0.433468
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -143.036600
+Derivative 1: -0.123095, 0.022282, -0.270821
+Derivative 2: 0.035175, 0.154158, -0.308114
+Derivative 3: -0.118011, -0.242871, 0.374921
+
+5 (4) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -111.608777
+Derivative 1: 0.008599, -0.018776, -0.297710
+Derivative 2: -0.201676, -0.136461, -0.093509
+Derivative 3: 0.205771, 0.128165, -0.040357
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 59.049327
+Derivative 1: 0.203766, 0.137875, 0.094478
+Derivative 2: -0.228940, 0.120481, -0.064600
+Derivative 3: 0.217784, -0.114341, 0.061492
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 44.152366
+Derivative 1: 0.224243, -0.118009, 0.063274
+Derivative 2: -0.103580, 0.102345, -0.217693
+Derivative 3: 0.101822, -0.105973, 0.235137
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 121.937866
+Derivative 1: 0.105782, -0.104520, 0.222321
+Derivative 2: -0.020750, -0.305671, 0.065569
+Derivative 3: 0.041505, 0.459662, -0.080357
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -164.773679
+Derivative 1: 0.020530, 0.302429, -0.064874
+Derivative 2: 0.072766, 0.354266, -0.172099
+Derivative 3: -0.115848, -0.453352, 0.265071
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -177.952759
+Derivative 1: -0.072398, -0.352472, 0.171227
+Derivative 2: -0.045726, -0.231955, 0.122831
+Derivative 3: -0.006577, -0.022222, 0.000141
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 96.261831
+Derivative 1: 0.045522, 0.230918, -0.122281
+Derivative 2: -0.268231, 0.116754, 0.050397
+Derivative 3: 0.381495, -0.153472, -0.077385
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -105.015887
+Derivative 1: 0.264815, -0.115268, -0.049755
+Derivative 2: 0.132618, -0.031084, 0.289540
+Derivative 3: -0.094222, -0.000498, -0.472255
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -125.043427
+Derivative 1: -0.134001, 0.031408, -0.292561
+Derivative 2: 0.146489, 0.188066, -0.280496
+Derivative 3: -0.318566, -0.297772, 0.309802
+
+6 (5) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -98.729435
+Derivative 1: 0.066911, -0.011814, -0.266528
+Derivative 2: -0.203373, -0.156150, -0.086517
+Derivative 3: 0.254737, 0.176379, 0.018691
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 57.536945
+Derivative 1: 0.203394, 0.156166, 0.086526
+Derivative 2: -0.239553, 0.095935, -0.051965
+Derivative 3: 0.280532, -0.076105, 0.067322
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 36.885751
+Derivative 1: 0.243590, -0.097552, 0.052841
+Derivative 2: -0.150567, 0.112381, -0.194720
+Derivative 3: 0.178567, -0.129892, 0.220390
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 110.352153
+Derivative 1: 0.147480, -0.110077, 0.190728
+Derivative 2: 0.001093, -0.290784, -0.027507
+Derivative 3: 0.017013, 0.405121, 0.063674
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -153.639305
+Derivative 1: -0.001114, 0.296475, 0.028046
+Derivative 2: 0.074690, 0.337780, -0.111029
+Derivative 3: -0.125738, -0.440751, 0.198105
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -171.056390
+Derivative 1: -0.074088, -0.335057, 0.110134
+Derivative 2: -0.040233, -0.240771, 0.120652
+Derivative 3: -0.001382, 0.066273, -0.072962
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 81.391950
+Derivative 1: 0.040333, 0.241367, -0.120950
+Derivative 2: -0.253022, 0.073314, 0.167354
+Derivative 3: 0.399883, -0.057216, -0.286342
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -74.332970
+Derivative 1: 0.254977, -0.073880, -0.168648
+Derivative 2: 0.075633, -0.059474, 0.298202
+Derivative 3: 0.021047, 0.051215, -0.545293
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -121.458484
+Derivative 1: -0.074878, 0.058880, -0.295222
+Derivative 2: 0.189777, 0.229193, -0.198607
+Derivative 3: -0.355906, -0.349706, 0.171998
+
+7 (6) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -103.239921
+Derivative 1: -0.016862, 0.016026, -0.306315
+Derivative 2: -0.242990, -0.080116, -0.050727
+Derivative 3: 0.260500, 0.095988, -0.087285
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 34.223159
+Derivative 1: 0.244961, 0.080765, 0.051139
+Derivative 2: -0.253883, 0.070326, -0.017457
+Derivative 3: 0.285990, -0.063934, 0.023192
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 55.381677
+Derivative 1: 0.249565, -0.069130, 0.017161
+Derivative 2: -0.115310, 0.094344, -0.219040
+Derivative 3: 0.133071, -0.105070, 0.239903
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 112.880516
+Derivative 1: 0.115380, -0.094401, 0.219173
+Derivative 2: 0.007628, -0.313056, 0.008451
+Derivative 3: -0.001078, 0.475533, 0.007293
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -172.594972
+Derivative 1: -0.007659, 0.314330, -0.008486
+Derivative 2: 0.013380, 0.337705, -0.047432
+Derivative 3: -0.026284, -0.387958, 0.073841
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -168.295871
+Derivative 1: -0.013513, -0.341062, 0.047903
+Derivative 2: 0.008528, -0.253755, 0.087237
+Derivative 3: -0.019106, 0.092116, -0.076123
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 97.924357
+Derivative 1: -0.008482, 0.252371, -0.086761
+Derivative 2: -0.296542, 0.100743, 0.170699
+Derivative 3: 0.491916, -0.110463, -0.303973
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -72.116383
+Derivative 1: 0.293605, -0.099745, -0.169009
+Derivative 2: 0.023310, -0.087843, 0.283167
+Derivative 3: 0.165520, 0.059498, -0.524732
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -132.070273
+Derivative 1: -0.023189, 0.087385, -0.281691
+Derivative 2: 0.170996, 0.206416, -0.175501
+Derivative 3: -0.277014, -0.282163, 0.146017
+
+8 (7) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -102.529534
+Derivative 1: -0.032979, 0.009867, -0.301777
+Derivative 2: -0.244140, -0.092726, -0.033852
+Derivative 3: 0.241209, 0.101935, -0.103555
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 49.028229
+Derivative 1: 0.243157, 0.092353, 0.033715
+Derivative 2: -0.237025, 0.124710, 0.001661
+Derivative 3: 0.264089, -0.127789, -0.000056
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 51.951121
+Derivative 1: 0.233217, -0.122707, -0.001635
+Derivative 2: -0.125575, 0.123455, -0.206637
+Derivative 3: 0.163821, -0.154207, 0.244808
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 126.059837
+Derivative 1: 0.125804, -0.123680, 0.207014
+Derivative 2: 0.008530, -0.326403, 0.056017
+Derivative 3: 0.009802, 0.490533, -0.049896
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -179.052042
+Derivative 1: -0.008431, 0.322582, -0.055361
+Derivative 2: -0.008703, 0.431321, -0.080903
+Derivative 3: 0.010782, -0.590187, 0.113719
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -178.913151
+Derivative 1: 0.008830, -0.437619, 0.082084
+Derivative 2: 0.006747, -0.262583, 0.054220
+Derivative 3: -0.000867, -0.039920, 0.001754
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 101.942725
+Derivative 1: -0.006774, 0.263641, -0.054438
+Derivative 2: -0.255844, 0.076090, 0.106256
+Derivative 3: 0.358306, -0.066509, -0.157575
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -87.582707
+Derivative 1: 0.257708, -0.076644, -0.107030
+Derivative 2: 0.087170, -0.058180, 0.286323
+Derivative 3: -0.026742, 0.055868, -0.468011
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -129.047976
+Derivative 1: -0.086310, 0.057605, -0.283496
+Derivative 2: 0.114719, 0.197425, -0.197211
+Derivative 3: -0.212019, -0.262785, 0.150597
+
+9 (8) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -121.046748
+Derivative 1: -0.040174, 0.011496, -0.291608
+Derivative 2: -0.234475, -0.069139, -0.110109
+Derivative 3: 0.224928, 0.074950, 0.004836
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 55.064625
+Derivative 1: 0.230678, 0.068020, 0.108326
+Derivative 2: -0.200829, 0.163101, -0.039730
+Derivative 3: 0.217024, -0.170291, 0.044398
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 34.281956
+Derivative 1: 0.205939, -0.167251, 0.040741
+Derivative 2: -0.109497, 0.174360, -0.164156
+Derivative 3: 0.130371, -0.199375, 0.181732
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 130.274369
+Derivative 1: 0.109183, -0.173861, 0.163686
+Derivative 2: -0.020880, -0.319694, 0.006650
+Derivative 3: 0.042462, 0.474960, 0.005313
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 166.927847
+Derivative 1: 0.020436, 0.312889, -0.006509
+Derivative 2: -0.006319, 0.488118, 0.095783
+Derivative 3: 0.023136, -0.726208, -0.180593
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -159.004390
+Derivative 1: 0.006344, -0.490027, -0.096158
+Derivative 2: 0.024613, -0.272659, 0.045469
+Derivative 3: -0.026678, -0.057367, -0.139979
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 110.213677
+Derivative 1: -0.024792, 0.274639, -0.045799
+Derivative 2: -0.258611, 0.103845, 0.121542
+Derivative 3: 0.366158, -0.068615, -0.189108
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -95.520252
+Derivative 1: 0.252905, -0.101554, -0.118861
+Derivative 2: 0.129702, -0.090586, 0.276676
+Derivative 3: -0.084677, 0.094016, -0.486457
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -139.313619
+Derivative 1: -0.131907, 0.092126, -0.281379
+Derivative 2: 0.082839, 0.237433, -0.309292
+Derivative 3: -0.215285, -0.363080, 0.385803
+
+10 (9) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -137.936683
+Derivative 1: -0.043123, -0.061041, -0.261311
+Derivative 2: -0.176540, -0.132443, -0.142985
+Derivative 3: 0.178009, 0.127143, 0.093659
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 70.271319
+Derivative 1: 0.178864, 0.134186, 0.144867
+Derivative 2: -0.205175, 0.161432, -0.062928
+Derivative 3: 0.206006, -0.145260, 0.068691
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 23.511959
+Derivative 1: 0.200782, -0.157976, 0.061580
+Derivative 2: -0.138734, 0.171821, -0.148685
+Derivative 3: 0.152324, -0.193322, 0.171159
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 135.225169
+Derivative 1: 0.141798, -0.175616, 0.151969
+Derivative 2: 0.039428, -0.291296, 0.000223
+Derivative 3: -0.034010, 0.395232, 0.024765
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -171.809220
+Derivative 1: -0.039529, 0.292045, -0.000223
+Derivative 2: -0.029909, 0.408648, -0.053528
+Derivative 3: 0.034481, -0.583709, 0.093726
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is 165.494240
+Derivative 1: 0.029427, -0.402052, 0.052664
+Derivative 2: 0.002687, -0.275461, -0.031895
+Derivative 3: 0.019500, 0.034509, 0.081162
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 114.199371
+Derivative 1: -0.002671, 0.273819, 0.031705
+Derivative 2: -0.218729, 0.095509, 0.136324
+Derivative 3: 0.281145, -0.050896, -0.167307
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -81.367703
+Derivative 1: 0.222129, -0.096993, -0.138443
+Derivative 2: 0.073771, -0.087308, 0.267589
+Derivative 3: -0.042599, 0.096835, -0.418709
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -141.192116
+Derivative 1: -0.073646, 0.087160, -0.267135
+Derivative 2: 0.093549, 0.197915, -0.230712
+Derivative 3: -0.174438, -0.266659, 0.241093
+
+11 (10) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -124.602644
+Derivative 1: -0.039545, -0.072490, -0.276414
+Derivative 2: -0.232561, -0.106152, -0.102025
+Derivative 3: 0.285082, 0.110710, 0.032671
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 66.348095
+Derivative 1: 0.232373, 0.106066, 0.101942
+Derivative 2: -0.196261, 0.175532, -0.021167
+Derivative 3: 0.273206, -0.154278, 0.051526
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 17.915847
+Derivative 1: 0.196186, -0.175465, 0.021159
+Derivative 2: -0.163845, 0.193402, -0.096154
+Derivative 3: 0.192976, -0.224851, 0.108331
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 141.096233
+Derivative 1: 0.160541, -0.189502, 0.094215
+Derivative 2: 0.043144, -0.286680, -0.013376
+Derivative 3: -0.042150, 0.385266, 0.030333
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -157.729801
+Derivative 1: -0.043990, 0.292303, 0.013639
+Derivative 2: -0.023928, 0.456149, -0.156813
+Derivative 3: 0.025777, -0.713748, 0.291822
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is 170.840041
+Derivative 1: 0.023693, -0.451670, 0.155273
+Derivative 2: 0.000114, -0.262231, 0.047427
+Derivative 3: 0.019813, -0.067293, 0.074130
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 103.314060
+Derivative 1: -0.000117, 0.267274, -0.048339
+Derivative 2: -0.275269, 0.100185, 0.136455
+Derivative 3: 0.433202, -0.107847, -0.223767
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -99.540524
+Derivative 1: 0.273160, -0.099418, -0.135409
+Derivative 2: 0.127517, -0.141339, 0.240588
+Derivative 3: -0.032409, 0.154418, -0.440369
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -136.761943
+Derivative 1: -0.126939, 0.140699, -0.239498
+Derivative 2: 0.079880, 0.259143, -0.207048
+Derivative 3: -0.192875, -0.345593, 0.211687
+
+12 (11) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -109.540753
+Derivative 1: -0.029286, -0.121756, -0.325180
+Derivative 2: -0.259360, -0.082201, -0.044688
+Derivative 3: 0.308503, 0.024204, -0.156253
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 64.036851
+Derivative 1: 0.260825, 0.082666, 0.044941
+Derivative 2: -0.181037, 0.195584, -0.035196
+Derivative 3: 0.266791, -0.193331, 0.050366
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 22.543979
+Derivative 1: 0.180087, -0.194559, 0.035011
+Derivative 2: -0.142337, 0.186529, -0.132633
+Derivative 3: 0.192128, -0.247653, 0.165806
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 128.035044
+Derivative 1: 0.144815, -0.189777, 0.134943
+Derivative 2: -0.038436, -0.301126, -0.002140
+Derivative 3: 0.089092, 0.411629, 0.032396
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 149.703138
+Derivative 1: 0.038501, 0.301631, 0.002144
+Derivative 2: 0.013156, 0.362309, 0.211819
+Derivative 3: -0.004129, -0.494228, -0.376315
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -145.559709
+Derivative 1: -0.013167, -0.362632, -0.212007
+Derivative 2: 0.061354, -0.255939, 0.003649
+Derivative 3: -0.079575, 0.006138, -0.169545
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 117.613042
+Derivative 1: -0.061643, 0.257146, -0.003666
+Derivative 2: -0.259627, 0.086473, 0.140837
+Derivative 3: 0.378748, -0.095788, -0.210216
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -113.909067
+Derivative 1: 0.254208, -0.084668, -0.137897
+Derivative 2: 0.198617, -0.132768, 0.181786
+Derivative 3: -0.162441, 0.152099, -0.337796
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -135.675879
+Derivative 1: -0.199654, 0.133461, -0.182734
+Derivative 2: -0.005541, 0.292980, -0.197357
+Derivative 3: -0.083696, -0.433733, 0.248893
+
+13 (12) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -113.336577
+Derivative 1: -0.087631, -0.075746, -0.277556
+Derivative 2: -0.250861, -0.087487, -0.011062
+Derivative 3: 0.199487, 0.048220, -0.120526
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 57.781215
+Derivative 1: 0.247990, 0.086486, 0.010935
+Derivative 2: -0.203075, 0.161041, -0.049127
+Derivative 3: 0.211531, -0.179259, 0.053168
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 28.372647
+Derivative 1: 0.205376, -0.162866, 0.049684
+Derivative 2: -0.157169, 0.127951, -0.164692
+Derivative 3: 0.199153, -0.161743, 0.193911
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 127.165704
+Derivative 1: 0.159874, -0.130153, 0.167526
+Derivative 2: -0.018996, -0.284934, 0.081141
+Derivative 3: 0.050783, 0.394033, -0.093235
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 148.646611
+Derivative 1: 0.018600, 0.278997, -0.079451
+Derivative 2: -0.011178, 0.401066, 0.107751
+Derivative 3: 0.028500, -0.579087, -0.227942
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -153.922778
+Derivative 1: 0.011154, -0.400230, -0.107526
+Derivative 2: 0.064014, -0.252849, 0.035975
+Derivative 3: -0.062361, -0.029042, -0.123021
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 110.625585
+Derivative 1: -0.064640, 0.255319, -0.036327
+Derivative 2: -0.277717, 0.072248, 0.157738
+Derivative 3: 0.429273, -0.086209, -0.251618
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -110.408762
+Derivative 1: 0.272751, -0.070956, -0.154917
+Derivative 2: 0.192199, -0.115755, 0.182184
+Derivative 3: -0.111975, 0.122637, -0.350717
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -130.371417
+Derivative 1: -0.194924, 0.117396, -0.184768
+Derivative 2: 0.007238, 0.270631, -0.157562
+Derivative 3: -0.091166, -0.369867, 0.167565
+
+14 (13) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -109.771774
+Derivative 1: -0.042059, -0.074307, -0.281829
+Derivative 2: -0.214927, -0.147559, -0.021481
+Derivative 3: 0.217435, 0.129236, -0.100764
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 52.517625
+Derivative 1: 0.220135, 0.151135, 0.022001
+Derivative 2: -0.252884, 0.083319, -0.021740
+Derivative 3: 0.283491, -0.072506, 0.024659
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 41.091493
+Derivative 1: 0.246694, -0.081280, 0.021208
+Derivative 2: -0.169790, 0.070828, -0.187728
+Derivative 3: 0.191435, -0.078955, 0.201166
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 101.259107
+Derivative 1: 0.172797, -0.072082, 0.191053
+Derivative 2: -0.041491, -0.321898, 0.004813
+Derivative 3: 0.076196, 0.499941, 0.004790
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 166.404044
+Derivative 1: 0.040969, 0.317848, -0.004752
+Derivative 2: 0.031390, 0.388973, 0.086324
+Derivative 3: -0.031060, -0.495387, -0.153769
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -158.388937
+Derivative 1: -0.031438, -0.389567, -0.086456
+Derivative 2: 0.027784, -0.263208, 0.029561
+Derivative 3: -0.051595, -0.024682, -0.094489
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 106.951118
+Derivative 1: -0.027671, 0.262136, -0.029441
+Derivative 2: -0.244290, 0.072140, 0.125767
+Derivative 3: 0.321466, -0.091912, -0.166019
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -117.693974
+Derivative 1: 0.241762, -0.071393, -0.124465
+Derivative 2: 0.235160, -0.081551, 0.180684
+Derivative 3: -0.270724, 0.097916, -0.308503
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -129.824830
+Derivative 1: -0.235150, 0.081548, -0.180677
+Derivative 2: -0.023331, 0.233621, -0.201463
+Derivative 3: -0.078476, -0.315076, 0.218261
+
+15 (14) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -69.845664
+Derivative 1: 0.270431, -0.113262, -0.295415
+Derivative 2: -0.234350, -0.108023, -0.045883
+Derivative 3: 0.462037, 0.024002, -0.186235
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 57.475364
+Derivative 1: 0.239503, 0.110398, 0.046892
+Derivative 2: -0.193365, 0.126666, -0.138989
+Derivative 3: 0.213634, -0.125868, 0.146961
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 18.411823
+Derivative 1: 0.187779, -0.123006, 0.134973
+Derivative 2: -0.158422, 0.093065, -0.213672
+Derivative 3: 0.224868, -0.132632, 0.298325
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 105.757450
+Derivative 1: 0.162430, -0.095419, 0.219078
+Derivative 2: -0.061285, -0.346038, 0.020808
+Derivative 3: 0.157991, 0.536012, 0.042789
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 175.144722
+Derivative 1: 0.060507, 0.341644, -0.020543
+Derivative 2: 0.065626, 0.404084, 0.009986
+Derivative 3: -0.075320, -0.484263, -0.031176
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -155.382225
+Derivative 1: -0.065571, -0.403745, -0.009978
+Derivative 2: 0.017007, -0.249703, 0.089043
+Derivative 3: -0.065932, -0.070465, -0.091873
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 102.123209
+Derivative 1: -0.017083, 0.250817, -0.089440
+Derivative 2: -0.248847, 0.086749, 0.111509
+Derivative 3: 0.347440, -0.134074, -0.150552
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -120.280949
+Derivative 1: 0.250520, -0.087333, -0.112259
+Derivative 2: 0.229511, -0.058193, 0.175832
+Derivative 3: -0.239588, 0.051524, -0.301377
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -102.264919
+Derivative 1: -0.231351, 0.058659, -0.177242
+Derivative 2: 0.115474, 0.255576, -0.186061
+Derivative 3: -0.291337, -0.382678, 0.216796
+
+16 (15) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -91.436109
+Derivative 1: 0.091906, -0.116616, -0.299657
+Derivative 2: -0.225812, -0.140992, -0.021860
+Derivative 3: 0.295954, 0.082330, -0.153037
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 60.586415
+Derivative 1: 0.223168, 0.139341, 0.021604
+Derivative 2: -0.217802, 0.116786, -0.097362
+Derivative 3: 0.237607, -0.108588, 0.100537
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 33.480146
+Derivative 1: 0.218484, -0.117152, 0.097667
+Derivative 2: -0.141545, 0.058509, -0.216329
+Derivative 3: 0.157241, -0.065437, 0.236446
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 125.485329
+Derivative 1: 0.142344, -0.058839, 0.217550
+Derivative 2: -0.016022, -0.265488, 0.159123
+Derivative 3: 0.036016, 0.392181, -0.219629
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 156.554595
+Derivative 1: 0.015796, 0.261752, -0.156884
+Derivative 2: -0.023998, 0.386476, -0.057014
+Derivative 3: 0.050023, -0.542254, 0.019651
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -159.470790
+Derivative 1: 0.024341, -0.392010, 0.057831
+Derivative 2: 0.057287, -0.232227, 0.118874
+Derivative 3: -0.046520, -0.024865, -0.091205
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 108.973671
+Derivative 1: -0.057065, 0.231325, -0.118412
+Derivative 2: -0.308629, 0.125471, 0.132041
+Derivative 3: 0.512194, -0.182800, -0.236583
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -107.491788
+Derivative 1: 0.310571, -0.126260, -0.132872
+Derivative 2: 0.157965, -0.077736, 0.215858
+Derivative 3: 0.002146, 0.016846, -0.372477
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -125.617198
+Derivative 1: -0.157269, 0.077394, -0.214907
+Derivative 2: 0.045371, 0.232233, -0.167389
+Derivative 3: -0.113917, -0.306336, 0.170893
+
+17 (16) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -82.717652
+Derivative 1: 0.169589, -0.094836, -0.338306
+Derivative 2: -0.224886, -0.135707, -0.035938
+Derivative 3: 0.372592, 0.077694, -0.213153
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 57.909832
+Derivative 1: 0.223452, 0.134842, 0.035708
+Derivative 2: -0.220311, 0.114219, -0.097312
+Derivative 3: 0.268356, -0.115252, 0.112534
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 30.289402
+Derivative 1: 0.219765, -0.113936, 0.097071
+Derivative 2: -0.142632, 0.081157, -0.207430
+Derivative 3: 0.170963, -0.095920, 0.221463
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 125.221809
+Derivative 1: 0.142682, -0.081185, 0.207502
+Derivative 2: -0.014268, -0.284412, 0.128200
+Derivative 3: 0.023399, 0.435698, -0.194597
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 163.711780
+Derivative 1: 0.014292, 0.284890, -0.128416
+Derivative 2: -0.008894, 0.379049, -0.056359
+Derivative 3: 0.022853, -0.497401, 0.028077
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -163.058987
+Derivative 1: 0.008816, -0.375763, 0.055870
+Derivative 2: 0.044988, -0.242769, 0.104504
+Derivative 3: -0.042234, -0.010178, -0.072432
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 95.474001
+Derivative 1: -0.044840, 0.241972, -0.104161
+Derivative 2: -0.271180, 0.056252, 0.168124
+Derivative 3: 0.418634, -0.067880, -0.270295
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -108.791510
+Derivative 1: 0.269926, -0.055992, -0.167347
+Derivative 2: 0.234487, -0.064471, 0.203105
+Derivative 3: -0.210412, 0.068100, -0.407863
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -101.599595
+Derivative 1: -0.236198, 0.064941, -0.204587
+Derivative 2: 0.113885, 0.237430, -0.151393
+Derivative 3: -0.300317, -0.326869, 0.120814
+
+18 (17) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -67.022020
+Derivative 1: 0.248074, -0.083134, -0.275732
+Derivative 2: -0.235753, -0.125234, -0.029795
+Derivative 3: 0.474631, 0.097410, -0.161088
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 48.137944
+Derivative 1: 0.237207, 0.126006, 0.029979
+Derivative 2: -0.238218, 0.086766, -0.080969
+Derivative 3: 0.319655, -0.062775, 0.095856
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 34.562949
+Derivative 1: 0.233525, -0.085056, 0.079374
+Derivative 2: -0.153917, 0.050014, -0.208931
+Derivative 3: 0.190181, -0.062660, 0.235820
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 106.797380
+Derivative 1: 0.155004, -0.050367, 0.210407
+Derivative 2: -0.029889, -0.281420, 0.060436
+Derivative 3: 0.055522, 0.384339, -0.064238
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -172.063758
+Derivative 1: 0.029482, 0.277585, -0.059612
+Derivative 2: 0.051219, 0.288903, -0.101021
+Derivative 3: -0.067064, -0.334565, 0.131696
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -174.109258
+Derivative 1: -0.051876, -0.292609, 0.102317
+Derivative 2: -0.029637, -0.242360, 0.109456
+Derivative 3: 0.003618, 0.098278, -0.059957
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 94.490691
+Derivative 1: 0.029195, 0.238740, -0.107822
+Derivative 2: -0.239912, 0.115066, 0.132894
+Derivative 3: 0.348950, -0.158074, -0.196661
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -105.140703
+Derivative 1: 0.241209, -0.115689, -0.133612
+Derivative 2: 0.179305, -0.068414, 0.214631
+Derivative 3: -0.141013, 0.043273, -0.356819
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -115.958220
+Derivative 1: -0.179465, 0.068475, -0.214823
+Derivative 2: 0.089958, 0.224840, -0.181013
+Derivative 3: -0.202882, -0.308204, 0.186700
+
+19 (18) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -91.470642
+Derivative 1: 0.171366, -0.125242, -0.380724
+Derivative 2: -0.215274, -0.144756, -0.057082
+Derivative 3: 0.378964, 0.062067, -0.241118
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 51.967259
+Derivative 1: 0.219286, 0.147454, 0.058146
+Derivative 2: -0.229883, 0.082595, -0.106622
+Derivative 3: 0.270141, -0.070395, 0.120160
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 35.320206
+Derivative 1: 0.227903, -0.081883, 0.105703
+Derivative 2: -0.126983, 0.048784, -0.225411
+Derivative 3: 0.159025, -0.060732, 0.263224
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 86.545986
+Derivative 1: 0.129482, -0.049744, 0.229846
+Derivative 2: -0.082380, -0.320281, -0.046407
+Derivative 3: 0.147817, 0.501366, 0.104071
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is -177.230323
+Derivative 1: 0.080444, 0.312757, 0.045317
+Derivative 2: 0.094846, 0.342598, 0.033741
+Derivative 3: -0.110800, -0.386598, -0.029156
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -139.882289
+Derivative 1: -0.096490, -0.348537, -0.034326
+Derivative 2: 0.012462, -0.226200, 0.133530
+Derivative 3: -0.076275, -0.014344, -0.151453
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 86.514411
+Derivative 1: -0.012452, 0.226026, -0.133427
+Derivative 2: -0.290510, 0.042953, 0.138764
+Derivative 3: 0.453756, -0.075402, -0.211572
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -115.190096
+Derivative 1: 0.285908, -0.042273, -0.136566
+Derivative 2: 0.267535, -0.053305, 0.224581
+Derivative 3: -0.284160, 0.065118, -0.456391
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -102.632464
+Derivative 1: -0.272044, 0.054203, -0.228365
+Derivative 2: 0.109240, 0.208392, -0.183298
+Derivative 3: -0.341413, -0.274138, 0.122228
+
+20 (19) frames have been sampled. Dihedral particle ids: 0, 3, 2, 1
+Dihedral angle is -99.131304
+Derivative 1: 0.075998, -0.093996, -0.307926
+Derivative 2: -0.207965, -0.170572, -0.045774
+Derivative 3: 0.302286, 0.153228, -0.130142
+
+Dihedral particle ids: 1, 4, 3, 2
+Dihedral angle is 53.516425
+Derivative 1: 0.207866, 0.170490, 0.045752
+Derivative 2: -0.250357, 0.067925, -0.056842
+Derivative 3: 0.300313, -0.028755, 0.067849
+
+Dihedral particle ids: 2, 5, 4, 3
+Dihedral angle is 44.090244
+Derivative 1: 0.250186, -0.067879, 0.056803
+Derivative 2: -0.136433, 0.047954, -0.217091
+Derivative 3: 0.143080, -0.050158, 0.225412
+
+Dihedral particle ids: 3, 6, 5, 4
+Dihedral angle is 92.414124
+Derivative 1: 0.138985, -0.048851, 0.221152
+Derivative 2: -0.065462, -0.324258, -0.013730
+Derivative 3: 0.109527, 0.516524, 0.029744
+
+Dihedral particle ids: 4, 7, 6, 5
+Dihedral angle is 176.592048
+Derivative 1: 0.064732, 0.320643, 0.013577
+Derivative 2: 0.063591, 0.350793, 0.034892
+Derivative 3: -0.067094, -0.392418, -0.050239
+
+Dihedral particle ids: 5, 8, 7, 6
+Dihedral angle is -134.683927
+Derivative 1: -0.063627, -0.350991, -0.034912
+Derivative 2: 0.050398, -0.213317, 0.147095
+Derivative 3: -0.095750, -0.014746, -0.177356
+
+Dihedral particle ids: 6, 9, 8, 7
+Dihedral angle is 81.852764
+Derivative 1: -0.050353, 0.213129, -0.146965
+Derivative 2: -0.272367, 0.007617, 0.188649
+Derivative 3: 0.435145, -0.002621, -0.309593
+
+Dihedral particle ids: 7, 10, 9, 8
+Dihedral angle is -106.533428
+Derivative 1: 0.272417, -0.007618, -0.188683
+Derivative 2: 0.285733, -0.016893, 0.229734
+Derivative 3: -0.309534, 0.023442, -0.495843
+
+Dihedral particle ids: 8, 11, 10, 9
+Dihedral angle is -87.411684
+Derivative 1: -0.278898, 0.016489, -0.224238
+Derivative 2: 0.141244, 0.209169, -0.139487
+Derivative 3: -0.394749, -0.286672, 0.043264
+
+20 (20) frames have been sampled. 
+Finishing frame parsing.
+Finished constructing FM equations.
+Finishing FM.
+Freeing raw FM equations.
+Preconditioning FM normal equations.
+Computing singular value decomposition of preconditioned, regularized FM normal equations.
+Printing FM singular values.
+Calculating final FM results.
+Completed FM.
+Writing final output.
+Done with output.
+5.820000 seconds used.
+Freeing equation building temporaries.
+Freeing interaction classes.
+Freeing tabulated reference potential information.
+Freeing topology information.

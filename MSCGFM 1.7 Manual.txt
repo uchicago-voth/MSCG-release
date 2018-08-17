@@ -1,5 +1,5 @@
 Multi-scale coarse-graining force-matching (MSCGFM)
-MSCGFM version 1.7
+MSCGFM version 1.7  = 1.7.0 + MS-CODE, RE-CODE, RG, Helical, 1-3, 1-4, 1-5, ScalarFM
 Manual author: Jacob Wagner
 Prior versions by James Dama, Lanyuan Lu, and Ron Hills
 Last updated 07/20/17 by Jacob Wagner
@@ -30,7 +30,7 @@ This package also provides support for the methods described in these references
      121906 (2013). doi:10.1063/1.4811667
 5. A. Davtyan, J. F. Dama, A. V. Sinitskiy, and G. A. Voth, "The Theory of 
      Ultra-Coarse-Graining. 2. Numerical Implementation" Journal of Chemical Theory and
-     Computation, 10 (12), 5265–5275 (2014). doi:10.1021/ct500834t
+     Computation, 10 (12), 5265–5275 (2014). doi:10.1021/ct500834t 
 6. Z. Cao and G. A. Voth, "The multiscale coarse-graining method. XI. 
      Accurate interactions based on the centers of charge of coarse-grained sites", 
      Journal of Chemical Physics, 143, 243116 (2015). doi:10.1063/1.4933249
@@ -46,11 +46,18 @@ This package also provides support for the methods described in these references
 	Chemical Theory and Computation, 2017 ASAP Article. doi: 10.1021/acs.jctc.6b01081
 10. J. W. Wagner, T. Dannenhoffer-Lafage, J. Jin, and G. A. Voth, "Extending the Range and 
 	Physical Accuracy of Coarse-grained Models: Order Parameter Dependent Interactions", 
-	Journal of Chemical Physics, 147, 044113 (2017). doit:10.1063/1.4995946
-	
+	Journal of Chemical Physics, 147, 044113 (2017). 10.1063/1.4995946
+11. J. W. Wagner, T. Dannenhoffer-Lafage, A. E. P. Durumeric, and G. A. Voth, 
+	"Representability and Compatible Observable Decompositions for Coarse-grained 
+	Representations of Real Molecular Systems", Journal of Chemical Physics, 2017
+	in preparation. 
+
 Note: This code uses C++11, which may not be supported by older compilers.
 
-For information about compilation of the static MSCG library please see the README file.
+For information about compilation of the static MSCG library, please see the README file.
+
+For information about the use of density dependent basis sets, please see the
+"Density Dependent Force Matching Supplement".
 
 For information about the use of density dependent basis sets, please see the
 "Density Dependent Force Matching Supplement".
@@ -125,8 +132,7 @@ cgsites Ncg (* Ncg =Total number of coarse-grained sites)
 cgtypes Nt  (* Nt = Total number of coarse-grained site types)
 ( Site type names, row number corresponding to type number)
 ...
-...
-(Additional add-ons go here for density interactions)
+(Additional add-ons go here for radius-of-gyration, three-body, and density interactions)
 moltypes Nm (* Nm = Total number of molecule types)
 mol Ns b    (Header for the block defining the first molecule type)
             (* Ns = number of coarse-grained sites in this molecule)
@@ -148,6 +154,7 @@ bonds Nb    (Header for the block defining all pair bonds between sites in the m
             (* Nb  = number of pair bonds)
 i j         (For each bond i-j, site indices i and j use the ordering in sitetypes)
 . .         (Should have entries for all Nb bonds in this molecule)
+            ( Note: angles and dihedrals are optional)
 angles  Na Fa (Header for the block defining manually-specified angles between sites in
              the molecule)
             (* Na = number of angles)
@@ -176,8 +183,9 @@ Note: There is no longer a limitation to line length (including comments) in
 control.in, top.in, or the rmin*.in files. However, comments should be on the same line
 as the content. Also, type names longer than 24 characters or spaces are not permitted.
 
-For examples of systems with non-trivial topologies, please examine the "lipid_fm" and
-"table_fm" sub-directories of the examples.
+For examples of systems with non-trivial topologies, please examine the "lipid_fm",
+"table_fm", "validate-bond", "validate-angle-180", and "validate-dihedral-0" 
+sub-directories of the examples.
 
 III.B.2) Creating tabulated interactions
 ========================================
@@ -234,6 +242,14 @@ Note: Each of these labels (short_range, bond, angle, and dihedral) must be incl
 with the number and binwidth even if the number of tabulated interactions for that type is
 0.
 
+Note: There is an alternative way to specify multiple interactions that use the same table.
+In front of every set of types, add the keyword "types". For example,
+short_range Ns Bs
+types i1 j1
+types i2 j2
+Rl Rh
+...
+
 For a worked example using a tabulated interaction, please see the "table_fm" 
 sub-directory of the examples.
 
@@ -249,7 +265,7 @@ appropriate trajectory or prepare these files by hand.
  interactions.
 
 Examples of these files can be found in the subdirectories of the examples directory.
-The format of entries in for interactions is the following:
+The format of entries for interactions is the following:
 T1 ... Tn Rl Rh mode
     T1 ... Tn = The site types involved in this interaction, specified using the same
                 format as top.in
@@ -283,6 +299,7 @@ by the leftmost type (in order that they were defined under "cgtypes" in "top.in
 and then the other listed types going from right to left. For an example of this,
 please see the "lipid_fm" sub-directory of the examples.
 
+
 III.B.4) Creating the system control file
 ==========================================
 
@@ -309,13 +326,23 @@ constrain_pressure_flag (0)
     * 1: yes
 use_statistical_reweighting (0) 
     Whether or not to use frame weights to reweight the frames
+    Note: For relative entropy drivers (newrem), this is for reweighting the CG trajectory
     * 0: no
     * 1: yes.
+reference_statistical_reweighting (0)
+	(Relative Entropy only) Whether or not to use frame weights to reweight the reference frames.
+	* 0: no
+	* 1: yes.
 dynamic_types(0) 
     (LAMMPS only) Whether or not types should be read from the trajectory 
     * 0: use top.in info for the ordering of types in the trajectory
     * 1 set types of sites based on trajectory
     Note: This only updates site types (not bonds, angles, and dihedrals)
+molecule_flag(0)
+    How the code recognizes and updates molecular identity
+    * 0: Information is generated from the top.in file and never modified
+    * 1: Information is read from the trajectory at each frame (LAMMPS only)
+    Note: Only the molecule number is updated, not bonds, angles, or dihedrals.
 dynamic_state_sampling(0) 
     (LAMMPS only) Whether or not types should be assigned by comparison of "state" field 
     to random number (assignments are between types 1 and 2)
@@ -349,13 +376,39 @@ random_num_seed(1)
     Random number seed for Mersenne Twister. 
     This is a positive integer (max 32 bits)
     Only used when dynamic_state_sampling = 1 or boostrapping_flag = 1
+bootstrapping_flag (0)
+    Whether or not to use bootstrapping.
+    * 0: no
+    * 1: yes
+bootstrapping_num_estimates (1)
+    The number of independent estimates to construct using bootstrapping.
+    This must be a positive integer.
+bootstrapping_num_subsamples (1)
+    The number of discrete frames sampled for each bootstrapping estimate.
+    This must be a positive integer. 
+bootstrapping_full_output_flag (0)
+    * 0: Outputs the interactions from the full trajectory and each of 
+         the bootstrapping estimates
+    * 1: Outputs the interactions from the full trajectory and 
+         the standard error of the estimates (including the full trajectory)
+position_dimension(3)
+    The number of dimensions used to specify the position (only LAMMPS trajectories).
+    The position_dimension value must match the DIMENSION variable setting in 
+    the Makefile that was used to compile the code.
+scalar_matching_flag(0)				
+    Whether to match dimension-sized targets (i.e., forces) or scalar targets
+    * 0 for forces
+    * 1 for scalars
+one_body_flag(0)
+	Whether or not to consider matching one-body flags by reading the rmin_1.in file.
+	* 0 no one-body interactions
+	* 1 check rmin_1.in for one-body settings
 excluded_style(2) 
     Whether or not to exclude certain bonded site from non-bonded interactions 
     * 0: no exclusions
     * 2: exclude 1-2 interactions (for sites in a bond)
     * 3: exclude 1-2 and 1-3 interactions (for sites in a bond or angle)
     * 4: exclude 1-2, 1-3, and 1-4 interactions (for sites in a bond, angle, or dihedral)
-    * 5: excluded all non-bonded interactions between sites in the same molecule
 nonbonded_cutoff (1.0) 
     The cutoff for all non-bonded pair interactions in the model
     This is also used for sizing neighbor cell lists.
@@ -367,12 +420,17 @@ max_dihedrals_per_site (36)
     Limits on the necessary storage for 1-4 bond (dihedral) topology lists
 angle_type (0) 
     Specifies the geometric quantity that the 1-3 bonded (angle) interactions depend on
-    * 0: use angle-based interactions in degrees from 0 to 180.
+    * 0: use angle-based interactions in degrees
     * 1: use distance-based interactions
 dihedral_type (0) 
     Specifies the geometric quantity that the 1-4 bonded (dihedral) interactions depend on
-    * 0: dihedral-angle-based interactions in degrees from -180 to 180.
+    * 0: dihedral-angle-based interactions in degrees from -180 to 180
     * 1: use distance-based interactions
+radius_of_gyration_flag (0)
+    Whether or not to calculate radius-of-gyration interactions
+    (extra lines in top.in and rmin_rg.in file).
+    * 0: none (do not use radius-of-gyration interactions)
+    * 1: yes
 three_body_nonbonded_style (0) 
     Specifies the style of three body non-bonded interactions
     * 0: none (do not use three body non-bonded interactions)
@@ -394,6 +452,8 @@ angle_bspline_basis_order (4)
     B-spline order used in 1-3 bonded (angular) interaction basis sets
 dihedral_bspline_basis_order (4) 
     B-spline order used in 1-4 bonded (dihedral) interaction basis sets
+radius_of_gyration_bspline_basis_order (4) 
+    B-spline order used in radius-of-gyration interaction basis sets
 three_body_nonbonded_bspline_basis_order (4)    
     B-spline order used in three body non-bonded interactions basis sets
 pair_nonbonded_basis_set_resolution (0.05)    
@@ -406,24 +466,41 @@ angle_basis_set_resolution (0.05)
 dihedral_basis_set_resolution (0.05) 
     The spacing between spline control points in 1-4 bonded (dihedral) interaction basis 
     sets. This is either in distance units or degrees based on dihedral_type
+dihedral_basis_set_resolution (1.0) 
+    The spacing between spline control points in radius-of-gyration interaction basis 
+    sets. This is either in distance units squared.
 three_body_nonbonded_basis_set_resolution (1.0)    
     The spacing between spline control points in three body non-bonded interaction basis 
     sets. This is either in distance units or degrees based on angle_type
     Only used when three_body_nonbonded_style is positive
-pair_nonbonded_output_binwidth (.002) 
+pair_nonbonded_output_binwidth (.05) 
     The spacing between tabulated force output for pair non-bonded interactions
-pair_bond_output_binwidth (.002) 
+pair_bond_output_binwidth (.05) 
     The spacing between tabulated force output for pair bonded interactions
-angle_output_binwidth (.002) 
+angle_output_binwidth (.05) 
     The spacing between tabulated force output for 1-3 bonded (angle) interactions
     This is either in distance units or degrees based on angle_type
-dihedral_output_binwidth (.002) 
+dihedral_output_binwidth (.05) 
     The spacing between tabulated force output for 1-4 bonded (dihedral) interactions
     This is either in distance units or degrees based on dihedral_type
+radius_of_gyration_output_binwidth (1.0) 
+    The spacing between tabulated force output for radius-of-gyration interactions.
+    This is either in distance units squared
 three_body_nonbonded_output_binwidth (.2) 
     The spacing between tabulated force output for three body non-bonded interactions
     This is either in distance units or degrees based on angle_type
     Only used when three_body_nonbonded_style is positive
+rangefinder_thresholding_style (0)
+	How to handle the sampling ranges reported by rangefinder
+	* 0: report raw low/high values
+	* -1: round range (to larger range) to integer multiple of fm_binwidth
+	* -2: round range (to larger range) to integer multiple of output_binwidth 
+	* 1: shrink range to first/last value that has 0.005% of total sampling.
+	* 2: shrink range to first/last value that has 0.005% of the sampling for the most sampled bin.
+	* 3: shrink range to first/last value that has at least 10 samples per bin.
+	* 4: shrink range to first/last value that has at least 100 samples per bin.
+	Note: For options 1 or 2 to work as intended, the appropriate output_*_parameter_distribution
+	options must be enabled.
 output_pair_nonbonded_parameter_distribution (0) 
     Whether or not to output the distribution of pair non-bonded distances sampled and 
     a histogram using the pair_nonbonded_basis_set_resolution as the binwidth 
@@ -452,6 +529,17 @@ output_dihedral_parameter_distribution (0)
     * 0: no
     * 1: yes
     * 2: yes and keep individual values in *.dist files
+output_radius_of_gyration_parameter_distribution (0) 
+    Whether or not to output the distribution of radius-of-gyration sampled and a 
+    histogram using the dihedral_basis_set_resolution as the binwidth 
+    (rangefinder only)
+    * 0: no
+    * 1: yes
+    * 2: yes and keep individual values in *.dist files
+output_raw_frameblocks (0)
+	Output matrix information for each frameblock in CSR format
+	* 0: no
+	* 1: yes
 stillinger_weber_gamma (.12) 
     A fixed parameter for Stillinger-Weber type three body non-bonded interactions
     This determines the radial dependence of the interaction
@@ -487,49 +575,33 @@ regularization_style (0)
     Specifies the style of regularization
     * 0: no regularization
     * 1: scalar Tikhonov regularization specified using regularization_scalar
-    	 This scalar squared is applied after preconditioning the normal matrix.
+         This scalar squared is applied after preconditioning the normal matrix.
     * 2: vector Tikhonov regularization with vector from 'lambda.in'
          This file has one value per line with the number of lines equaling the
          number of basis functions
          This vector is applied as is to the normal matrix before preconditioning.
-regularization_scalar (0) 
-    A scalar value corresponding to lambda in the primary reference, used to prevent over-
-    fitting, larger values imply more aggressive smoothing
-    Only used when regularization_style is 1
 bayesian_mscg_flag (0)
-	Whether or not to use the Bayesian MS-CG method
-	This works for newfm matrix_types 0, 3, and 4 and combinefm matrix_type 0.
-	* 0: no
-	* 1: yes
+    Whether or not to use the Bayesian MS-CG method
+    This works for newfm matrix_types 0, 3, and 4 and combinefm matrix_type 0.
+    * 0: no
+    * 1: yes
 	* 2: yes, also print out the normal matrix (once) and inverse matrix (each iteration)
 bayesian_max_iterations (1)
-	The number of iterations for the Bayesian MS-CG method.
-	This is only used if bayesian_mscg_flag is 1.
-	For each iteration the following outputs are generated:
-		- The alpha vector is output to "alpha.out".
-		- The beta value is output to "beta.out".
-		- The residual is output to "residual.out".
-		- The regularized normal matrix is output to "matrix.out"
-		- The inverse of the regularized normal matrix is output to "inverse.out".
+    The number of iterations for the Bayesian MS-CG method.
+    This is only used if bayesian_mscg_flag is 1.
+    For each iteration the following outputs are generated:
+        - The alpha vector is output to "alpha.out".
+        - The beta value is output to "beta.out".
+        - The residual is output to "residual.out".
+        - The regularized normal matrix is output to "matrix.out"
+        - The inverse of the regularized normal matrix is output to "inverse.out".
 lanyuan_iterative_method_flag (0) 
     Whether or not to use Lanyuan's iterative FM method instead of the usual FM
     * 0: no 
     * 1: yes
-iteration_step_size (1.0) 
-    A parameter used to control rate of convergence in iterative force-matching
-    Lower values imply a less aggressive fixed-point iteration
-    Only used when lanyuan_iterative_method_flag = 1
-temperature (300)
-    This is used in determining values in Boltzmann inversion.
-    Only used in newrem. It is in units of Kelvin.
-boltzmann (0.0019872041)
-    Used along with temperature for determining values in Boltzmann inversion.
-    The default value assumes energy units of kcal/mol.
-    The value needs to be adjusted so that the units match those of the interaction energy.
-    Only used in newrem.
 primary_output_style (0) 
     Used to specify how this force-matching run's results should be used
-	The binary matrix output is written to "result.out"
+    The binary matrix output is written to "result.out"
     * 0: output tabulated interactions
     * 2: output tables and binary representations of the blockwise matrix equations
     * 3: output only binary representations of the blockwise matrix equations
@@ -556,12 +628,76 @@ output_normal_equations_rhs_flag (0)
     Whether or not to output the right hand side of the final FM matrix equations
     * 0: no
     * 1: yes
+temperature (300)
+    This is used in determining values in Boltzmann inversion and relative entropy derivatives.
+    Only used in newrem. It is in units of Kelvin.
+boltzmann (0.0019872041)
+    Used along with temperature for determining value in Boltzmann inversion and relative entropy derivatives.
+    The default value assumes energy units of kcal/mol.
+    The value needs to be adjusted so that the units match those of the interaction energy.
+    Only used in newrem.
+iteration_step_size (1.0)
+     This is used in relative entropy (newrem), iterative force-matching (via newfm), and
+     iterative Boltzmann inversion (newibi).
+     * For newrem, it is the adjustable step size parameter used in the gradient decent 
+     routine in newrem. 
+     * For iterative force-matching, it control rates of convergence.
+     Lower values imply a less aggressive fixed-point iteration.
+     Only used when lanyuan_iterative_method_flag = 1
+max_update_size_factor (5.0)
+	This is used for both relative entropy (newrem) and iterative Boltzmann inversion (newibi).
+	The maximum update for any value is this factor multiplied by kbT.
+reference_input_style (0)
+	What format information about the reference model is provided in.
+	* 0: trajectory (usual command line options, e.g. -l_ref ref.lammpstrj)
+	* 1: matrix from previous iteration (reference_matrix.out)
+	* 2: distribution functions (i.e., RDFs for each interaction). 
+	Note: Distribution functions can be generated from rangefinder using the 
+	  output_*_parameter_distribution options.
+cg_input_style (0)
+	What format information about the (new) CG model is provided in.
+	* 0: trajectory (usual command line options, e.g. -l_cg ref.lammpstrj)
+	* 1: matrix from previous iteration (cg_matrix.out)
+	* 2: distribution functions (i.e., RDFs for each interaction). 
+	Note: Distribution functions can be generated from rangefinder using the 
+	  output_*_parameter_distribution options.
+	Note: when either cg or reference input style is 2, the other input_style must be 0. 
+cg_observable_flag (0)
+	Whether or not CG observable values are read in from observables.cg
+	(only for recode.x)
+	* 0: no
+	* 1: yes
+
 ------------------------------------------------------------------------------------------
 
-III.C) Force-matching
+III.C) Interaction Determination
 ~~~~~~~~~~~~~~~~~~~~~
 *Boltzmann inversion
 *Force-Matching
+
+III.C.1) Boltzmann inversion
+============================
+
+Using the executable "rangefinder.x", a Boltzmann inversion interaction can be determined.
+This only requires the files necessary to run rangefinder.x.
+
+To calculate a potential via Boltzmann inversion, set "primary_output_style" in "control.in"
+to either 0 or 2. Also, for each interaction type that you desire, set the corresponding
+output parameter distribution in "control.in" to 1 or 2 (e.g. output_pair_nonbonded_parameter_distribution).
+For each interaction class that is turned on, the code will output tabulated force files
+and basis set coefficients for each of the interactions. This can be very useful for 
+zeroth iteration of relative entorpy minimization. For an example of how to use rangefinder.x 
+for Boltzmann inversion, please see the "lammps_bi" sub-directory of the examples.
+
+Note: The *.dat files here will contain potentials instead of forces.
+
+III.C.2) Force-matching
+=======================
+
+*Boltzmann inversion
+*Force-Matching
+*Relative entropy minimization
+*Iterative Boltzmann inversion
 
 III.C.1) Boltzmann inversion
 ============================
@@ -596,7 +732,8 @@ To use a combination of newfm.x and combinefm.x, set "primary_output_style" in
 run of newfm.x, the code will output the final matrix equations for the trajectory that 
 was provided to the executable. Then, create a file "res_av.in" that lists the number of 
 matrix equation files on the first line, followed by each of their filenames on 
-subsequent lines. For an example, please see the "batch_fm" sub-directory of the examples.
+subsequent lines. For an example of how to use combinefm.x, please see the "batch_fm" 
+sub-directory of the examples.
 
 When one then runs combinefm.x, all of the matrix equations in those files will be 
 combined, and tabulated forces based on all of these inputs will be the final result. 
@@ -605,6 +742,53 @@ The way that these inputs is process is the same way that the information from e
 reference for an explanation of this). This allows rudimentary batch-parallel force 
 matching.
 
+III.C.3) Relative entropy minimization
+=====================================
+
+Once all of the files have been prepared, newrem.x can be used to calculate interactions
+via relatvie entropy minimization.
+
+To use newrem.x, set "primary_output_style" in "control.in" to either 0 or 2. The executable
+newrem.x expects two trajectories, a reference trajectory that is made from a mapped atomistic
+trajectory (similar to the trajectory you would give to newfm.x) and a cg trajectory that is
+simulated using either initial guess interactions or the iteractions provided by the previous
+iteration of newrem.x. The executable also expects a file "b-spline-previous.out", which contains
+the basis set coefficients used in creating the cg trajectory (using interactions generated via 
+BI from rangefinder.x is recommended). After the executable is run, the code will output a 
+tabulated force file for every interaction in the system, labeled by the CG site types involved 
+and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
+for the next iteration of the entropy minimization. The lammps_rem example has a script that
+can be used to perform multiple iterations. 
+
+Note: The *.dat files here will contain potentials instead of forces.
+Note: Forces are not needed in the input mapped trajectory.
+Note: The reference information can be provided via distribution functions or a pre-processed
+matrix using the reference_input_style.
+
+III.C.4) Iterative Boltzmann inversion
+============================
+
+Once all of the files have been prepared, newibi.x can be used to calculate interactions
+via iterative Boltzmann inversion.
+
+To use newibi.x, set "primary_output_style" in "control.in" to either 0 or 2. The executable
+newibi.x expects two trajectories, a reference trajectory that is made from a mapped atomistic
+trajectory (similar to the trajectory you would give to newfm.x) and a cg trajectory that is
+simulated using either initial guess interactions or the iteractions provided by the previous
+iteration of newrem.x. The executable also expects a file "b-spline-previous.out", which contains
+the basis set coefficients used in creating the cg trajectory (using interactions generated via 
+BI from rangefinder.x is recommended). After the executable is run, the code will output a 
+tabulated force file for every interaction in the system, labeled by the CG site types involved 
+and the interaction class (bon, dih, ang, etc). A simulation should be run using these interactions
+for the next iteration of the entropy minimization. The lammps_rem example has a script that
+can be used to perform multiple iterations. 
+
+Note: The *.dat files here will contain potentials instead of forces.
+Note: Forces are not needed in the input mapped trajectory.
+Note: The reference and cg information can be provided via distribution functions or a pre-processed
+matrix using the reference_input_style.
+Note: Only one model (reference or cg) can be input via distribution function at a time. 
+When it is, the other model must be input via trajectory.
 
 III.D) Check results
 ~~~~~~~~~~~~~~~~~~~~
@@ -724,7 +908,9 @@ papers were listed at the beginning of this manual.
        The combined right-hand side of Eq. (5) or (7) should be combined into a single 
        trajectory where the result of that right-hand side is in place of the forces. 
        Then, run the package as usual.
- 
+ 	The LAMMPS pair_styles used to run with these interactions are in the
+	LAMMPS-ADD-ON repository.
+	
 8. This package provides support for the fitting of CG interactions as described in 
    J. Chem. Theory Comput., 12(5), 2144–2153 (2016). The frames generated using resulting 
    EDS potential can be used as input to this package. Then, run the package as usual.
@@ -736,7 +922,7 @@ papers were listed at the beginning of this manual.
    is assigned between states 1 and 2 based on a random number (random_number_seed).
    This frame is resampled with different state assignments
    (dynamic_state_samples_per_frame).
-
+      
 10. The "local" density interactions in "Extending the Range and Physical Accuracy of
 	Coarse-grained Models: Order Parameter Dependent Interactions " are described in 
 	the "density supplement". This paper used the Lucy weight function 
@@ -746,4 +932,13 @@ papers were listed at the beginning of this manual.
 	code was complied (set the DIMENSION variable in the Makefile to 1) and run (with 
 	position_dimension 1 in control.in).
 	The LAMMPS pair_styles and fixes used to run with these interactions are in the
+	LAMMPS-ADD-ON repository.
+	
+11. The observables in "Multiscale Compatible Observable Decomposition (MS-CODE) for 
+	Coarse-grained Observable Representation" were fit using symmetric interaction
+	(rmin*.in files "mode" is set to "sym") and one-body terms (one_body_flag 1). 
+	Pressure was fit with everthing else as usual.
+	Potential also required the use of scalar matching (scalar_matching_flag 1),
+	and the potential is read from the "fx" column of the trajectory.
+	The LAMMPS pair_styles used to run with these interactions are in the
 	LAMMPS-ADD-ON repository.

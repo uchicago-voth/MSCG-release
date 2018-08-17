@@ -2,26 +2,26 @@ start_frame 1
 n_frames 100
 block_size 10
 nonbonded_cutoff 1.2
-max_pair_bonds_per_site 4
-max_angles_per_site 12
-max_dihedrals_per_site 36
-angle_type 1
-dihedral_type 1
+max_pair_bonds_per_site 4 # Increase the number of bonds per site for topology
+max_angles_per_site 12 # Increase the number of angle per site for topology
+max_dihedrals_per_site 36 # Increase the number of dihedrals per site for topology
+angle_type 1 # Use distance based angles (these are 1-3 distances only)
+dihedral_type 1 # Use distance based dihedrals (these are 1-4 distances only)
 three_body_nonbonded_style 0
 basis_type 0
 pair_nonbonded_bspline_basis_order 6
-pair_bond_bspline_basis_order 4
-angle_bspline_basis_order 4
-dihedral_bspline_basis_order 4
-pair_nonbonded_basis_set_resolution 0.002
-pair_bond_basis_set_resolution 0.02
-angle_basis_set_resolution 0.02
-dihedral_basis_set_resolution 0.02
+pair_bond_bspline_basis_order 4	# B-spline order for pair bonded interactions.
+angle_bspline_basis_order 4		# B-spline order for angular interactions.
+dihedral_bspline_basis_order 4 	# B-spline order for dihedral interactions.
+pair_nonbonded_basis_set_resolution 0.002 
+pair_bond_basis_set_resolution 0.02 # Spacing of spline knots for pair bonded B-splines (internal representation).
+angle_basis_set_resolution 0.02		# Spacing of spline knots for angular B-splines (internal representation).
+dihedral_basis_set_resolution 0.02	# Spacing of spline knots for dihedral B-splines (internal representation).
 pair_nonbonded_output_binwidth 0.01
-pair_bond_output_binwidth 0.02
-angle_output_binwidth 0.02
-dihedral_output_binwidth 0.02
-matrix_type 0
-itnlim 0
+pair_bond_output_binwidth 0.02		# Spacing output files for pair bonded interactions.
+angle_output_binwidth 0.02			# Spacing output files for angular interactions.
+dihedral_output_binwidth 0.02		# Spacing output files for dihedral interactions.
+matrix_type 0			# Matrix type (0 - dense, 3 - sparse-dense, 4 - sparse-sparse)
+itnlim 0				# Max. number of iterations for sparse solver's iterative solution refinement
 primary_output_style 2
-num_sparse_threads 8
+num_sparse_threads 8	# Used to suggest how many threads the sparse solver should use (with matrix type 3 or 4)

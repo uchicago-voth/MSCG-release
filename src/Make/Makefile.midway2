@@ -1,0 +1,187 @@
+DIMENSION = 3
+## module load gsl/2.2.1+intel-16.0
+## module load intel/16.0
+GSL_DIR = /software/gsl-2.2.1-el7-x86_64+intel-16.0
+GSLPATH = $(GSL_DIR)/lib
+GMXPATH = /project/gavoth/jwwagner/local/gromacs/lib
+GMXINC = /project/gavoth/jwwagner/local/gromacs/include
+
+WARN_FLAGS = -Wall -Wextra -wn=3 -Wwrite-strings -Wuninitialized -Wstrict-prototypes -Wreorder -Wreturn-type -Wsign-compare -Wshadow -Wmissing-prototypes -Wmissing-declarations -Wunused-function -Wunused-variable -pedantic
+
+OPT = -g -std=c++11 $(WARN_FLAGS)
+MKL_OPT = -O2 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -fopenmp -std=c++11 $(WARN_FLAGS)
+
+LIBS         =  -lm -L$(GSLPATH) -lgsl -mkl -L$(GMXPATH) -lxdrfile
+LDFLAGS      = $(OPT) 
+CFLAGS	     = $(OPT)
+
+MKL_LDFLAGS  = $(MKL_OPT) -L$(GMXPATH) -lxdrfile
+MKL_CFLAGS   = $(MKL_OPT) 
+NO_GRO_LIBS    = -lm -L$(GSLPATH) -lgsl -mkl
+NO_GRO_LDFLAGS = $(OPT)
+NO_GRO_CFLAGS  = $(OPT)
+MKL_NO_GRO_LIBS    = -lm -L$(GSLPATH) -lgsl -mkl
+MKL_NO_GRO_LDFLAGS  = $(MKL_OPT) 
+MKL_NO_GRO_CFLAGS   = $(MKL_OPT)
+
+CC           = icc
+
+COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input.o misc.o
+COMMON_SOURCE = control_input.h fm_output.h force_computation.h geometry.h interaction_hashing.h interaction_model.h matrix.h splines.h topology.h trajectory_input.h misc.h
+MKL_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix_mkl.o splines.o topology.o trajectory_input.o misc.o
+NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix.o splines.o topology.o trajectory_input_no_gro.o misc.o
+MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geometry.o interaction_hashing.o interaction_model.o matrix_mkl.o splines.o topology.o trajectory_input_no_gro.o misc.o
+
+# Target executables
+# The library for LAMMPS is lib_mscg.a
+lib_mscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS)
+	ar rvs lib_mscg.a *.o
+
+newfm: newfm.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newfm.o $(COMMON_OBJECTS) $(LIBS)
+
+newfm_mkl: newfm.o $(MKL_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newfm.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+
+newfm_no_gro: newfm.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+
+newfm_mkl_no_gro: newfm.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x newfm.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+	
+newrem: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(COMMON_OBJECTS) $(LIBS)
+
+newrem_mkl: newrem_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem_mkl.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
+
+newrem_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	
+newrem_mkl_no_gro: newrem.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
+newibi: newibi.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(COMMON_OBJECTS) $(LIBS)
+
+newibi_mkl: newibi_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi_mkl.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
+
+newibi_no_gro: newibi.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	
+newibi_mkl_no_gro: newibi.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
+recode: recode.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+
+recode_mkl: recode_mkl.o  $(MKL_COMMON_OBJECTS) 
+	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(MKL_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+
+recode_no_gro: recode.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+recode_mkl_no_gro: recode_mkl.o  $(MKL_NO_GROCOMMON_OBJECTS) 
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(MKL_NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+combinefm: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
+
+combinefm_mkl: combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+
+rangefinder: rangefinder.o range_finding.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+
+rangefinder_no_gro: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+
+# Target objects
+
+mscg.o: mscg.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c mscg.cpp -o mscg.o
+
+newfm.o: newfm.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newfm.cpp
+	
+newfm_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newfm.cpp -D"_mkl_flag=1" -o newfm_mkl.o
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
+newrem_mkl.o: newrem.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newrem.cpp -D"_mkl_flag=1" -o newrem_mkl.o
+
+newibi.o: newibi.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newibi.cpp
+
+newibi_mkl.o: newibi.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newibi.cpp -D"_mkl_flag=1" -o newibi_mkl.o
+
+recode.o: recode.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c recode.cpp
+
+recode_mkl.o: recode.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c recode.cpp -D"_mkl_flag=1" -o recode_mkl.o
+
+combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c combinefm.cpp
+
+rangefinder.o: rangefinder.cpp range_finding.h $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c rangefinder.cpp
+
+batch_fm_combination.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
+	$(CC) $(CFLAGS) -c batch_fm_combination.cpp
+
+batch_fm_combination_mkl.o: batch_fm_combination.cpp batch_fm_combination.h external_matrix_routines.h misc.h
+	$(CC) $(MKL_CFLAGS) -c batch_fm_combination.cpp -D"_mkl_flag=1" -o batch_fm_combination_mkl.o
+
+control_input.o: control_input.cpp control_input.h misc.h
+	$(CC) $(CFLAGS) -c control_input.cpp
+
+geometry.o: geometry.cpp geometry.h
+	$(CC) $(CFLAGS) -c geometry.cpp -DDIMENSION=$(DIMENSION)
+
+fm_output.o: fm_output.cpp fm_output.h force_computation.h misc.h
+	$(CC) $(CFLAGS) -c fm_output.cpp
+
+force_computation.o: force_computation.cpp force_computation.h interaction_model.h matrix.h trajectory_input.h misc.h range_finding.h
+	$(CC) $(CFLAGS) -c force_computation.cpp -DDIMENSION=$(DIMENSION)
+
+interaction_hashing.o: interaction_hashing.cpp interaction_hashing.h
+	$(CC) $(CFLAGS) -c interaction_hashing.cpp
+
+interaction_model.o: interaction_model.cpp interaction_model.h control_input.h interaction_hashing.h topology.h misc.h
+	$(CC) $(CFLAGS) -c interaction_model.cpp -DDIMENSION=$(DIMENSION)
+
+matrix.o: matrix.cpp matrix.h control_input.h external_matrix_routines.h interaction_model.h misc.h
+	$(CC) $(CFLAGS) -c matrix.cpp -DDIMENSION=$(DIMENSION)
+
+matrix_mkl.o: matrix.cpp matrix.h control_input.h external_matrix_routines.h interaction_model.h misc.h
+	$(CC) $(MKL_CFLAGS) -c matrix.cpp -D"_mkl_flag=1" -DDIMENSION=$(DIMENSION) -o matrix_mkl.o
+
+misc.o: misc.cpp misc.h
+	$(CC) $(CFLAGS) -c misc.cpp
+
+range_finding.o: range_finding.cpp range_finding.h force_computation.h interaction_model.h matrix.h misc.h
+	$(CC) $(CFLAGS) -c range_finding.cpp -DDIMENSION=$(DIMENSION)
+
+splines.o: splines.cpp splines.h interaction_model.h
+	$(CC) $(CFLAGS) -c splines.cpp -DDIMENSION=$(DIMENSION)
+
+topology.o: topology.cpp topology.h interaction_model.h misc.h
+	$(CC) $(CFLAGS) -c topology.cpp -DDIMENSION=$(DIMENSION)
+
+trajectory_input.o: trajectory_input.cpp trajectory_input.h control_input.h misc.h
+	$(CC) $(CFLAGS) -c trajectory_input.cpp -DDIMENSION=$(DIMENSION) -I$(GMXINC)
+
+trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input.h misc.h
+	$(CC) $(NO_GRO_CFLAGS) -c trajectory_input.cpp -D"_exclude_gromacs=1" -o trajectory_input_no_gro.o
+
+# Other convenient commands
+clean:
+	rm *.[o]
+
+all: libmscg.a newfm rangefinder combinefm newrem recode newibi

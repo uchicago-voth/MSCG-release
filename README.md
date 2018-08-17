@@ -24,5 +24,5 @@ If you use this package, please cite at least one of these papers:
   Scalable Algorithms for Multiscale Coarse-Graining", Journal of Chemical Theory and 
   Computation, 6(3), 954-965 (2010). doi:10.1021/ct900643r
 
-This code is distributed under the GNU General Public License version 3 (GPLv3). For details,
+The code is distributed under the GNU General Public License version 3 (GPLv3). For details,
 see the LICENSE file.

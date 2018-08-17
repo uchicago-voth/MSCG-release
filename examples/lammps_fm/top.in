@@ -1,10 +1,10 @@
-cgsites 1000
-cgtypes 1
-1
-moltypes 1
-mol 1 3
+cgsites 1000 # Number of CG sites per frame
+cgtypes 1	 # Number of CG types
+1			 # Name for each CG type (1 per line)
+moltypes 1	 # Number of molecule types
+mol 1 3		 # Information on first molecule type (number of sites in molecule, topology style)
 sitetypes
-1
-bonds 0
-system 1
-1 1000
+1			 # List the type of each site in the molecule (1 per line)
+bonds 0		 # Number of bonds in molecule (if yes, list pairs in extra lines)
+system 1	 # Number of different "systems" in frame - the following ordering must match trajectory ordering
+1 1000		 # Molecule/system number followed by number of copies in frame (in order)

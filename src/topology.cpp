@@ -20,6 +20,9 @@
 
 // Determine the maximum number of items possible for a given exclusion.
 inline unsigned get_max_exclusion_number(TopologyData const* topo_data, const int excluded_style);
+// Read the molecule groups for radius of gyration types defined in the topology file.
+int read_molecule_groups(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num, std::string* &rg_lines);
+void process_molecule_groups(TopologyData* topo_data, std::string* &rg_lines);
 // Read the specification for three-body interactions.
 int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line);
 // Read the density groups defined in the topology file.
@@ -94,11 +97,13 @@ void initialize_topology_data(TopologyData* const topo_data)
 {
 	unsigned nsites = topo_data->n_cg_sites;
     topo_data->cg_site_types = new int[nsites]();
-    
+    topo_data->molecule_ids  = new int[nsites]();
+
     topo_data->name = new char*[topo_data->n_cg_types]();
     for (unsigned i = 0; i < topo_data->n_cg_types; i++) {
         topo_data->name[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1]();
     }
+    topo_data->max_quints_per_site = topo_data->max_dihedrals_per_site + 2;
     // Ready pair bond data structures.
     topo_data->bond_type_activation_flags = new int[calc_n_distinct_pairs(topo_data->n_cg_types)]();
     topo_data->bond_list = new TopoList(nsites, 1, topo_data->max_pair_bonds_per_site);
@@ -108,6 +113,9 @@ void initialize_topology_data(TopologyData* const topo_data)
     // Ready dihedral bond data structures.
     topo_data->dihedral_type_activation_flags = new int[calc_n_distinct_quadruples(topo_data->n_cg_types)]();
     topo_data->dihedral_list = new TopoList(nsites, 3, topo_data->max_dihedrals_per_site);
+    // Ready dihedral bond data structures.
+    topo_data->quint_type_activation_flags = new int[calc_n_distinct_quints(topo_data->n_cg_types)]();
+    topo_data->quint_list = new TopoList(nsites, 4, topo_data->max_quints_per_site);
     // Ready exclusion list data structures.
 	topo_data->exclusion_list = new TopoList(nsites, 1, get_max_exclusion_number(topo_data, topo_data->excluded_style));
 	// Read density exclusion list data structures.
@@ -119,6 +127,7 @@ void TopologyData::free_topology_data(void) {
   printf("Freeing topology information.\n");
   
   if (cg_site_types != NULL) delete [] cg_site_types;
+  if (molecule_ids != NULL) delete [] molecule_ids;
     
     if (name != NULL) {
         for (unsigned i = 0; i < n_cg_types; i++) {
@@ -131,6 +140,8 @@ void TopologyData::free_topology_data(void) {
     if (bond_list != NULL) delete bond_list;
     if (angle_list != NULL) delete angle_list;
     if (dihedral_list != NULL) delete dihedral_list;
+    if (quint_list != NULL) delete quint_list;
+    if (molecule_list != NULL) delete molecule_list;
     delete exclusion_list;
 	delete density_exclusion_list;
 	
@@ -138,6 +149,7 @@ void TopologyData::free_topology_data(void) {
     if (bond_type_activation_flags != NULL) delete [] bond_type_activation_flags;
     if (angle_type_activation_flags != NULL) delete [] angle_type_activation_flags;
     if (dihedral_type_activation_flags != NULL) delete [] dihedral_type_activation_flags;
+    if (quint_type_activation_flags != NULL) delete [] quint_type_activation_flags;
 }
 
 //---------------------------------------------------------------
@@ -149,6 +161,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     int line = 0;
     unsigned i;
     char parameter_name[50];
+    std::string* rg_lines = NULL;
     std::string buff;
     std::ifstream top_in;
     check_and_open_in_stream(top_in, "top.in");
@@ -177,6 +190,11 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     for (i = 0; i < topo_data->n_cg_types; i++) {
         check_and_read_next_line(top_in, buff, line);
         sscanf(buff.c_str(), "%s", topo_data->name[i]);
+    }
+    
+    // Read the section of top.in defining radius of gyration interactions, if present.
+    if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
+    	line = read_molecule_groups(topo_data, cg, top_in, line, rg_lines);
     }
     
     // Read the section of top.in defining three body nonbonded interactions, if present.
@@ -274,6 +292,7 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
     				exit(EXIT_FAILURE);
                 }
                 topo_data->cg_site_types[k + first_site_in_molecule] = mol[molecule_type].cg_site_types[k];
+                topo_data->molecule_ids[k + first_site_in_molecule] = j;
                 topo_data->bond_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].bond_list->partner_numbers_[k];
                 for (l = 0; l < mol[molecule_type].bond_list->partner_numbers_[k]; l++) {
                     topo_data->bond_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].bond_list->partners_[k][l] + first_site_in_molecule;
@@ -285,6 +304,10 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
                 topo_data->dihedral_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].dihedral_list->partner_numbers_[k];
                 for (l = 0; l < 3 * mol[molecule_type].dihedral_list->partner_numbers_[k]; l++) {
                     topo_data->dihedral_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].dihedral_list->partners_[k][l] + first_site_in_molecule;
+                }
+                topo_data->quint_list->partner_numbers_[k + first_site_in_molecule] = mol[molecule_type].quint_list->partner_numbers_[k];
+                for (l = 0; l < 4 * mol[molecule_type].quint_list->partner_numbers_[k]; l++) {
+                    topo_data->quint_list->partners_[k + first_site_in_molecule][l] = mol[molecule_type].quint_list->partners_[k][l] + first_site_in_molecule;
                 }
             }
             first_site_in_molecule += mol[molecule_type].n_cg_sites;
@@ -299,6 +322,12 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
 	// Set-up appropriate bonded exclusions list from non-bonded interactions based on excluded_style
 	setup_excluded_list(topo_data, topo_data->exclusion_list, topo_data->excluded_style);
 	setup_excluded_list(topo_data, topo_data->density_exclusion_list, topo_data->density_excluded_style);
+	setup_molecule_list(topo_data, topo_data->molecule_list, total_cg_molecules, max_mol_size);
+	
+	// Process the molecule group information now, if necessary.
+	if (cg->radius_of_gyration_interactions.class_subtype > 0 || cg->helical_interactions.class_subtype > 0) {
+    	process_molecule_groups(topo_data, rg_lines);
+    }
 	
     // Close the file and free the memory used to store the temporary
     // single-molecule topologies.
@@ -307,6 +336,74 @@ void read_topology_file(TopologyData* topo_data, CG_MODEL_DATA* const cg)
         mol[i].free_topology_data();
     }
     delete [] mol;
+}
+
+int read_molecule_groups(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line_num, std::string* &rg_lines)
+{
+	std::string buff;
+	char parameter_name[50] = "";
+	
+	// Check label.
+	check_and_read_next_line(top_in, buff);
+    line_num++;	
+	sscanf(buff.c_str(), "%s%d", parameter_name, &(topo_data->n_molecule_groups));
+  	if (strcmp(parameter_name, "molecule_groups") != 0) report_topology_input_format_error(line_num, parameter_name);
+	if (topo_data->n_molecule_groups > 5) {
+		printf("Cannot define more than 5 molecule groups!\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	// Allocate data, read the lines, and store them for later processing
+	rg_lines = new std::string[topo_data->n_molecule_groups];
+	printf("Read definitions for %d molecule groups.\n", topo_data->n_molecule_groups);
+	for(int i=0; i < topo_data->n_molecule_groups; i++) {
+		check_and_read_next_line(top_in, rg_lines[i]);
+		line_num++;
+	}
+	
+	return line_num;
+}
+
+void process_molecule_groups(TopologyData* topo_data, std::string* &rg_lines)
+{
+	char type_num[5] = "";
+	int mol_id, num_entries;
+	unsigned n_sites = topo_data->molecule_list->n_sites_;
+	int n_cg_molecules = (int)(n_sites);
+	std::string line;
+	
+	std::string* type_list = new std::string[n_cg_molecules + 1];
+    topo_data->molecule_groups = new bool[topo_data->n_molecule_groups * n_cg_molecules]();
+	topo_data->molecule_group_names = new char*[topo_data->n_molecule_groups];
+    for (int i = 0; i < topo_data->n_molecule_groups; i++) {
+        topo_data->molecule_group_names[i] = new char[MAX_CG_TYPE_NAME_LENGTH + 1];
+    }
+	  
+	for(int i=0; i < topo_data->n_molecule_groups; i++) {
+		// Split line using string tools. 
+		num_entries = StringSplit(rg_lines[i], " \t", type_list);
+		// First entry is the name of the CG group.
+		sprintf(topo_data->molecule_group_names[i], "%s", type_list[0].c_str());
+		// Add cg_type to molecule_group definition.
+		for (int j=1; j < num_entries; j++) {
+			sprintf(type_num, "%s", type_list[j].c_str());
+			if( isalpha(type_num[0]) ) {
+				printf("CG types in molecule group need to be stated in term of numbers based on their order in the systems defined in top.in.\n");
+				printf("Problem with label: %s\n", type_num);
+				fflush(stdout);
+				exit(EXIT_FAILURE);
+			}
+			mol_id = atoi( type_num );
+			// Check that read was successful and then correct mol_id from 1-base to 0-base.
+			if( (mol_id > 0) && (mol_id <= n_cg_molecules) ){
+				topo_data->molecule_groups[i*(n_cg_molecules) + mol_id - 1] = true;
+			} else {
+				printf("invalid molecule number: %s\n", type_num); fflush(stdout);
+			}
+		}
+	}
+	delete [] type_list;
+	delete [] rg_lines;
 }
 
 int read_three_body_topology(TopologyData* topo_data, CG_MODEL_DATA* const cg, std::ifstream &top_in, int line)
@@ -769,6 +866,48 @@ void read_molecule_definition(TopologyData* const mol, TopologyData *topo_data, 
             printf("Automatically generated dihedral topology; %d dihedrals of %d dihedral types.\n", total_dihedrals/2, calc_n_active_interactions(topo_data->dihedral_type_activation_flags, calc_n_distinct_quadruples(topo_data->n_cg_types)));
         }
     }
+    
+    // Set-up quint list by connecting angles with angles that do not go "back" on themselves
+    // Loop over CG sites in the molecule
+    int cg_site5, cg_type5;
+    for (cg_site1 = 0; cg_site1 < (int)(mol->n_cg_sites); cg_site1++) {
+    	cg_type1 = mol->cg_site_types[cg_site1];
+    	int n_quints = 0;
+        // Loop over angles involving that CG site.
+        for (j = 0; j < mol->angle_list->partner_numbers_[cg_site1]; j++) {
+        	// Then look at angles involving that partner (j).
+        	cg_site2 = mol->angle_list->partners_[cg_site1][2 * j    ]; // The sites in this angle are mol->angle_list->partner_[i][2 * j] 
+        	cg_site3 = mol->angle_list->partners_[cg_site1][2 * j + 1]; //                         and mol->angle_list->partner_[i][2 * j + 1].
+			cg_type2 = mol->cg_site_types[cg_site2];
+			cg_type3 = mol->cg_site_types[cg_site3];
+			for (unsigned k = 0; k < mol->angle_list->partner_numbers_[mol->angle_list->partners_[cg_site1][2 * j + 1]]; k++) {
+				// Make sure that this angle is not folding back on the first angle
+				cg_site4 = mol->angle_list->partners_[cg_site3][2 * k];
+				cg_site5 = mol->angle_list->partners_[cg_site3][2 * k + 1]; 
+				cg_type4 = mol->cg_site_types[cg_site4];
+				cg_type5 = mol->cg_site_types[cg_site5];
+				// // The end of the 2nd angle can not match a site in the 1st angle.
+				if (cg_site5 == cg_site1) continue;
+				if (cg_site5 == cg_site2) continue;
+				// // The middle of the 2nd angle can not match a site in the 1st angle.
+				if (cg_site4 == cg_site1) continue;
+				if (cg_site4 == cg_site2) continue;
+				
+				// Add this quint to this partner list
+				mol->quint_list->partners_[cg_site1][4 * n_quints    ] = cg_site2;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 1] = cg_site3;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 2] = cg_site4;
+				mol->quint_list->partners_[cg_site1][4 * n_quints + 3] = cg_site5;
+				
+				// Set the activation flag for this site. 
+				hash_val = calc_five_body_interaction_hash(cg_type2, cg_type3, cg_type4, cg_type1, cg_type5, topo_data->n_cg_types);
+				topo_data->quint_type_activation_flags[hash_val] = 1;
+				n_quints++;
+			}
+		}
+		// set actual number of quints for this site
+		mol->quint_list->partner_numbers_[cg_site1] = n_quints;
+    }
 }
 
 void recursive_exclusion_search(TopologyData const* topo_data, TopoList* &exclusion_list, std::vector<int> &path_list)
@@ -876,6 +1015,50 @@ void setup_excluded_list( TopologyData const* topo_data, TopoList* &exclusion_li
     		exit(EXIT_FAILURE);
     	}
     }
+}
+
+void setup_molecule_list(TopologyData const* topo_data, TopoList* &molecule_list, const int n_molecules, const int max_molecule_size)
+{
+	if (molecule_list != NULL) {
+		delete molecule_list;
+	}
+	molecule_list = new TopoList(n_molecules, 1, max_molecule_size);
+	int my_id;
+	for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
+		my_id = topo_data->molecule_ids[i];
+		molecule_list->partners_[my_id][molecule_list->partner_numbers_[my_id]] = i;
+		molecule_list->partner_numbers_[my_id]++;
+	}
+}
+
+void update_molecule_list(TopologyData const* topo_data, TopoList* &molecule_list)
+{
+	// Check number of molecules
+	int n_molecules = molecule_list->n_sites_;
+	for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
+		if (topo_data->molecule_ids[i] > n_molecules) {
+			n_molecules = topo_data->molecule_ids[i];
+		}
+	}
+	
+	// Determine max molecule size
+	int max_molecule_size = 1;
+	int* molecule_size = new int[n_molecules]();
+	for (int i = 0; i < n_molecules; i++) {
+		molecule_size[i] = 0;
+	}
+	for (unsigned i = 0; i < topo_data->n_cg_sites; i++) {
+		molecule_size[topo_data->molecule_ids[i]]++;
+	}
+	for (int i = 0; i  < n_molecules; i++) {
+		if(molecule_size[i] > max_molecule_size) {
+			max_molecule_size = molecule_size[i];
+		}
+	}
+	delete [] molecule_size;
+	
+	// Setup new molecule list
+	setup_molecule_list(topo_data, molecule_list, n_molecules, max_molecule_size);
 }
 
 bool new_excluded_partner(unsigned** const excluded_partners, const int location, const unsigned current_size, const unsigned new_site) {

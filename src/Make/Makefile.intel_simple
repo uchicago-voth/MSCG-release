@@ -41,29 +41,65 @@ MKL_NO_GRO_COMMON_OBJECTS = control_input.o fm_output.o force_computation.o geom
 libmscg.a: mscg.o $(NO_GRO_COMMON_OBJECTS)
 	ar rvs libmscg.a *.o
 
-newfm.x: newfm.o $(COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ newfm.o $(COMMON_OBJECTS) $(LIBS)
+newfm: newfm.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newfm.o $(COMMON_OBJECTS) $(LIBS)
 
-newfm_mkl.x: newfm.o $(MKL_COMMON_OBJECTS)
-	$(CC) $(MKL_LDFLAGS) -o $@ newfm.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+newfm_mkl: newfm.o $(MKL_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newfm.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
 
-newfm_no_gro.x: newfm.o $(NO_GRO_COMMON_OBJECTS)
-	$(CC) $(NO_GRO_LDFLAGS) -o $@ newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+newfm_no_gro: newfm.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newfm.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
-newfm_mkl_no_gro.x: newfm.o $(MKL_NO_GRO_COMMON_OBJECTS)
-	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@ newfm.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+newfm_mkl_no_gro: newfm_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newfm.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
+newrem: newrem.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(COMMON_OBJECTS) $(LIBS)
+
+newrem_mkl: newrem_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem_mkl.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
+
+newrem_no_gro: newrem.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
 	
-combinefm.x: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
+newrem_mkl_no_gro: newrem.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newrem.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
 
-combinefm_mkl.x: combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS)
-	$(CC) $(MKL_LDFLAGS) -o $@ combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+newibi: newibi.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(COMMON_OBJECTS) $(LIBS)
 
-rangefinder.x: rangefinder.o range_finding.o $(COMMON_OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+newibi_mkl: newibi_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi_mkl.o $(MKL_COMMON_OBJECTS) $(MKL_LIBS) -D"_mkl_flag=1"
 
-rangefinder_no_gro.x: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
-	$(CC) $(NO_GRO_LDFLAGS) -o $@ rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
+newibi_no_gro: newibi.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+	
+newibi_mkl_no_gro: newibi.o $(MKL_NO_GRO_COMMON_OBJECTS)
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x newibi.o $(MKL_NO_GRO_COMMON_OBJECTS) $(MKL_NO_GRO_LIBS) -D"_exclude_gromacs=1" -D"_mkl_flag=1"
+
+recode: recode.o  $(COMMON_OBJECTS) 
+	$(CC) $(LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+
+recode_mkl: recode_mkl.o  $(MKL_COMMON_OBJECTS) 
+	$(CC) $(MKL_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode_mkl.o $(MKL_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(LIBS)
+
+recode_no_gro: recode.o  $(NO_GRO_COMMON_OBJECTS) 
+	$(CC) $(NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode.o $(NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+recode_mkl_no_gro: recode_mkl.o  $(MKL_NO_GROCOMMON_OBJECTS) 
+	$(CC) $(MKL_NO_GRO_LDFLAGS) -o $@${FM_BINARY_SUFFIX}.x recode_mkl.o $(MKL_NO_GRO_COMMON_OBJECTS) -D"_exclude_gromacs=1" $(NO_GRO_LIBS)
+
+combinefm: combinefm.o batch_fm_combination.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x combinefm.o batch_fm_combination.o $(COMMON_OBJECTS) $(LIBS)
+
+combinefm_mkl: combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS)
+	$(CC) $(MKL_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x combinefm.o batch_fm_combination_mkl.o $(MKL_COMMON_OBJECTS) $(LIBS) -D"_mkl_flag=1"
+
+rangefinder: rangefinder.o range_finding.o $(COMMON_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x rangefinder.o range_finding.o $(COMMON_OBJECTS) $(LIBS)
+
+rangefinder_no_gro: rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS)
+	$(CC) $(NO_GRO_LDFLAGS) -o $@$(FM_BINARY_SUFFIX).x rangefinder.o range_finding.o $(NO_GRO_COMMON_OBJECTS) $(NO_GRO_LIBS) -D"_exclude_gromacs=1"
 
 # Target objects
 
@@ -75,6 +111,24 @@ newfm.o: newfm.cpp $(COMMON_SOURCE)
 	
 newfm_mkl.o: newfm.cpp $(COMMON_SOURCE) 
 	$(CC) $(MKL_CFLAGS) -c newfm.cpp -D"_mkl_flag=1" -o newfm_mkl.o
+
+newibi.o: newibi.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newibi.cpp
+
+newibi_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newibi.cpp -D"_mkl_flag=1" -o newibi_mkl.o
+
+newrem.o: newrem.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c newrem.cpp
+
+newrem_mkl.o: newfm.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c newrem.cpp -D"_mkl_flag=1" -o newrem_mkl.o
+
+recode.o: recode.cpp $(COMMON_SOURCE)
+	$(CC) $(CFLAGS) -c recode.cpp
+
+recode_mkl.o: recode.cpp $(COMMON_SOURCE) 
+	$(CC) $(MKL_CFLAGS) -c recode.cpp -D"_mkl_flag=1" -o recode_mkl.o
 
 combinefm.o: combinefm.cpp batch_fm_combination.h $(COMMON_SOURCE)
 	$(CC) $(CFLAGS) -c combinefm.cpp
@@ -134,4 +188,4 @@ trajectory_input_no_gro.o: trajectory_input.cpp trajectory_input.h control_input
 clean:
 	rm *.[o]
 
-all: libmscg.a newfm.x rangefinder.x combinefm.x
+all: libmscg.a newfm rangefinder combinefm newrem recode newibi
