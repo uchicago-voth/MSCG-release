@@ -76,6 +76,7 @@ struct TopologyData {
 		exclusion_list = density_exclusion_list = NULL;
 		cg_site_types = NULL;
 		bond_type_activation_flags = angle_type_activation_flags = dihedral_type_activation_flags = NULL;
+		n_density_groups = 0;
 		};
 	
 	void free_topology_data(void);
